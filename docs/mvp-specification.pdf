@@ -1,0 +1,327 @@
+# Bridgelet MVP Specification (v0.1)
+
+## Scope
+
+### In Scope
+1. ✅ Create ephemeral Stellar accounts programmatically
+2. ✅ Accept exactly one inbound payment per account
+3. ✅ Restrict outbound transfers to one sweep destination
+4. ✅ Auto-sweep funds on successful claim
+5. ✅ Expire unclaimed accounts after time window
+6. ✅ Emit on-chain events for all state changes
+
+### Explicitly Out of Scope
+- ❌ Multi-currency support (single asset only)
+- ❌ Advanced claim authentication (SMS OTP, email verification)
+- ❌ Batch account creation API
+- ❌ Mobile SDKs
+- ❌ SDP integration hooks
+- ❌ Analytics dashboard
+- ❌ Claim recovery flows
+- ❌ Multi-signature authorization
+
+## Functional Requirements
+
+### FR-1: Account Creation
+**Description:** SDK creates ephemeral account with restrictions
+
+**Inputs:**
+- Funding source address
+- Payment amount
+- Asset (e.g., USDC)
+- Expiration duration (seconds)
+
+**Outputs:**
+- Ephemeral account ID
+- Public key
+- Claim URL
+- On-chain transaction hash
+
+**Acceptance Criteria:**
+- Account created on Stellar ledger
+- Restrictions enforced by Core contract
+- Metadata persisted in SDK database
+- Claim URL generated with signed token
+
+### FR-2: Payment Reception
+**Description:** Ephemeral account receives single payment
+
+**Inputs:**
+- Sender address
+- Payment amount
+- Asset
+
+**Process:**
+- Core contract validates single payment constraint
+- Payment recorded in contract storage
+- SDK detects payment via Horizon polling
+- Webhook fired: `payment.received`
+
+**Acceptance Criteria:**
+- Only first payment succeeds
+- Subsequent payments rejected by contract
+- Event emitted on-chain
+
+### FR-3: Claim Redemption
+**Description:** Recipient claims funds and sweeps to permanent wallet
+
+**Inputs:**
+- Claim token (from URL)
+- Destination wallet address
+
+**Process:**
+1. SDK validates claim token (signature, expiry, usage)
+2. SDK calls Core contract `sweep()` function
+3. Core validates authorization
+4. Core transfers funds to destination
+5. Core emits `SweepExecuted` event
+6. SDK marks claim as redeemed
+7. SDK fires webhook: `sweep.completed`
+
+**Acceptance Criteria:**
+- Funds transferred atomically
+- Claim token cannot be reused
+- Destination receives full amount (minus Stellar fees)
+- Base reserve reclaimed via account merge
+
+### FR-4: Account Expiration
+**Description:** Unclaimed accounts expire and funds returned
+
+**Inputs:**
+- Current timestamp
+- Account expiry timestamp
+
+**Process:**
+1. SDK cron job queries expired accounts
+2. For each expired account:
+   - Call Core contract `expire()`
+   - Core transfers funds to recovery address
+   - Core merges account (reclaims reserve)
+   - SDK marks account as expired
+   - Webhook: `account.expired`
+
+**Acceptance Criteria:**
+- Expired accounts cannot be claimed
+- Funds returned to sender's recovery address
+- Base reserve reclaimed
+
+### FR-5: Event Monitoring
+**Description:** Off-chain systems monitor on-chain events
+
+**Events:**
+- `AccountCreated`
+- `PaymentReceived`
+- `SweepExecuted`
+- `AccountExpired`
+
+**Acceptance Criteria:**
+- All events include relevant metadata
+- Events accessible via Soroban RPC
+- SDK indexes events in database
+
+## Non-Functional Requirements
+
+### NFR-1: Performance
+- Account creation: < 10 seconds
+- Claim redemption: < 15 seconds
+- Expiration check: Process 1000 accounts/minute
+
+### NFR-2: Availability
+- SDK uptime: 99% (MVP target)
+- Horizon dependency: Handle outages gracefully
+- Database: Daily backups
+
+### NFR-3: Security
+- Claim tokens: Cryptographically signed
+- Database: Encrypted at rest
+- API: Rate limited (100 req/hour per IP)
+
+### NFR-4: Scalability (MVP limits)
+- Max concurrent accounts: 10,000
+- Max claims per second: 10
+- Database: Single PostgreSQL instance
+
+## API Endpoints (MVP)
+
+### POST /accounts
+Create ephemeral account
+
+**Request:**
+```json
+{
+  "fundingSource": "GSENDER...",
+  "amount": "100",
+  "asset": "USDC:GISSUER...",
+  "expiresIn": 2592000
+}
+```
+
+**Response:**
+```json
+{
+  "accountId": "uuid",
+  "publicKey": "GEPHEMERAL...",
+  "claimUrl": "https://claim.bridgelet.io/c/token",
+  "txHash": "abc123...",
+  "expiresAt": "2025-02-15T00:00:00Z"
+}
+```
+
+### GET /accounts/:id
+Get account details
+
+**Response:**
+```json
+{
+  "accountId": "uuid",
+  "status": "pending_claim",
+  "amount": "100",
+  "asset": "USDC",
+  "createdAt": "2025-01-15T00:00:00Z",
+  "expiresAt": "2025-02-15T00:00:00Z"
+}
+```
+
+### POST /claims/redeem
+Redeem claim and sweep funds
+
+**Request:**
+```json
+{
+  "claimToken": "token-from-url",
+  "destinationAddress": "GRECIPIENT..."
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "txHash": "def456...",
+  "amountSwept": "100",
+  "destination": "GRECIPIENT..."
+}
+```
+
+### POST /webhooks
+Subscribe to events
+
+**Request:**
+```json
+{
+  "url": "https://your-system.com/webhook",
+  "events": ["sweep.completed", "account.expired"],
+  "secret": "webhook-signing-secret"
+}
+```
+
+## Database Schema (MVP)
+
+### accounts
+```sql
+CREATE TABLE accounts (
+  id UUID PRIMARY KEY,
+  public_key VARCHAR(56) NOT NULL,
+  funding_source VARCHAR(56) NOT NULL,
+  amount DECIMAL(18, 7) NOT NULL,
+  asset VARCHAR(100) NOT NULL,
+  status VARCHAR(20) NOT NULL, -- pending_claim, claimed, expired
+  claim_token_hash VARCHAR(64),
+  expires_at TIMESTAMP NOT NULL,
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
+);
+```
+
+### claims
+```sql
+CREATE TABLE claims (
+  id UUID PRIMARY KEY,
+  account_id UUID REFERENCES accounts(id),
+  destination_address VARCHAR(56) NOT NULL,
+  sweep_tx_hash VARCHAR(64),
+  claimed_at TIMESTAMP DEFAULT NOW()
+);
+```
+
+### webhooks
+```sql
+CREATE TABLE webhooks (
+  id UUID PRIMARY KEY,
+  url VARCHAR(500) NOT NULL,
+  events TEXT[] NOT NULL,
+  secret VARCHAR(64) NOT NULL,
+  active BOOLEAN DEFAULT TRUE,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+```
+
+## Smart Contract Interfaces (MVP)
+
+### EphemeralAccount Contract
+```rust
+pub fn initialize(
+    env: Env,
+    creator: Address,
+    expiry_ledger: u32
+) -> Result<(), Error>;
+
+pub fn record_payment(
+    env: Env,
+    amount: i128,
+    asset: Address
+) -> Result<(), Error>;
+
+pub fn sweep(
+    env: Env,
+    destination: Address,
+    auth_signature: BytesN<64>
+) -> Result<(), Error>;
+
+pub fn is_expired(env: Env) -> bool;
+```
+
+## Testing Requirements
+
+### Unit Tests
+- SDK: 80% code coverage
+- Core: 90% code coverage
+
+### Integration Tests
+- End-to-end account creation flow
+- Successful claim and sweep
+- Expiration handling
+- Payment rejection after first
+
+### Manual Testing Scenarios
+1. Create account on testnet
+2. Fund with USDC
+3. Claim via generated URL
+4. Verify sweep to permanent wallet
+5. Test expiration with unclaimed account
+
+## Deployment Requirements
+
+### SDK Deployment
+- Docker container
+- Environment variables configured
+- PostgreSQL accessible
+- Horizon/Soroban RPC endpoints set
+
+### Core Deployment
+- Contracts deployed to Stellar testnet
+- Contract IDs configured in SDK
+- Test invocations successful
+
+## Success Criteria (MVP)
+
+1. ✅ 10 test accounts created and claimed successfully
+2. ✅ Zero unauthorized sweeps in testing
+3. ✅ All expired accounts return funds correctly
+4. ✅ Documentation complete and published
+5. ✅ Code open-sourced on GitHub
+
+---
+
+*Phase 2 features tracked in separate specification document.*
+

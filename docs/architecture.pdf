@@ -1,0 +1,188 @@
+# Bridgelet Architecture Overview
+
+## Table of Contents
+1. System Architecture
+2. Component Interaction
+3. Data Flow
+4. On-Chain vs Off-Chain Responsibilities
+5. Integration Points
+
+## 1. System Architecture
+
+### High-Level Diagram
+
+┌─────────────────────┐
+│  Enterprise System  │
+│   (Sender)          │
+└──────────┬──────────┘
+│
+▼
+┌─────────────────────┐
+│   Bridgelet SDK     │
+│   (NestJS)          │
+├─────────────────────┤
+│ - Account Manager   │
+│ - Claim Auth        │
+│ - Webhook System    │
+└──────────┬──────────┘
+│
+▼
+┌─────────────────────┐        ┌─────────────────────┐
+│  Bridgelet Core     │◄──────►│  Stellar Network    │
+│  (Soroban)          │        │  (Horizon/RPC)      │
+└─────────────────────┘        └─────────────────────┘
+│
+▼
+┌─────────────────────┐
+│   Recipient         │
+│   (Claims funds)    │
+└─────────────────────┘
+
+### Component Responsibilities
+
+#### Bridgelet SDK (Off-Chain)
+- Account lifecycle state management
+- Claim token generation and validation
+- Webhook event distribution
+- Database persistence
+- API endpoints for integrations
+
+#### Bridgelet Core (On-Chain)
+- Account restriction enforcement
+- Sweep authorization and execution
+- Immutable event logging
+- Fund custody during claim window
+
+#### Stellar Network
+- Transaction processing
+- Asset transfers
+- Account state storage
+- Consensus and finality
+
+## 2. Component Interaction
+
+### Account Creation Flow
+1. Enterprise calls SDK: `POST /accounts`
+2. SDK generates ephemeral keypair
+3. SDK calls Core contract: `initialize()`
+4. Core contract sets restrictions on-chain
+5. SDK funds account via Horizon
+6. SDK stores metadata in PostgreSQL
+7. SDK returns account details + claim URL
+
+### Claim Flow
+1. Recipient opens claim URL
+2. SDK validates claim token
+3. Recipient connects permanent wallet
+4. SDK calls Core contract: `sweep(destination)`
+5. Core validates authorization
+6. Core executes atomic transfer
+7. Core emits `SweepExecuted` event
+8. SDK updates database state
+9. SDK triggers webhook notifications
+
+### Expiration Flow
+1. SDK cron job checks expired accounts
+2. For each expired: SDK calls Core contract
+3. Core transfers funds to recovery address
+4. Core merges account (reclaims reserve)
+5. SDK marks account as expired
+6. SDK triggers expiration webhooks
+
+## 3. Data Flow
+
+### State Storage
+```
+**PostgreSQL (SDK)**
+```
+
+Account metadata (ID, creator, status)
+Claim tokens and usage
+Webhook subscriptions
+Audit logs
+```
+**Soroban Storage (Core)**
+```
+
+Account restrictions
+Payment records
+Sweep destinations
+Expiry timestamps
+
+```
+**Stellar Ledger**
+```
+
+Account balances
+Transaction history
+Signer configuration
+
+
+### State Synchronization
+- SDK polls Horizon for payment events
+- SDK listens to Core contract events
+- SDK maintains eventual consistency
+- Conflicts resolved via on-chain state as source of truth
+
+## 4. On-Chain vs Off-Chain Responsibilities
+
+| Function | On-Chain (Core) | Off-Chain (SDK) | Rationale |
+|----------|----------------|-----------------|-----------|
+| Account restrictions | ✓ | | Trust-minimized enforcement |
+| Sweep authorization | ✓ | | Prevents unauthorized transfers |
+| Payment validation | ✓ | | Immutable audit trail |
+| Claim authentication | | ✓ | Flexible auth methods |
+| Token generation | | ✓ | Private key security |
+| Webhook notifications | | ✓ | Integration flexibility |
+| Expiry monitoring | | ✓ | Cron-based efficiency |
+| Database persistence | | ✓ | Query performance |
+
+## 5. Integration Points
+
+### For Payment Platforms (e.g., SDP)
+```javascript
+// Create ephemeral account
+const account = await bridgeletSDK.createAccount({
+  amount: '100',
+  asset: 'USDC:ISSUER...',
+  expiresIn: 30 * 24 * 60 * 60
+});
+
+// Get claim URL
+const claimUrl = account.claimUrl;
+
+// Subscribe to events
+await bridgeletSDK.webhooks.subscribe({
+  url: 'https://your-platform.com/webhooks',
+  events: ['sweep.completed', 'account.expired']
+});
+```
+
+### For Wallet Providers
+```javascript
+// Redeem claim (called from wallet app)
+const result = await bridgeletSDK.redeemClaim({
+  claimToken: 'uuid-from-url',
+  destinationAddress: 'GRECIPIENT...'
+});
+```
+
+## Security Boundaries
+
+1. **Trust minimization:** Critical logic (restrictions, sweeps) on-chain
+2. **Defense in depth:** Multiple validation layers
+3. **Least privilege:** Minimal permissions on ephemeral accounts
+4. **Auditability:** All state changes logged on-chain
+5. **Time bounds:** Expiration limits exposure window
+
+## Scalability Considerations
+
+- **Horizontal scaling:** SDK can run multiple instances
+- **Database sharding:** Partition by account ID prefix
+- **Batch operations:** Group expirations and sweeps
+- **Caching:** Redis for claim token validation
+- **Async processing:** Queue-based sweep execution
+
+---
+
+*See security-model.pdf for threat analysis and mitigation strategies.*

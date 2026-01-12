@@ -1,0 +1,193 @@
+# Bridgelet Security Model
+
+## Table of Contents
+1. Threat Model
+2. Trust Assumptions
+3. Attack Vectors & Mitigations
+4. Known Limitations (MVP)
+5. Security Roadmap
+
+## 1. Threat Model
+
+### Assets to Protect
+1. Funds in ephemeral accounts (during claim window)
+2. Claim authorization credentials
+3. Recipient private information (phone, email)
+4. System integrity and availability
+
+### Threat Actors
+- **External attackers:** Steal funds, spam accounts
+- **Malicious recipients:** Claim funds not intended for them
+- **Compromised integrators:** Misuse SDK privileges
+- **Insider threats:** SDK operator misconduct
+
+## 2. Trust Assumptions
+
+### Trusted Components
+- **Stellar Network:** Byzantine fault-tolerant consensus
+- **Soroban VM:** Correct contract execution
+- **PostgreSQL:** Data integrity with proper configuration
+
+### Untrusted Components
+- **Claim link transmission:** SMS/email can be intercepted
+- **Recipient devices:** May be compromised
+- **Webhook endpoints:** Can be malicious or unavailable
+
+### Trust Boundaries
+
+Sender → SDK [trusted] → Core [trusted] → Stellar [trusted]
+↓
+Claim Link [UNTRUSTED]
+↓
+Recipient [untrusted]
+
+## 3. Attack Vectors & Mitigations
+
+### Attack: Claim Link Interception
+**Scenario:** Attacker intercepts SMS/email with claim URL
+
+**Mitigation (MVP):**
+- Single-use claim tokens (burned after redemption)
+- Short expiration on claim tokens (24-48 hours)
+- HTTPS enforcement on claim URLs
+
+**Mitigation (Future):**
+- SMS OTP for high-value claims
+- Device fingerprinting
+- Biometric verification
+
+### Attack: Unauthorized Sweep
+**Scenario:** Attacker tries to sweep funds to their own wallet
+
+**Mitigation:**
+- On-chain authorization check in Core contract
+- Sweep destination validated against claim token
+- SDK requires proof of claim token ownership
+
+### Attack: Replay Attacks
+**Scenario:** Attacker reuses old claim request
+
+**Mitigation:**
+- Nonce in claim tokens
+- Token marked as used in database
+- On-chain state prevents double-sweep
+
+### Attack: DoS via Account Creation
+**Scenario:** Attacker floods SDK with account creation requests
+
+**Mitigation (MVP):**
+- Rate limiting per IP (100 requests/hour)
+- API key authentication for integrators
+- Account creation requires funded sender
+
+**Mitigation (Future):**
+- CAPTCHA for public endpoints
+- Proof-of-work for unauthenticated requests
+- Sender reputation scoring
+
+### Attack: Database Manipulation
+**Scenario:** Attacker gains access to PostgreSQL
+
+**Mitigation:**
+- Encrypted sensitive fields (claim tokens)
+- On-chain state as source of truth
+- Audit logs for all modifications
+- Regular database backups
+
+### Attack: Smart Contract Exploit
+**Scenario:** Bug in Core contract allows unauthorized operations
+
+**Mitigation:**
+- Comprehensive test coverage (>90%)
+- Formal verification (future)
+- Multi-signature upgrade mechanism
+- Bug bounty program (future)
+
+## 4. Known Limitations (MVP)
+
+### 1. Claim Authentication
+**Limitation:** Relies on secure transmission of claim links
+
+**Risk Level:** Medium  
+**Impact:** Funds can be stolen if link is intercepted  
+**Acceptance Rationale:** Acceptable for low-value payments (<$100)
+
+### 2. No Multi-Sig Support
+**Limitation:** Single signature authorizes sweeps
+
+**Risk Level:** Medium  
+**Impact:** Compromised SDK key allows unauthorized sweeps  
+**Mitigation:** Key stored in environment variables (Phase 2: HSM)
+
+### 3. No Claim Recovery
+**Limitation:** Lost claim links cannot be recovered
+
+**Risk Level:** Low  
+**Impact:** Funds locked until expiration  
+**Acceptance Rationale:** MVP focuses on happy path
+
+### 4. Centralized SDK Operator
+**Limitation:** SDK operator has significant control
+
+**Risk Level:** Medium  
+**Impact:** Operator can censor claims or cause downtime  
+**Mitigation:** Open-source code enables self-hosting
+
+## 5. Security Roadmap
+
+### Phase 1 (MVP) - Q1 2025
+- ✓ On-chain restriction enforcement
+- ✓ Single-use claim tokens
+- ✓ Rate limiting
+- ✓ Encrypted database fields
+
+### Phase 2 - Q2 2025
+- HSM integration for key management
+- SMS OTP authentication
+- Claim recovery flow
+- External security audit
+
+### Phase 3 - Q3 2025
+- Multi-signature sweep authorization
+- Zero-knowledge claim proofs
+- Decentralized claim validation
+- Bug bounty program
+
+### Phase 4 - Q4 2025
+- Formal verification of contracts
+- Threshold cryptography
+- Hardware wallet integration
+- Insurance protocol integration
+
+## Security Checklist for Integrators
+
+- [ ] Use HTTPS for all claim URLs
+- [ ] Implement webhook signature verification
+- [ ] Store API keys securely (never in code)
+- [ ] Monitor for unusual claim patterns
+- [ ] Set appropriate expiration windows
+- [ ] Validate recipient information before funding
+- [ ] Enable webhook alerts for security events
+- [ ] Regularly rotate API keys
+- [ ] Audit logs of all account operations
+- [ ] Test failure scenarios (expired claims, insufficient funds)
+
+## Incident Response
+
+### Security Event Categories
+1. **Critical:** Unauthorized fund sweeps, contract exploits
+2. **High:** Claim token leaks, database breaches
+3. **Medium:** DoS attacks, API abuse
+4. **Low:** Failed claim attempts, webhook failures
+
+### Response Protocol
+1. Detect: Monitoring alerts + user reports
+2. Contain: Pause affected operations
+3. Investigate: Analyze logs and on-chain data
+4. Remediate: Deploy fixes, revoke compromised credentials
+5. Communicate: Notify affected users and integrators
+6. Post-mortem: Document lessons learned
+
+---
+
+*For vulnerability disclosure, email: aminubabafatima8@gmail.com*
