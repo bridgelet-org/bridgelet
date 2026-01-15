@@ -20,9 +20,9 @@ Bridgelet is an open-source infrastructure SDK that enables organizations to sen
 
 ## Architecture
 
-- **bridgelet-core:** Soroban smart contracts for on-chain account restrictions and sweep logic
-- **bridgelet-sdk:** NestJS backend SDK for account lifecycle management and claim authentication
-- **bridgelet-ui:** (Future) Next.js reference implementation for claim flows
+- **[bridgelet-core](https://github.com/bridgelet-org/bridgelet-core):** Soroban smart contracts for on-chain account restrictions and sweep logic
+- **[bridgelet-sdk](https://github.com/bridgelet-org/bridgelet-sdk):** NestJS backend SDK for account lifecycle management and claim authentication
+- **[bridgelet-ui](https://github.com/bridgelet-org/bridgelet-frontend):** (Future) Next.js reference implementation for claim flows
 
 ## Documentation
 
@@ -33,6 +33,8 @@ Comprehensive documentation is available in `/docs`:
 - [🚀 Getting Started Guide](./docs/getting-started.pdf)
 - [🔧 Integration Guide](./docs/integration-guide.pdf)
 - [📊 Use Cases & Examples](./docs/use-cases.pdf)
+
+This documentation is still a work in progress and will constantly change as the project progresses. If pdf file is not visible on github, clone the repo to view full documentation
 
 ## Quick Start
 ```bash
