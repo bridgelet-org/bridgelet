@@ -6,6 +6,10 @@
 
 Bridgelet is an open-source infrastructure SDK that enables organizations to send payments to recipients who don't have crypto wallets yet. It creates secure, single-use Stellar accounts that automatically bridge recipients into permanent wallets when they claim funds.
 
+Bridgelet reduces wallet friction in mass payment scenarios such as payro;;, aid disbursements, airdrops, and remittances without erequiring recipients to understand seed phrases or Steller concepts upfront.
+
+Bridgelet is designed as infrastructure, not an end-user wallet or disbursement platform. It can operate as a standalone or integrated with systems like the Stellar Disbursement Platform (SDP)
+
 **The problem:** Mass payments (payroll, aid, airdrops) fail when recipients don't have wallets or understand seed phrases.
 
 **The solution:** Create temporary accounts that recipients can claim without crypto knowledge, then auto-sweep funds to permanent wallets.
@@ -20,8 +24,8 @@ Bridgelet is an open-source infrastructure SDK that enables organizations to sen
 
 ## Architecture
 
-- **bridgelet-core:** Soroban smart contracts for on-chain account restrictions and sweep logic
-- **bridgelet-sdk:** NestJS backend SDK for account lifecycle management and claim authentication
+- **bridgelet-core:** Soroban smart contracts for on-chain account restrictions and sweep logic [Reposirory](https://github.com/bridgelet-org/bridgelet-core)
+- **bridgelet-sdk:** NestJS backend SDK for account lifecycle management and claim authentication [Repository](https://github.com/bridgelet-org/bridgelet-sdk)
 - **bridgelet-ui:** (Future) Next.js reference implementation for claim flows
 
 ## Documentation
