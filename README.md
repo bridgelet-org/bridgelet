@@ -86,7 +86,7 @@ MIT License - see [LICENSE](LICENSE)
 ## Contact
 
 - Issues: [GitHub Issues](https://bridgelet-org/bridgelet/issues)
-- Discussions: [GitHub Discussions](https://github.com/yourusername/bridgelet/discussions)
+- Discussions: [GitHub Discussions](https://github.com/bridgelet-org/bridgelet/discussions)
 <!-- - Stellar Discord: [#bridgelet](https://discord.gg/stellardev) -->
 
 ---
