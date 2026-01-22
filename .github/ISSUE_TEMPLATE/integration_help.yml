@@ -1,0 +1,62 @@
+name: Integration Help
+description: Get help integrating Bridgelet with your system.
+title: "[Integration]: "
+labels: ["integration"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this template when you need help integrating Bridgelet into your product.
+
+        Helpful docs:
+        - [Integration Guide](https://github.com/bridgelet-org/bridgelet/blob/main/docs/integration-guide.pdf)
+        - [Architecture Overview](https://github.com/bridgelet-org/bridgelet/blob/main/docs/architecture.pdf)
+        - [Security Model](https://github.com/bridgelet-org/bridgelet/blob/main/docs/security-model.pdf)
+
+        Example: "Webhook verification fails when used behind our API gateway"
+  - type: textarea
+    id: integration_goal
+    attributes:
+      label: Integration Goal
+      description: What are you trying to integrate or build?
+      placeholder: Describe the target flow or product requirement.
+    validations:
+      required: true
+  - type: textarea
+    id: system_details
+    attributes:
+      label: System Details
+      description: Describe your environment and dependencies.
+      placeholder: |
+        - Runtime / framework:
+        - Hosting / infra:
+        - Network (testnet/mainnet):
+        - Relevant services:
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps Taken
+      description: What have you tried so far?
+      placeholder: Include configuration snippets, endpoints, or flows.
+    validations:
+      required: true
+  - type: textarea
+    id: blockers
+    attributes:
+      label: Current Blocker
+      description: What is preventing progress?
+      placeholder: Describe errors, unexpected behavior, or missing docs.
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance Criteria
+      description: What would make this integration successful?
+      placeholder: |
+        - End-to-end flow completes.
+        - Error is resolved or documented.
+    validations:
+      required: true

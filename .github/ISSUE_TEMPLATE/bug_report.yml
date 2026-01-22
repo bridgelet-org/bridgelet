@@ -1,0 +1,81 @@
+name: Bug Report
+description: Report a reproducible problem with Bridgelet.
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file a bug. This template is for reproducible issues in Bridgelet.
+
+        Helpful docs:
+        - [Getting Started](https://github.com/bridgelet-org/bridgelet/blob/main/docs/getting-started.pdf)
+        - [Architecture Overview](https://github.com/bridgelet-org/bridgelet/blob/main/docs/architecture.pdf)
+        - [Integration Guide](https://github.com/bridgelet-org/bridgelet/blob/main/docs/integration-guide.pdf)
+
+        Example summary: "Sweep fails when claim happens after expiration window"
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: What is the bug and where does it happen?
+      placeholder: Short, clear description of the issue.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to Reproduce
+      description: Provide numbered steps to reproduce the issue.
+      placeholder: |
+        1. ...
+        2. ...
+        3. ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+      description: What did you expect to happen?
+      placeholder: Describe the expected outcome.
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual Behavior
+      description: What actually happened?
+      placeholder: Include any error messages or unexpected results.
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Include versions and environment details.
+      placeholder: |
+        - OS:
+        - Node.js:
+        - SDK/Package version:
+        - Network (testnet/mainnet):
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs or Screenshots
+      description: Paste relevant logs, stack traces, or screenshots.
+      placeholder: Add logs or screenshots if available.
+    validations:
+      required: false
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance Criteria
+      description: What would confirm this bug is fixed?
+      placeholder: |
+        - The failing flow succeeds with the same inputs.
+        - No regression in related flows.
+    validations:
+      required: true
