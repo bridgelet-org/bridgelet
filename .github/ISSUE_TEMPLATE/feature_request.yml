@@ -1,0 +1,58 @@
+name: Feature Request
+description: Propose an improvement or new capability.
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this template to propose new features or improvements.
+
+        Helpful docs:
+        - [MVP Specification](https://github.com/bridgelet-org/bridgelet/blob/main/docs/mvp-specification.pdf)
+        - [Use Cases & Examples](https://github.com/bridgelet-org/bridgelet/blob/main/docs/use-cases.pdf)
+        - [Security Model](https://github.com/bridgelet-org/bridgelet/blob/main/docs/security-model.pdf)
+
+        Example: "Add configurable claim window per payout batch"
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem Statement
+      description: What problem does this solve and who is affected?
+      placeholder: Describe the current limitation or pain point.
+    validations:
+      required: true
+  - type: textarea
+    id: proposed_solution
+    attributes:
+      label: Proposed Solution
+      description: Describe your proposed solution or approach.
+      placeholder: Outline the desired behavior and any UI/API changes.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+      description: Any alternative approaches or workarounds?
+      placeholder: List alternatives and why they are less suitable.
+    validations:
+      required: true
+  - type: textarea
+    id: impact
+    attributes:
+      label: Impact
+      description: What impact does this have on users or the system?
+      placeholder: Explain the expected benefits or trade-offs.
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance Criteria
+      description: What would make this feature complete?
+      placeholder: |
+        - New configuration is documented.
+        - Backward compatibility is maintained.
+    validations:
+      required: true

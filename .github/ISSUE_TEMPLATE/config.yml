@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Bridgelet Discussions
+    url: https://github.com/bridgelet-org/bridgelet/discussions
+    about: Ask questions, share ideas, or start a discussion with the community.
+  - name: Bridgelet Documentation
+    url: https://github.com/bridgelet-org/bridgelet#documentation
+    about: View the docs index for architecture, security, and integration guides.
