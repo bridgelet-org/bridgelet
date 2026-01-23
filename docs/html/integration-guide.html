@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bridgelet - Integration Guide</title>
+    <style>
+        @media print {
+            body { margin: 0; }
+            .page-break { page-break-after: always; }
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 210mm;
+            margin: 0 auto;
+            padding: 20mm;
+            background: white;
+        }
+
+        h1 {
+            color: #1a1a1a;
+            border-bottom: 3px solid #6610f2;
+            padding-bottom: 10px;
+            margin-top: 0;
+        }
+
+        h2 {
+            color: #6610f2;
+            margin-top: 30px;
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 5px;
+        }
+
+        h3 {
+            color: #333;
+            margin-top: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .header h1 {
+            border: none;
+            margin-bottom: 5px;
+        }
+
+        .header .subtitle {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .metadata {
+            background: #f8f9ff;
+            padding: 15px;
+            border-left: 4px solid #6610f2;
+            margin: 20px 0;
+        }
+
+        code {
+            background: #f4f4f4;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+        }
+
+        pre {
+            background: #282c34;
+            color: #abb2bf;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+
+        pre code {
+            background: transparent;
+            color: #abb2bf;
+        }
+
+        ul, ol {
+            padding-left: 25px;
+        }
+
+        .footer {
+            margin-top: 50px;
+            padding-top: 20px;
+            border-top: 1px solid #ddd;
+            font-size: 12px;
+            color: #666;
+            text-align: center;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+
+        th, td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+        }
+
+        th {
+            background: #6610f2;
+            color: white;
+        }
+
+        tr:nth-child(even) {
+            background: #f9f9f9;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Bridgelet</h1>
+        <p class="subtitle">Integration Guide</p>
+    </div>
+
+    <div class="metadata">
+        <strong>Document Version:</strong> 0.1 (MVP)<br>
+        <strong>Last Updated:</strong> January 2025<br>
+        <strong>Target Audience:</strong> Backend Developers, DevOps Engineers<br>
+        <strong>Prerequisites:</strong> Getting Started Guide completed
+    </div>
+
+    <h2>1. Integration Overview</h2>
+    <p>
+        This guide covers production-ready integration of Bridgelet into your existing
+        payment infrastructure. We'll cover API authentication, webhook handling, error
+        management, and deployment strategies.
+    </p>
+
+    <h2>2. API Reference</h2>
+
+    <h3>2.1 Authentication</h3>
+    <pre><code>// Initialize with API key
+const bridgelet = new BridgeletSDK({
+  apiKey: process.env.BRIDGELET_API_KEY,
+  network: 'mainnet'
+});
+
+// Or use OAuth2 for user-specific operations
+const bridgelet = new BridgeletSDK({
+  clientId: process.env.CLIENT_ID,
+  clientSecret: process.env.CLIENT_SECRET,
+  network: 'mainnet'
+});</code></pre>
+
+    <h3>2.2 Core Methods</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>Method</th>
+                <th>Parameters</th>
+                <th>Returns</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><code>createEphemeralAccount()</code></td>
+                <td>amount, asset, recipientEmail, expiresIn</td>
+                <td>Account object with claimUrl</td>
+            </tr>
+            <tr>
+                <td><code>getAccountStatus()</code></td>
+                <td>accountId</td>
+                <td>Status, balance, claimed state</td>
+            </tr>
+            <tr>
+                <td><code>claimFunds()</code></td>
+                <td>accountId, destinationKey, verificationCode</td>
+                <td>Transaction result</td>
+            </tr>
+            <tr>
+                <td><code>recoverExpiredAccount()</code></td>
+                <td>accountId</td>
+                <td>Recovery transaction</td>
+            </tr>
+            <tr>
+                <td><code>listAccounts()</code></td>
+                <td>filters, pagination</td>
+                <td>Array of accounts</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <h2>3. Production Setup</h2>
+
+    <h3>3.1 Environment Configuration</h3>
+    <pre><code># Production .env
+NODE_ENV=production
+STELLAR_NETWORK=mainnet
+STELLAR_HORIZON_URL=https://horizon.stellar.org
+
+# Bridgelet Configuration
+BRIDGELET_API_KEY=prod_key_xxx
+BRIDGELET_API_URL=https://api.bridgelet.org
+
+# Your organization wallet (use HSM in production!)
+ORGANIZATION_SECRET_KEY=ENCRYPTED_KEY_FROM_HSM
+ORGANIZATION_PUBLIC_KEY=GXXXXXXXXXXXXXXX
+
+# Database
+DATABASE_URL=postgresql://user:pass@host:5432/bridgelet
+
+# Monitoring
+SENTRY_DSN=https://xxx@sentry.io/xxx
+LOG_LEVEL=info</code></pre>
+
+    <h3>3.2 Database Schema</h3>
+    <pre><code>-- Store ephemeral account metadata
+CREATE TABLE ephemeral_accounts (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  stellar_public_key VARCHAR(56) NOT NULL UNIQUE,
+  amount DECIMAL(20, 7) NOT NULL,
+  asset VARCHAR(12) NOT NULL,
+  recipient_email VARCHAR(255),
+  recipient_phone VARCHAR(20),
+  claim_code VARCHAR(64) UNIQUE,
+  status VARCHAR(20) NOT NULL, -- created, funded, claimed, expired
+  expires_at TIMESTAMP NOT NULL,
+  claimed_at TIMESTAMP,
+  created_at TIMESTAMP DEFAULT NOW(),
+  metadata JSONB,
+  CONSTRAINT valid_status CHECK (status IN
+    ('created', 'funded', 'claimed', 'expired', 'recovered'))
+);
+
+CREATE INDEX idx_status ON ephemeral_accounts(status);
+CREATE INDEX idx_expires_at ON ephemeral_accounts(expires_at);
+CREATE INDEX idx_recipient_email ON ephemeral_accounts(recipient_email);</code></pre>
+
+    <div class="page-break"></div>
+
+    <h2>4. Webhook Integration</h2>
+
+    <h3>4.1 Setup Webhooks</h3>
+    <pre><code>// Register webhook endpoint
+await bridgelet.registerWebhook({
+  url: 'https://yourapp.com/webhooks/bridgelet',
+  events: ['account.created', 'account.funded', 'account.claimed', 'account.expired'],
+  secret: process.env.WEBHOOK_SECRET
+});</code></pre>
+
+    <h3>4.2 Webhook Handler</h3>
+    <pre><code>const express = require('express');
+const crypto = require('crypto');
+
+app.post('/webhooks/bridgelet', express.json(), async (req, res) => {
+  // Verify signature
+  const signature = req.headers['x-bridgelet-signature'];
+  const payload = JSON.stringify(req.body);
+  const expectedSignature = crypto
+    .createHmac('sha256', process.env.WEBHOOK_SECRET)
+    .update(payload)
+    .digest('hex');
+
+  if (signature !== expectedSignature) {
+    return res.status(401).json({ error: 'Invalid signature' });
+  }
+
+  // Process event
+  const { event, data } = req.body;
+
+  switch (event) {
+    case 'account.created':
+      await handleAccountCreated(data);
+      break;
+    case 'account.claimed':
+      await handleAccountClaimed(data);
+      break;
+    case 'account.expired':
+      await handleAccountExpired(data);
+      break;
+  }
+
+  res.json({ received: true });
+});</code></pre>
+
+    <h2>5. Batch Operations</h2>
+
+    <h3>5.1 Bulk Account Creation</h3>
+    <pre><code>async function createBulkPayments(recipients) {
+  const accounts = await bridgelet.createBulkAccounts(
+    recipients.map(r => ({
+      amount: r.amount,
+      asset: 'USDC',
+      recipientEmail: r.email,
+      expiresIn: '7d',
+      metadata: { employeeId: r.id }
+    }))
+  );
+
+  // Send claim links via your email service
+  for (const account of accounts) {
+    await sendClaimEmail(account.recipientEmail, account.claimUrl);
+  }
+
+  return accounts;
+}</code></pre>
+
+    <h3>5.2 CSV Import Example</h3>
+    <pre><code>const csv = require('csv-parser');
+const fs = require('fs');
+
+async function processCsvPayments(filePath) {
+  const recipients = [];
+
+  await new Promise((resolve) => {
+    fs.createReadStream(filePath)
+      .pipe(csv())
+      .on('data', (row) => {
+        recipients.push({
+          email: row.email,
+          amount: row.amount,
+          id: row.employee_id
+        });
+      })
+      .on('end', resolve);
+  });
+
+  return await createBulkPayments(recipients);
+}</code></pre>
+
+    <div class="page-break"></div>
+
+    <h2>6. Error Handling</h2>
+
+    <h3>6.1 Common Errors</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>Error Code</th>
+                <th>Description</th>
+                <th>Resolution</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><code>INSUFFICIENT_BALANCE</code></td>
+                <td>Organization wallet lacks funds</td>
+                <td>Add more XLM to your wallet</td>
+            </tr>
+            <tr>
+                <td><code>ACCOUNT_EXPIRED</code></td>
+                <td>Claim attempted on expired account</td>
+                <td>Funds must be recovered first</td>
+            </tr>
+            <tr>
+                <td><code>ALREADY_CLAIMED</code></td>
+                <td>Account already claimed</td>
+                <td>Inform user funds were claimed</td>
+            </tr>
+            <tr>
+                <td><code>INVALID_DESTINATION</code></td>
+                <td>Recipient wallet address invalid</td>
+                <td>Validate wallet before claiming</td>
+            </tr>
+            <tr>
+                <td><code>RATE_LIMIT_EXCEEDED</code></td>
+                <td>Too many requests</td>
+                <td>Implement exponential backoff</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <h3>6.2 Retry Logic</h3>
+    <pre><code>async function createAccountWithRetry(params, maxRetries = 3) {
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      return await bridgelet.createEphemeralAccount(params);
+    } catch (error) {
+      if (error.code === 'RATE_LIMIT_EXCEEDED' && i < maxRetries - 1) {
+        const delay = Math.pow(2, i) * 1000; // Exponential backoff
+        await new Promise(resolve => setTimeout(resolve, delay));
+        continue;
+      }
+      throw error;
+    }
+  }
+}</code></pre>
+
+    <h2>7. Monitoring & Logging</h2>
+
+    <h3>7.1 Key Metrics to Track</h3>
+    <ul>
+        <li>Account creation rate</li>
+        <li>Claim success rate</li>
+        <li>Average time to claim</li>
+        <li>Expiration rate</li>
+        <li>Failed claim attempts</li>
+        <li>API error rates</li>
+    </ul>
+
+    <h3>7.2 Logging Example</h3>
+    <pre><code>const winston = require('winston');
+
+const logger = winston.createLogger({
+  level: process.env.LOG_LEVEL || 'info',
+  format: winston.format.json(),
+  transports: [
+    new winston.transports.File({ filename: 'error.log', level: 'error' }),
+    new winston.transports.File({ filename: 'combined.log' })
+  ]
+});
+
+// Log account creation
+logger.info('Account created', {
+  accountId: account.id,
+  amount: account.amount,
+  asset: account.asset,
+  expiresAt: account.expiresAt
+});
+
+// Log errors with context
+logger.error('Claim failed', {
+  accountId,
+  error: error.message,
+  stack: error.stack
+});</code></pre>
+
+    <div class="page-break"></div>
+
+    <h2>8. Security Best Practices</h2>
+
+    <h3>8.1 API Key Management</h3>
+    <ul>
+        <li>Store API keys in environment variables or secret management systems (AWS Secrets Manager, HashiCorp Vault)</li>
+        <li>Rotate keys regularly (every 90 days recommended)</li>
+        <li>Use different keys for development, staging, and production</li>
+        <li>Never commit keys to version control</li>
+        <li>Implement IP allowlisting for production API access</li>
+    </ul>
+
+    <h3>8.2 Webhook Security</h3>
+    <pre><code>// Always verify webhook signatures
+function verifyWebhookSignature(payload, signature, secret) {
+  const expectedSignature = crypto
+    .createHmac('sha256', secret)
+    .update(payload)
+    .digest('hex');
+
+  return crypto.timingSafeEqual(
+    Buffer.from(signature),
+    Buffer.from(expectedSignature)
+  );
+}</code></pre>
+
+    <h3>8.3 Claim Link Security</h3>
+    <ul>
+        <li>Use HTTPS for all claim link delivery</li>
+        <li>Include expiration timestamps in claim codes</li>
+        <li>Implement rate limiting on claim attempts</li>
+        <li>Log all claim attempts for audit trails</li>
+        <li>Consider additional verification (email OTP) for high-value claims</li>
+    </ul>
+
+    <h2>9. Testing</h2>
+
+    <h3>9.1 Unit Tests</h3>
+    <pre><code>const { BridgeletSDK } = require('@bridgelet/sdk');
+const nock = require('nock');
+
+describe('Bridgelet Integration', () => {
+  let sdk;
+
+  beforeEach(() => {
+    sdk = new BridgeletSDK({
+      apiKey: 'test_key',
+      network: 'testnet'
+    });
+  });
+
+  it('should create ephemeral account', async () => {
+    nock('https://api.bridgelet.org')
+      .post('/accounts')
+      .reply(200, {
+        id: 'acc_123',
+        publicKey: 'GXXX...',
+        claimUrl: 'https://claim.bridgelet.org/acc_123'
+      });
+
+    const account = await sdk.createEphemeralAccount({
+      amount: '10',
+      asset: 'XLM',
+      recipientEmail: 'test@example.com',
+      expiresIn: '7d'
+    });
+
+    expect(account.id).toBe('acc_123');
+  });
+});</code></pre>
+
+    <h2>10. Deployment Checklist</h2>
+
+    <h3>10.1 Pre-Production</h3>
+    <ul>
+        <li>☐ Complete security audit</li>
+        <li>☐ Set up monitoring and alerting</li>
+        <li>☐ Configure production environment variables</li>
+        <li>☐ Test failover and disaster recovery</li>
+        <li>☐ Document runbooks for common issues</li>
+        <li>☐ Set up automated backups</li>
+        <li>☐ Configure rate limits</li>
+        <li>☐ Test webhook delivery and retries</li>
+    </ul>
+
+    <h3>10.2 Production Launch</h3>
+    <ul>
+        <li>☐ Start with limited beta users</li>
+        <li>☐ Monitor error rates closely</li>
+        <li>☐ Have rollback plan ready</li>
+        <li>☐ Gradually increase traffic</li>
+        <li>☐ Collect user feedback</li>
+    </ul>
+
+    <div class="footer">
+        <p>
+            <strong>Bridgelet Integration Guide v0.1</strong><br>
+            Need help? <a href="https://github.com/bridgelet-org/bridgelet/discussions">Join our discussions</a>
+        </p>
+    </div>
+</body>
+</html>

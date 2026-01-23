@@ -1,0 +1,1253 @@
+# Bridgelet Integration Guide
+
+**Version:** 1.0 (MVP)  
+**Last Updated:** January 2025  
+**Audience:** Backend developers integrating Bridgelet into existing systems
+
+---
+
+## Table of Contents
+
+1. [Integration Overview](#integration-overview)
+2. [Authentication & API Keys](#authentication-api-keys)
+3. [Account Creation Patterns](#account-creation-patterns)
+4. [Webhook System](#webhook-system)
+5. [Error Handling](#error-handling)
+6. [Example: Payroll Integration](#example-payroll-integration)
+7. [Example: SDP Integration](#example-sdp-integration)
+8. [Best Practices](#best-practices)
+9. [Rate Limits & Quotas](#rate-limits-quotas)
+10. [Testing Your Integration](#testing-your-integration)
+
+---
+
+## 1. Integration Overview
+
+### Integration Architecture
+
+```
+┌──────────────────────┐
+│   Your System        │
+│   (Payment Platform) │
+└──────────┬───────────┘
+           │
+           ├─────────────────────────────────┐
+           │                                 │
+           ▼                                 ▼
+┌──────────────────────┐          ┌──────────────────────┐
+│  Bridgelet SDK API   │          │   Webhook Receiver   │
+│  (REST Endpoints)    │          │   (Your Endpoint)    │
+└──────────┬───────────┘          └──────────▲───────────┘
+           │                                 │
+           ▼                                 │
+┌──────────────────────┐                    │
+│  Bridgelet Core      │────────────────────┘
+│  (Soroban Contracts) │   Events
+└──────────────────────┘
+```
+
+### Integration Points
+
+**1. Account Creation**
+- Your system calls SDK to create ephemeral accounts
+- SDK returns claim URLs for distribution
+
+**2. Notification Distribution**
+- Your system sends claim URLs to recipients
+- Via SMS, email, push notifications, etc.
+
+**3. Event Monitoring**
+- SDK sends webhook notifications to your system
+- You track claim status, sweep completions, expirations
+
+**4. Reconciliation**
+- Your system queries SDK for account status
+- Match internal records with Bridgelet state
+
+---
+
+## 2. Authentication & API Keys
+
+### Generating API Keys
+
+```bash
+# Via SDK admin CLI
+npm run cli generate-api-key \
+  --name "Production Payment System" \
+  --permissions "accounts:create,accounts:read,webhooks:manage"
+
+# Output:
+# API Key ID: ak_prod_1234567890
+# API Secret: sk_live_abcdef1234567890...
+# ⚠️  Save the secret - it won't be shown again
+```
+
+### Using API Keys
+
+**In HTTP Headers:**
+```bash
+curl -X POST https://api.bridgelet.io/accounts \
+  -H "Authorization: Bearer sk_live_abcdef1234567890..." \
+  -H "Content-Type: application/json" \
+  -d '{"amount": "100", ...}'
+```
+
+**In SDK Client:**
+```typescript
+import { BridgeletClient } from '@bridgelet/sdk-client';
+
+const client = new BridgeletClient({
+  apiKey: process.env.BRIDGELET_API_KEY,
+  environment: 'production', // or 'testnet'
+});
+```
+
+### API Key Permissions
+
+| Permission | Allows |
+|------------|--------|
+| `accounts:create` | Create ephemeral accounts |
+| `accounts:read` | Query account details |
+| `accounts:list` | List all accounts |
+| `claims:verify` | Verify claim tokens |
+| `webhooks:manage` | Create/update/delete webhooks |
+| `webhooks:read` | List webhook subscriptions |
+
+**Best Practice:** Use separate API keys for different environments and services:
+- `ak_dev_*` for development
+- `ak_test_*` for testnet
+- `ak_prod_*` for production
+
+### Rotating API Keys
+
+```bash
+# Generate new key
+npm run cli generate-api-key --name "Production (Rotated)"
+
+# Update your application with new key
+
+# Revoke old key
+npm run cli revoke-api-key --id ak_prod_old_key_id
+```
+
+---
+
+## 3. Account Creation Patterns
+
+### Pattern 1: Synchronous Creation
+
+**Use Case:** Create account and wait for response before proceeding
+
+```typescript
+import { Injectable } from '@nestjs/common';
+import { BridgeletClient } from '@bridgelet/sdk-client';
+
+@Injectable()
+export class PaymentService {
+  constructor(private bridgelet: BridgeletClient) {}
+
+  async createPayment(recipientId: string, amount: string) {
+    try {
+      // Create ephemeral account
+      const account = await this.bridgelet.accounts.create({
+        amount,
+        asset: 'USDC:GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5',
+        expiresIn: 30 * 24 * 60 * 60, // 30 days
+        metadata: {
+          recipientId,
+          paymentType: 'payroll',
+          period: '2025-01',
+        },
+      });
+
+      // Store in your database
+      await this.db.payments.create({
+        id: account.accountId,
+        recipientId,
+        amount,
+        claimUrl: account.claimUrl,
+        status: 'pending',
+        expiresAt: account.expiresAt,
+      });
+
+      return account;
+    } catch (error) {
+      // Handle errors (see Error Handling section)
+      throw error;
+    }
+  }
+}
+```
+
+### Pattern 2: Asynchronous with Queue
+
+**Use Case:** High-volume batch processing
+
+```typescript
+import { Injectable } from '@nestjs/common';
+import { Queue } from 'bull';
+import { InjectQueue } from '@nestjs/bull';
+
+@Injectable()
+export class BatchPaymentService {
+  constructor(
+    @InjectQueue('account-creation') private accountQueue: Queue,
+    private bridgelet: BridgeletClient,
+  ) {}
+
+  async createBatchPayments(recipients: Recipient[]) {
+    // Add all to queue
+    const jobs = recipients.map(recipient => 
+      this.accountQueue.add('create-account', {
+        recipientId: recipient.id,
+        amount: recipient.amount,
+        phone: recipient.phone,
+      })
+    );
+
+    await Promise.all(jobs);
+    
+    return {
+      queued: recipients.length,
+      message: 'Accounts will be created asynchronously',
+    };
+  }
+}
+
+// Queue processor
+@Processor('account-creation')
+export class AccountCreationProcessor {
+  constructor(private bridgelet: BridgeletClient) {}
+
+  @Process('create-account')
+  async handleAccountCreation(job: Job) {
+    const { recipientId, amount, phone } = job.data;
+
+    try {
+      const account = await this.bridgelet.accounts.create({
+        amount,
+        asset: process.env.USDC_ASSET,
+        expiresIn: 30 * 24 * 60 * 60,
+        metadata: { recipientId },
+      });
+
+      // Send SMS with claim URL
+      await this.smsService.send(phone, 
+        `You've received ${amount} USDC. Claim: ${account.claimUrl}`
+      );
+
+      // Update database
+      await this.db.payments.updateStatus(recipientId, 'notified');
+
+      return { success: true, accountId: account.accountId };
+    } catch (error) {
+      // Retry logic handled by Bull
+      throw error;
+    }
+  }
+}
+```
+
+### Pattern 3: Idempotent Creation
+
+**Use Case:** Prevent duplicate accounts during retries
+
+```typescript
+@Injectable()
+export class IdempotentPaymentService {
+  async createPayment(idempotencyKey: string, data: PaymentData) {
+    // Check if already created
+    const existing = await this.db.payments.findByIdempotencyKey(idempotencyKey);
+    if (existing) {
+      return existing;
+    }
+
+    // Create with idempotency key
+    const account = await this.bridgelet.accounts.create({
+      ...data,
+      idempotencyKey, // SDK ensures single creation per key
+    });
+
+    // Store with idempotency key
+    await this.db.payments.create({
+      idempotencyKey,
+      accountId: account.accountId,
+      ...account,
+    });
+
+    return account;
+  }
+}
+
+// Usage
+const payment = await paymentService.createPayment(
+  `payment-${userId}-${timestamp}`,
+  { amount: '100', asset: 'USDC:...' }
+);
+```
+
+### Pattern 4: Conditional Creation
+
+**Use Case:** Create only if recipient doesn't have wallet
+
+```typescript
+@Injectable()
+export class SmartPaymentService {
+  async sendPayment(recipient: Recipient, amount: string) {
+    // Check if recipient has wallet
+    const hasWallet = await this.walletService.hasWallet(recipient.id);
+
+    if (hasWallet) {
+      // Direct payment to existing wallet
+      return this.stellarService.sendPayment(
+        recipient.walletAddress,
+        amount
+      );
+    } else {
+      // Create ephemeral account for onboarding
+      const account = await this.bridgelet.accounts.create({
+        amount,
+        asset: process.env.USDC_ASSET,
+        expiresIn: 30 * 24 * 60 * 60,
+      });
+
+      await this.notificationService.sendClaimUrl(
+        recipient,
+        account.claimUrl
+      );
+
+      return account;
+    }
+  }
+}
+```
+
+---
+
+## 4. Webhook System
+
+### Subscribing to Webhooks
+
+```typescript
+// One-time setup
+await bridgelet.webhooks.create({
+  url: 'https://your-api.com/webhooks/bridgelet',
+  events: [
+    'account.created',
+    'payment.received',
+    'sweep.completed',
+    'sweep.failed',
+    'account.expired',
+  ],
+  secret: 'webhook_secret_for_signature_verification',
+});
+```
+
+### Webhook Payload Structure
+
+**Event: `sweep.completed`**
+```json
+{
+  "id": "evt_1234567890",
+  "type": "sweep.completed",
+  "createdAt": "2025-01-12T12:00:00Z",
+  "data": {
+    "accountId": "550e8400-e29b-41d4-a716-446655440000",
+    "amount": "100",
+    "asset": "USDC",
+    "destination": "GRECIPIENT...",
+    "txHash": "abc123...",
+    "sweptAt": "2025-01-12T12:00:00Z",
+    "metadata": {
+      "recipientId": "user_123",
+      "paymentType": "payroll"
+    }
+  }
+}
+```
+
+### Webhook Receiver Implementation
+
+```typescript
+import { Controller, Post, Body, Headers, HttpException } from '@nestjs/common';
+import { createHmac } from 'crypto';
+
+@Controller('webhooks')
+export class WebhookController {
+  constructor(private paymentService: PaymentService) {}
+
+  @Post('bridgelet')
+  async handleBridgeletWebhook(
+    @Body() payload: any,
+    @Headers('x-bridgelet-signature') signature: string,
+  ) {
+    // 1. Verify signature
+    if (!this.verifySignature(payload, signature)) {
+      throw new HttpException('Invalid signature', 401);
+    }
+
+    // 2. Check idempotency (prevent duplicate processing)
+    const processed = await this.db.webhookEvents.exists(payload.id);
+    if (processed) {
+      return { received: true }; // Already processed
+    }
+
+    // 3. Process event
+    try {
+      await this.processEvent(payload);
+      
+      // 4. Mark as processed
+      await this.db.webhookEvents.create({
+        id: payload.id,
+        type: payload.type,
+        processedAt: new Date(),
+      });
+
+      return { received: true };
+    } catch (error) {
+      // Log error but return 200 to prevent retries
+      // (SDK will retry on non-200 responses)
+      this.logger.error('Webhook processing failed', error);
+      throw new HttpException('Processing failed', 500);
+    }
+  }
+
+  private verifySignature(payload: any, signature: string): boolean {
+    const secret = process.env.BRIDGELET_WEBHOOK_SECRET;
+    const expected = createHmac('sha256', secret)
+      .update(JSON.stringify(payload))
+      .digest('hex');
+    
+    return signature === expected;
+  }
+
+  private async processEvent(payload: any) {
+    switch (payload.type) {
+      case 'sweep.completed':
+        await this.handleSweepCompleted(payload.data);
+        break;
+      
+      case 'sweep.failed':
+        await this.handleSweepFailed(payload.data);
+        break;
+      
+      case 'account.expired':
+        await this.handleAccountExpired(payload.data);
+        break;
+      
+      default:
+        this.logger.warn(`Unknown event type: ${payload.type}`);
+    }
+  }
+
+  private async handleSweepCompleted(data: any) {
+    // Update payment status in your database
+    await this.db.payments.update(data.accountId, {
+      status: 'completed',
+      completedAt: data.sweptAt,
+      txHash: data.txHash,
+    });
+
+    // Notify recipient
+    const payment = await this.db.payments.findById(data.accountId);
+    await this.notificationService.send(payment.recipientId, {
+      title: 'Payment Received',
+      body: `${data.amount} ${data.asset} has been transferred to your wallet`,
+    });
+
+    // Update accounting system
+    await this.accountingService.recordTransaction({
+      type: 'disbursement_completed',
+      amount: data.amount,
+      recipientId: payment.recipientId,
+    });
+  }
+
+  private async handleSweepFailed(data: any) {
+    // Mark as failed
+    await this.db.payments.update(data.accountId, {
+      status: 'failed',
+      failureReason: data.error,
+    });
+
+    // Alert operations team
+    await this.alertingService.send({
+      severity: 'high',
+      message: `Sweep failed for account ${data.accountId}`,
+      details: data,
+    });
+  }
+
+  private async handleAccountExpired(data: any) {
+    // Update status
+    await this.db.payments.update(data.accountId, {
+      status: 'expired',
+      expiredAt: data.expiredAt,
+    });
+
+    // Return funds to treasury
+    await this.accountingService.recordTransaction({
+      type: 'unclaimed_return',
+      amount: data.amount,
+    });
+
+    // Notify sender/admin
+    await this.notificationService.sendAdmin({
+      message: `Account ${data.accountId} expired unclaimed`,
+    });
+  }
+}
+```
+
+### Webhook Retry Logic
+
+SDK automatically retries failed webhooks:
+
+| Attempt | Delay | Total Time |
+|---------|-------|------------|
+| 1 | Immediate | 0s |
+| 2 | 5 seconds | 5s |
+| 3 | 1 minute | 1m 5s |
+| 4 | 5 minutes | 6m 5s |
+| 5 | 30 minutes | 36m 5s |
+
+After 5 failed attempts, webhook is marked as failed and manual intervention required.
+
+### Testing Webhooks Locally
+
+**Using ngrok:**
+```bash
+# Start ngrok tunnel
+ngrok http 3000
+
+# Use ngrok URL in webhook subscription
+https://abc123.ngrok.io/webhooks/bridgelet
+```
+
+**Using webhook.site:**
+```bash
+# Get temporary URL
+curl https://webhook.site/token
+
+# Subscribe with that URL
+# View received webhooks in browser
+```
+
+---
+
+## 5. Error Handling
+
+### Common Error Codes
+
+| Code | Status | Meaning | Action |
+|------|--------|---------|--------|
+| `INSUFFICIENT_BALANCE` | 400 | Funding account lacks funds | Fund account |
+| `INVALID_ASSET` | 400 | Asset format incorrect | Check asset code:issuer |
+| `INVALID_EXPIRY` | 400 | Expiry outside allowed range | Use 1h-30d range |
+| `CLAIM_TOKEN_INVALID` | 401 | Token expired/used/forged | Generate new claim |
+| `CLAIM_TOKEN_EXPIRED` | 401 | Token past expiration | Account expired |
+| `ACCOUNT_NOT_FOUND` | 404 | Account doesn't exist | Check account ID |
+| `ACCOUNT_ALREADY_CLAIMED` | 409 | Double claim attempt | Return existing claim |
+| `SWEEP_FAILED` | 500 | On-chain transaction failed | Check Stellar status |
+| `CONTRACT_ERROR` | 500 | Smart contract execution failed | Contact support |
+| `RATE_LIMIT_EXCEEDED` | 429 | Too many requests | Implement backoff |
+
+### Error Response Format
+
+```json
+{
+  "error": {
+    "code": "INSUFFICIENT_BALANCE",
+    "message": "Funding account has insufficient balance",
+    "details": {
+      "required": "100.5",
+      "available": "50.2",
+      "asset": "USDC"
+    },
+    "timestamp": "2025-01-12T12:00:00Z",
+    "requestId": "req_abc123"
+  }
+}
+```
+
+### Retry Strategy
+
+```typescript
+import { retry } from '@lifeomic/attempt';
+
+async function createAccountWithRetry(data: AccountData) {
+  return retry(
+    async () => {
+      return await bridgelet.accounts.create(data);
+    },
+    {
+      maxAttempts: 3,
+      delay: 1000, // 1 second
+      factor: 2, // Exponential backoff
+      handleError: (error, context) => {
+        // Don't retry client errors
+        if (error.status >= 400 && error.status < 500) {
+          context.abort();
+        }
+        
+        // Retry server errors and network issues
+        console.log(`Attempt ${context.attemptNum} failed, retrying...`);
+      },
+    }
+  );
+}
+```
+
+### Circuit Breaker Pattern
+
+```typescript
+import CircuitBreaker from 'opossum';
+
+const breaker = new CircuitBreaker(
+  async (data) => bridgelet.accounts.create(data),
+  {
+    timeout: 10000, // 10 seconds
+    errorThresholdPercentage: 50, // Open after 50% failures
+    resetTimeout: 30000, // Try again after 30 seconds
+  }
+);
+
+breaker.on('open', () => {
+  console.log('Circuit breaker opened - too many failures');
+  // Alert operations team
+});
+
+breaker.on('halfOpen', () => {
+  console.log('Circuit breaker half-open - testing recovery');
+});
+
+// Usage
+try {
+  const account = await breaker.fire(accountData);
+} catch (error) {
+  // Circuit is open, use fallback
+  await fallbackService.queueForLater(accountData);
+}
+```
+
+---
+
+## 6. Example: Payroll Integration
+
+### Scenario
+Monthly payroll for 1,000 unbanked workers in a developing country.
+
+### Implementation
+
+```typescript
+import { Injectable } from '@nestjs/common';
+import { Cron } from '@nestjs/schedule';
+
+@Injectable()
+export class PayrollService {
+  constructor(
+    private bridgelet: BridgeletClient,
+    private smsService: SmsService,
+    private db: DatabaseService,
+  ) {}
+
+  // Run on 1st of every month
+  @Cron('0 0 1 * *')
+  async processMonthlyPayroll() {
+    const period = new Date().toISOString().slice(0, 7); // YYYY-MM
+    
+    console.log(`Processing payroll for ${period}`);
+
+    // 1. Get payroll data
+    const employees = await this.db.employees.findAll({
+      status: 'active',
+      paymentMethod: 'crypto',
+    });
+
+    console.log(`Found ${employees.length} employees`);
+
+    // 2. Create ephemeral accounts (batch)
+    const results = await Promise.allSettled(
+      employees.map(emp => this.createPayrollAccount(emp, period))
+    );
+
+    // 3. Analyze results
+    const successful = results.filter(r => r.status === 'fulfilled').length;
+    const failed = results.filter(r => r.status === 'rejected').length;
+
+    console.log(`Success: ${successful}, Failed: ${failed}`);
+
+    // 4. Generate report
+    await this.generatePayrollReport(period, results);
+
+    return { successful, failed, total: employees.length };
+  }
+
+  private async createPayrollAccount(employee: Employee, period: string) {
+    try {
+      // Create ephemeral account
+      const account = await this.bridgelet.accounts.create({
+        amount: employee.salary.toString(),
+        asset: 'USDC:GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5',
+        expiresIn: 30 * 24 * 60 * 60, // 30 days
+        metadata: {
+          employeeId: employee.id,
+          period,
+          department: employee.department,
+          payType: 'salary',
+        },
+      });
+
+      // Store in payroll records
+      await this.db.payrollRecords.create({
+        id: account.accountId,
+        employeeId: employee.id,
+        period,
+        amount: employee.salary,
+        status: 'pending',
+        claimUrl: account.claimUrl,
+        expiresAt: account.expiresAt,
+      });
+
+      // Send SMS notification
+      await this.smsService.send(employee.phone, `
+Hello ${employee.name},
+
+Your salary for ${period} is ready!
+Amount: ${employee.salary} USDC
+
+Claim your payment here:
+${account.claimUrl}
+
+This link expires in 30 days.
+
+- HR Department
+      `.trim());
+
+      return { success: true, employeeId: employee.id };
+    } catch (error) {
+      console.error(`Failed for employee ${employee.id}:`, error);
+      
+      // Log failure
+      await this.db.payrollErrors.create({
+        employeeId: employee.id,
+        period,
+        error: error.message,
+      });
+
+      throw error;
+    }
+  }
+
+  // Handle webhook events
+  async handlePayrollClaim(data: WebhookData) {
+    await this.db.payrollRecords.update(data.accountId, {
+      status: 'claimed',
+      claimedAt: data.sweptAt,
+      destinationWallet: data.destination,
+    });
+
+    // Update employee wallet info for future direct payments
+    const record = await this.db.payrollRecords.findById(data.accountId);
+    await this.db.employees.update(record.employeeId, {
+      walletAddress: data.destination,
+      paymentMethod: 'direct', // Future payments go direct
+    });
+
+    // Send confirmation
+    const employee = await this.db.employees.findById(record.employeeId);
+    await this.smsService.send(employee.phone, `
+Payment confirmed! ${data.amount} USDC is now in your wallet.
+Transaction: ${data.txHash}
+    `.trim());
+  }
+
+  private async generatePayrollReport(period: string, results: any[]) {
+    const report = {
+      period,
+      totalEmployees: results.length,
+      successful: results.filter(r => r.status === 'fulfilled').length,
+      failed: results.filter(r => r.status === 'rejected').length,
+      totalAmount: results
+        .filter(r => r.status === 'fulfilled')
+        .reduce((sum, r) => sum + parseFloat(r.value.amount), 0),
+      generatedAt: new Date(),
+    };
+
+    // Store report
+    await this.db.payrollReports.create(report);
+
+    // Email to finance team
+    await this.emailService.send({
+      to: 'finance@company.com',
+      subject: `Payroll Report - ${period}`,
+      body: JSON.stringify(report, null, 2),
+    });
+
+    return report;
+  }
+}
+```
+
+---
+
+## 7. Example: SDP Integration
+
+### Scenario
+Integrate Bridgelet into Stellar Disbursement Platform for NGO aid distribution.
+
+### Architecture
+
+```
+┌──────────────────┐
+│       SDP        │
+│   Dashboard      │
+└────────┬─────────┘
+         │
+         ▼
+┌──────────────────┐      ┌──────────────────┐
+│   SDP Backend    │─────►│  Bridgelet SDK   │
+│                  │      │                  │
+│ - CSV Upload     │      │ - Account Mgmt   │
+│ - Recipient Mgmt │      │ - Claim Auth     │
+│ - Disbursement   │      │ - Webhooks       │
+└──────────────────┘      └──────────────────┘
+```
+
+### Implementation
+
+**Step 1: Extend SDP Disbursement Service**
+
+```typescript
+// sdp/services/disbursement.service.ts
+import { Injectable } from '@nestjs/common';
+import { BridgeletClient } from '@bridgelet/sdk-client';
+
+@Injectable()
+export class DisbursementService {
+  constructor(
+    private bridgelet: BridgeletClient,
+    private sdpDatabase: SDPDatabase,
+  ) {}
+
+  async createDisbursement(csvData: DisbursementCSV[]) {
+    const disbursementId = uuid();
+
+    for (const row of csvData) {
+      // Check if recipient has wallet
+      const recipient = await this.sdpDatabase.recipients.findByPhone(
+        row.phoneNumber
+      );
+
+      if (recipient.walletAddress) {
+        // Direct payment to existing wallet
+        await this.sendDirectPayment(recipient, row.amount);
+      } else {
+        // Create ephemeral account via Bridgelet
+        const account = await this.bridgelet.accounts.create({
+          amount: row.amount,
+          asset: `${row.asset}:${row.assetIssuer}`,
+          expiresIn: 30 * 24 * 60 * 60,
+          metadata: {
+            disbursementId,
+            recipientId: recipient.id,
+            sdpOrganization: row.organization,
+          },
+        });
+
+        // Store in SDP database
+        await this.sdpDatabase.payments.create({
+          id: account.accountId,
+          disbursementId,
+          recipientId: recipient.id,
+          amount: row.amount,
+          method: 'ephemeral_account',
+          claimUrl: account.claimUrl,
+          status: 'pending',
+        });
+
+        // Send notification via SDP's preferred method
+        await this.sdpNotifications.send(recipient, {
+          type: 'payment_ready',
+          claimUrl: account.claimUrl,
+        });
+      }
+    }
+
+    return { disbursementId, processed: csvData.length };
+  }
+
+  // Webhook handler
+  async handleBridgeletWebhook(event: WebhookEvent) {
+    switch (event.type) {
+      case 'sweep.completed':
+        // Update SDP payment status
+        await this.sdpDatabase.payments.update(event.data.accountId, {
+          status: 'completed',
+          completedAt: event.data.sweptAt,
+          txHash: event.data.txHash,
+        });
+
+        // Update recipient wallet for future direct payments
+        const payment = await this.sdpDatabase.payments.findById(
+          event.data.accountId
+        );
+        await this.sdpDatabase.recipients.update(payment.recipientId, {
+          walletAddress: event.data.destination,
+        });
+        break;
+
+      case 'account.expired':
+        await this.sdpDatabase.payments.update(event.data.accountId, {
+          status: 'expired',
+        });
+        break;
+    }
+  }
+}
+```
+
+**Step 2: Add Bridgelet Config to SDP**
+
+```typescript
+// sdp/config/bridgelet.config.ts
+export default () => ({
+  bridgelet: {
+    enabled: process.env.BRIDGELET_ENABLED === 'true',
+    apiKey: process.env.BRIDGELET_API_KEY,
+    environment: process.env.BRIDGELET_ENV || 'testnet',
+    webhookSecret: process.env.BRIDGELET_WEBHOOK_SECRET,
+    defaultExpiry: 30 * 24 * 60 * 60, // 30 days
+  },
+});
+```
+
+**Step 3: Update SDP Dashboard**
+
+Add status indicators for ephemeral accounts:
+
+```typescript
+// sdp/components/PaymentStatus.tsx
+export function PaymentStatus({ payment }) {
+  if (payment.method === 'ephemeral_account') {
+    return (
+      <div>
+        <Badge color="yellow">Pending Claim</Badge>
+        <button onClick={() => copyClaimUrl(payment.claimUrl)}>
+          Copy Claim Link
+        </button>
+        <p>Expires: {formatDate(payment.expiresAt)}</p>
+      </div>
+    );
+  }
+
+  // ... other payment methods
+}
+```
+
+---
+
+## 8. Best Practices
+
+### 1. Idempotency
+
+Always use idempotency keys for account creation:
+
+```typescript
+const account = await bridgelet.accounts.create({
+  amount: '100',
+  asset: 'USDC:...',
+  expiresIn: 2592000,
+  idempotencyKey: `payment-${userId}-${timestamp}`,
+});
+```
+
+### 2. Metadata Usage
+
+Store reference data in metadata for reconciliation:
+
+```typescript
+metadata: {
+  // Your internal IDs
+  userId: 'user_123',
+  invoiceId: 'inv_456',
+  orderId: 'ord_789',
+  
+  // Business context
+  paymentType: 'refund',
+  department: 'customer_service',
+  
+  // Audit trail
+  createdBy: 'admin@company.com',
+  approvedBy: 'manager@company.com',
+}
+```
+
+### 3. Expiry Windows
+
+Choose appropriate expiry based on use case:
+
+| Use Case | Recommended Expiry | Reason |
+|----------|-------------------|--------|
+| Payroll | 30 days | Monthly payment cycle |
+| Refunds | 7 days | Urgency for resolution |
+| Airdrops | 14 days | Marketing campaign duration |
+| Aid | 60 days | Remote/low-connectivity areas |
+
+### 4. Webhook Security
+
+Always verify webhook signatures:
+
+```typescript
+function verifyWebhook(payload: string, signature: string): boolean {
+  const secret = process.env.BRIDGELET_WEBHOOK_SECRET;
+  const expected = crypto
+    .createHmac('sha256', secret)
+    .update(payload)
+    .digest('hex');
+  return crypto.timingSafeEqual(
+    Buffer.from(signature),
+    Buffer.from(expected)
+  );
+}
+```
+
+### 5. Error Logging
+
+Log all errors with context:
+
+```typescript
+try {
+  await bridgelet.accounts.create(data);
+} catch (error) {
+  logger.error('Account creation failed', {
+    userId: data.metadata.userId,
+    amount: data.amount,
+    error: error.message,
+    stack: error.stack,
+    requestId: error.requestId,
+  });
+// Alert if critical
+if (isProductionCritical(error)) {
+await alerting.notify('Account creation failed', error);
+}
+throw error;
+}
+
+### 6. Rate Limit Handling
+
+Implement exponential backoff:
+````typescript
+async function createWithBackoff(data: AccountData, maxRetries = 3) {
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      return await bridgelet.accounts.create(data);
+    } catch (error) {
+      if (error.code === 'RATE_LIMIT_EXCEEDED' && i < maxRetries - 1) {
+        const delay = Math.pow(2, i) * 1000; // 1s, 2s, 4s
+        await sleep(delay);
+        continue;
+      }
+      throw error;
+    }
+  }
+}
+7. Monitoring & Alerting
+Track key metrics:
+typescript// Prometheus metrics
+const accountCreationCounter = new Counter({
+  name: 'bridgelet_accounts_created_total',
+  help: 'Total ephemeral accounts created',
+});
+
+const claimSuccessRate = new Gauge({
+  name: 'bridgelet_claim_success_rate',
+  help: 'Percentage of successful claims',
+});
+
+// Alert conditions
+if (claimSuccessRate.get() < 0.95) {
+  await alert('Low claim success rate', { rate: claimSuccessRate.get() });
+}
+```
+
+---
+
+## 9. Rate Limits & Quotas
+
+### Default Limits (Testnet)
+
+| Operation | Limit | Window |
+|-----------|-------|--------|
+| Account Creation | 100 | per hour |
+| Claim Redemption | 50 | per hour |
+| API Requests | 1000 | per hour |
+| Webhook Retries | 5 | per event |
+
+### Production Limits
+
+Contact support for higher limits. Typical production tiers:
+
+| Tier | Accounts/hour | Cost |
+|------|---------------|------|
+| Starter | 500 | Free |
+| Growth | 5,000 | $99/mo |
+| Enterprise | Custom | Custom |
+
+### Rate Limit Headers
+```
+X-RateLimit-Limit: 100
+X-RateLimit-Remaining: 45
+X-RateLimit-Reset: 1642003200
+
+10. Testing Your Integration
+Unit Tests
+typescriptdescribe('Payment Service', () => {
+  let service: PaymentService;
+  let bridgelet: jest.Mocked<BridgeletClient>;
+
+  beforeEach(() => {
+    bridgelet = {
+      accounts: {
+        create: jest.fn(),
+      },
+    } as any;
+
+    service = new PaymentService(bridgelet);
+  });
+
+  it('should create ephemeral account', async () => {
+    bridgelet.accounts.create.mockResolvedValue({
+      accountId: 'test-123',
+      claimUrl: 'https://claim.test/abc',
+    });
+
+    const result = await service.createPayment('user-1', '100');
+
+    expect(result.accountId).toBe('test-123');
+    expect(bridgelet.accounts.create).toHaveBeenCalledWith({
+      amount: '100',
+      asset: expect.any(String),
+      expiresIn: expect.any(Number),
+    });
+  });
+});
+Integration Tests
+typescriptdescribe('Bridgelet Integration (e2e)', () => {
+  let app: INestApplication;
+
+  beforeAll(async () => {
+    // Use testnet for integration tests
+    process.env.BRIDGELET_ENV = 'testnet';
+    
+    const module = await Test.createTestingModule({
+      imports: [AppModule],
+    }).compile();
+
+    app = module.createNestApplication();
+    await app.init();
+  });
+
+  it('should complete full claim flow', async () => {
+    // 1. Create account
+    const createResponse = await request(app.getHttpServer())
+      .post('/payments')
+      .send({ userId: 'test-user', amount: '1' });
+
+    expect(createResponse.status).toBe(201);
+    const { claimUrl, accountId } = createResponse.body;
+
+    // 2. Simulate recipient claiming
+    const claimToken = extractToken(claimUrl);
+    const claimResponse = await request(app.getHttpServer())
+      .post('/claims/redeem')
+      .send({
+        claimToken,
+        destinationAddress: process.env.TEST_WALLET,
+      });
+
+    expect(claimResponse.status).toBe(200);
+    expect(claimResponse.body.success).toBe(true);
+
+    // 3. Verify webhook received
+    await waitForWebhook('sweep.completed', accountId, 30000);
+  });
+}, 60000); // 60s timeout for blockchain operations
+Load Testing
+javascript// k6 load test script
+import http from 'k6/http';
+import { check, sleep } from 'k6';
+
+export let options = {
+  stages: [
+    { duration: '1m', target: 10 },  // Ramp up
+    { duration: '3m', target: 50 },  // Steady load
+    { duration: '1m', target: 0 },   // Ramp down
+  ],
+};
+
+export default function () {
+  const payload = JSON.stringify({
+    amount: '10',
+    asset: 'USDC:GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5',
+    expiresIn: 2592000,
+  });
+
+  const params = {
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${__ENV.API_KEY}`,
+    },
+  };
+
+  const res = http.post('https://api.bridgelet.io/accounts', payload, params);
+
+  check(res, {
+    'status is 201': (r) => r.status === 201,
+    'has accountId': (r) => JSON.parse(r.body).accountId !== undefined,
+  });
+
+  sleep(1);
+}
+Run: k6 run load-test.js
+
+Appendix: SDK Client Reference
+Installation
+bashnpm install @bridgelet/sdk-client
+Configuration
+typescriptimport { BridgeletClient } from '@bridgelet/sdk-client';
+
+const client = new BridgeletClient({
+  apiKey: process.env.BRIDGELET_API_KEY,
+  environment: 'production', // or 'testnet'
+  timeout: 30000, // Request timeout (ms)
+  retryConfig: {
+    maxRetries: 3,
+    retryDelay: 1000,
+  },
+});
+Methods
+Accounts
+typescript// Create
+await client.accounts.create(data);
+
+// Get
+await client.accounts.get(accountId);
+
+// List
+await client.accounts.list({ status: 'pending', limit: 100 });
+Claims
+typescript// Verify
+await client.claims.verify(claimToken);
+
+// Redeem
+await client.claims.redeem(claimToken, destinationAddress);
+Webhooks
+typescript// Create
+await client.webhooks.create({ url, events, secret });
+
+// List
+await client.webhooks.list();
+
+// Delete
+await client.webhooks.delete(webhookId);

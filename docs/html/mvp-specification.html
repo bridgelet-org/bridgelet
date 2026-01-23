@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bridgelet - MVP Specification</title>
+    <style>
+        @media print {
+            body { margin: 0; }
+            .page-break { page-break-after: always; }
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 210mm;
+            margin: 0 auto;
+            padding: 20mm;
+            background: white;
+        }
+
+        h1 {
+            color: #1a1a1a;
+            border-bottom: 3px solid #17a2b8;
+            padding-bottom: 10px;
+            margin-top: 0;
+        }
+
+        h2 {
+            color: #17a2b8;
+            margin-top: 30px;
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 5px;
+        }
+
+        h3 {
+            color: #333;
+            margin-top: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .header h1 {
+            border: none;
+            margin-bottom: 5px;
+        }
+
+        .header .subtitle {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .metadata {
+            background: #e7f7f9;
+            padding: 15px;
+            border-left: 4px solid #17a2b8;
+            margin: 20px 0;
+        }
+
+        .in-scope {
+            background: #d4edda;
+            border-left: 4px solid #28a745;
+            padding: 15px;
+            margin: 15px 0;
+        }
+
+        .out-scope {
+            background: #f8d7da;
+            border-left: 4px solid #dc3545;
+            padding: 15px;
+            margin: 15px 0;
+        }
+
+        .milestone {
+            border: 2px solid #17a2b8;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+            background: #e7f7f9;
+        }
+
+        .milestone h3 {
+            margin-top: 0;
+            color: #17a2b8;
+        }
+
+        code {
+            background: #f4f4f4;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+        }
+
+        pre {
+            background: #282c34;
+            color: #abb2bf;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+
+        pre code {
+            background: transparent;
+            color: #abb2bf;
+        }
+
+        ul, ol {
+            padding-left: 25px;
+        }
+
+        .footer {
+            margin-top: 50px;
+            padding-top: 20px;
+            border-top: 1px solid #ddd;
+            font-size: 12px;
+            color: #666;
+            text-align: center;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+
+        th, td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+        }
+
+        th {
+            background: #17a2b8;
+            color: white;
+        }
+
+        tr:nth-child(even) {
+            background: #f9f9f9;
+        }
+
+        .status-done {
+            background: #28a745;
+            color: white;
+            padding: 3px 8px;
+            border-radius: 3px;
+            font-size: 12px;
+        }
+
+        .status-progress {
+            background: #ffc107;
+            color: #333;
+            padding: 3px 8px;
+            border-radius: 3px;
+            font-size: 12px;
+        }
+
+        .status-pending {
+            background: #6c757d;
+            color: white;
+            padding: 3px 8px;
+            border-radius: 3px;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Bridgelet</h1>
+        <p class="subtitle">MVP Specification (v0.1)</p>
+    </div>
+
+    <div class="metadata">
+        <strong>Version:</strong> 0.1<br>
+        <strong>Target Release:</strong> Q1 2026<br>
+        <strong>Status:</strong> Early Development<br>
+        <strong>Last Updated:</strong> January 2025
+    </div>
+
+    <h2>1. Executive Summary</h2>
+    <p>
+        Bridgelet MVP focuses on delivering core functionality for creating single-use ephemeral
+        Stellar accounts that enable cryptocurrency payments to recipients without existing wallets.
+        The MVP prioritizes simplicity, security, and a working end-to-end flow over advanced features.
+    </p>
+
+    <h3>1.1 Success Criteria</h3>
+    <ul>
+        <li>✅ Organizations can create ephemeral accounts programmatically</li>
+        <li>✅ Recipients can claim funds with minimal friction</li>
+        <li>✅ Funds auto-sweep to recipient's permanent wallet</li>
+        <li>✅ Unclaimed funds return to organization after expiration</li>
+        <li>✅ System handles 100+ accounts per organization</li>
+    </ul>
+
+    <h2>2. Core Features (In Scope)</h2>
+
+    <div class="in-scope">
+        <h3>✅ Feature 1: Ephemeral Account Creation</h3>
+        <p><strong>Description:</strong> Organizations can create temporary Stellar accounts via SDK</p>
+        <p><strong>Requirements:</strong></p>
+        <ul>
+            <li>REST API endpoint for account creation</li>
+            <li>Support for XLM and USDC assets</li>
+            <li>Configurable expiration time (1-90 days)</li>
+            <li>Unique claim code generation</li>
+            <li>Email/phone number for recipient</li>
+        </ul>
+        <p><strong>Acceptance Criteria:</strong></p>
+        <ul>
+            <li>Account created on Stellar testnet/mainnet</li>
+            <li>Claim URL generated and returned</li>
+            <li>Account metadata stored in database</li>
+            <li>Expiration timestamp set correctly</li>
+        </ul>
+    </div>
+
+    <div class="in-scope">
+        <h3>✅ Feature 2: Single-Use Account Restriction</h3>
+        <p><strong>Description:</strong> Smart contract enforces single inbound payment and single outbound sweep</p>
+        <p><strong>Requirements:</strong></p>
+        <ul>
+            <li>Soroban contract restricts account operations</li>
+            <li>Only one payment can be received</li>
+            <li>Only one sweep transaction allowed</li>
+            <li>Destination wallet locked during creation</li>
+        </ul>
+        <p><strong>Acceptance Criteria:</strong></p>
+        <ul>
+            <li>Contract deployed and tested on testnet</li>
+            <li>Multiple payment attempts rejected</li>
+            <li>Sweep only to authorized destination</li>
+            <li>Account closed after successful sweep</li>
+        </ul>
+    </div>
+
+    <div class="in-scope">
+        <h3>✅ Feature 3: Claim Flow</h3>
+        <p><strong>Description:</strong> Recipients can claim funds using a simple web interface</p>
+        <p><strong>Requirements:</strong></p>
+        <ul>
+            <li>Claim page accessible via unique URL</li>
+            <li>Email/SMS verification</li>
+            <li>Wallet connection (Freighter, Albedo)</li>
+            <li>First-time wallet creation guidance</li>
+            <li>Automatic sweep upon successful claim</li>
+        </ul>
+        <p><strong>Acceptance Criteria:</strong></p>
+        <ul>
+            <li>Claim link works in all modern browsers</li>
+            <li>Verification code validates correctly</li>
+            <li>Wallets connect without errors</li>
+            <li>Funds transferred to recipient wallet</li>
+            <li>Confirmation displayed to user</li>
+        </ul>
+    </div>
+
+    <div class="in-scope">
+        <h3>✅ Feature 4: Expiration & Recovery</h3>
+        <p><strong>Description:</strong> Unclaimed funds automatically return to organization after expiration</p>
+        <p><strong>Requirements:</strong></p>
+        <ul>
+            <li>Automated expiration checker (cron job)</li>
+            <li>Recovery transaction to organization wallet</li>
+            <li>Notification to organization</li>
+            <li>Account status updated</li>
+        </ul>
+        <p><strong>Acceptance Criteria:</strong></p>
+        <ul>
+            <li>Expired accounts detected within 1 hour</li>
+            <li>Recovery transaction executed successfully</li>
+            <li>Organization receives funds minus network fees</li>
+            <li>Account marked as recovered</li>
+        </ul>
+    </div>
+
+    <div class="in-scope">
+        <h3>✅ Feature 5: SDK & API</h3>
+        <p><strong>Description:</strong> TypeScript SDK for Node.js with REST API backend</p>
+        <p><strong>Requirements:</strong></p>
+        <ul>
+            <li>createEphemeralAccount() method</li>
+            <li>getAccountStatus() method</li>
+            <li>listAccounts() method</li>
+            <li>recoverExpiredAccount() method</li>
+            <li>API key authentication</li>
+            <li>Rate limiting (100 req/min)</li>
+        </ul>
+        <p><strong>Acceptance Criteria:</strong></p>
+        <ul>
+            <li>SDK published to npm</li>
+            <li>API documentation complete</li>
+            <li>Example code provided</li>
+            <li>Integration tests passing</li>
+        </ul>
+    </div>
+
+    <div class="page-break"></div>
+
+    <h2>3. Excluded Features (Out of Scope for MVP)</h2>
+
+    <div class="out-scope">
+        <h3>❌ Multi-Asset Support</h3>
+        <p>MVP supports only XLM and USDC. Other assets postponed to v0.2</p>
+    </div>
+
+    <div class="out-scope">
+        <h3>❌ Batch Operations</h3>
+        <p>Bulk account creation will be manual iteration in MVP. Batch API in v0.2</p>
+    </div>
+
+    <div class="out-scope">
+        <h3>❌ Advanced Authentication</h3>
+        <p>OAuth2, SSO, and MFA postponed. MVP uses API keys only</p>
+    </div>
+
+    <div class="out-scope">
+        <h3>❌ Webhooks</h3>
+        <p>Event notifications via webhooks postponed to v0.2</p>
+    </div>
+
+    <div class="out-scope">
+        <h3>❌ Mobile Apps</h3>
+        <p>Native iOS/Android apps not included. Web-only for MVP</p>
+    </div>
+
+    <div class="out-scope">
+        <h3>❌ Advanced Analytics</h3>
+        <p>Dashboard with charts and reporting postponed. Basic status checks only</p>
+    </div>
+
+    <h2>4. Technical Requirements</h2>
+
+    <h3>4.1 Smart Contracts (bridgelet-core)</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>Component</th>
+                <th>Technology</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>Account Restriction Contract</td>
+                <td>Soroban (Rust)</td>
+                <td><span class="status-progress">In Progress</span></td>
+            </tr>
+            <tr>
+                <td>Single-Use Enforcement</td>
+                <td>Smart Contract Logic</td>
+                <td><span class="status-progress">In Progress</span></td>
+            </tr>
+            <tr>
+                <td>Auto-Sweep Logic</td>
+                <td>Smart Contract Logic</td>
+                <td><span class="status-pending">Pending</span></td>
+            </tr>
+            <tr>
+                <td>Expiration Handling</td>
+                <td>Smart Contract Logic</td>
+                <td><span class="status-pending">Pending</span></td>
+            </tr>
+        </tbody>
+    </table>
+
+    <h3>4.2 Backend SDK (bridgelet-sdk)</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>Component</th>
+                <th>Technology</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>REST API</td>
+                <td>NestJS</td>
+                <td><span class="status-progress">In Progress</span></td>
+            </tr>
+            <tr>
+                <td>Database</td>
+                <td>PostgreSQL</td>
+                <td><span class="status-progress">In Progress</span></td>
+            </tr>
+            <tr>
+                <td>Authentication</td>
+                <td>JWT</td>
+                <td><span class="status-pending">Pending</span></td>
+            </tr>
+            <tr>
+                <td>Stellar Integration</td>
+                <td>Stellar SDK</td>
+                <td><span class="status-progress">In Progress</span></td>
+            </tr>
+            <tr>
+                <td>Expiration Worker</td>
+                <td>Cron Jobs</td>
+                <td><span class="status-pending">Pending</span></td>
+            </tr>
+        </tbody>
+    </table>
+
+    <h3>4.3 Frontend (bridgelet-ui)</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>Component</th>
+                <th>Technology</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>Claim Page</td>
+                <td>Next.js</td>
+                <td><span class="status-pending">Pending</span></td>
+            </tr>
+            <tr>
+                <td>Wallet Connection</td>
+                <td>Stellar Wallets Kit</td>
+                <td><span class="status-pending">Pending</span></td>
+            </tr>
+            <tr>
+                <td>Email Verification</td>
+                <td>OTP System</td>
+                <td><span class="status-pending">Pending</span></td>
+            </tr>
+            <tr>
+                <td>Status Tracking</td>
+                <td>React Components</td>
+                <td><span class="status-pending">Pending</span></td>
+            </tr>
+        </tbody>
+    </table>
+
+    <div class="page-break"></div>
+
+    <h2>5. Development Timeline</h2>
+
+    <div class="milestone">
+        <h3>🎯 Milestone 1: Smart Contract Foundation (Weeks 1-3)</h3>
+        <ul>
+            <li>Design contract architecture</li>
+            <li>Implement single-use restrictions</li>
+            <li>Deploy to testnet</li>
+            <li>Write comprehensive tests</li>
+        </ul>
+        <p><strong>Deliverable:</strong> Working smart contract on Stellar testnet</p>
+    </div>
+
+    <div class="milestone">
+        <h3>🎯 Milestone 2: SDK & API Development (Weeks 4-6)</h3>
+        <ul>
+            <li>Set up NestJS backend</li>
+            <li>Implement core API endpoints</li>
+            <li>Create TypeScript SDK</li>
+            <li>Set up PostgreSQL database</li>
+            <li>Write integration tests</li>
+        </ul>
+        <p><strong>Deliverable:</strong> Functional API with SDK</p>
+    </div>
+
+    <div class="milestone">
+        <h3>🎯 Milestone 3: Claim UI (Weeks 7-8)</h3>
+        <ul>
+            <li>Build claim page</li>
+            <li>Integrate wallet connections</li>
+            <li>Implement verification flow</li>
+            <li>Add error handling</li>
+        </ul>
+        <p><strong>Deliverable:</strong> Working claim interface</p>
+    </div>
+
+    <div class="milestone">
+        <h3>🎯 Milestone 4: Expiration & Recovery (Weeks 9-10)</h3>
+        <ul>
+            <li>Build expiration detector</li>
+            <li>Implement recovery logic</li>
+            <li>Set up automated jobs</li>
+            <li>Test edge cases</li>
+        </ul>
+        <p><strong>Deliverable:</strong> Complete lifecycle management</p>
+    </div>
+
+    <div class="milestone">
+        <h3>🎯 Milestone 5: Testing & Documentation (Weeks 11-12)</h3>
+        <ul>
+            <li>End-to-end testing</li>
+            <li>Security review</li>
+            <li>Write documentation</li>
+            <li>Create example integrations</li>
+            <li>Bug fixes</li>
+        </ul>
+        <p><strong>Deliverable:</strong> Production-ready MVP</p>
+    </div>
+
+    <h2>6. Success Metrics</h2>
+
+    <h3>6.1 Technical Metrics</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>Metric</th>
+                <th>Target</th>
+                <th>Measurement</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>Account Creation Time</td>
+                <td>&lt; 5 seconds</td>
+                <td>API response time</td>
+            </tr>
+            <tr>
+                <td>Claim Success Rate</td>
+                <td>&gt; 95%</td>
+                <td>Claims / Attempts</td>
+            </tr>
+            <tr>
+                <td>API Uptime</td>
+                <td>&gt; 99.5%</td>
+                <td>Monitoring service</td>
+            </tr>
+            <tr>
+                <td>Transaction Cost</td>
+                <td>&lt; $0.10</td>
+                <td>Stellar network fees</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <h3>6.2 User Experience Metrics</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>Metric</th>
+                <th>Target</th>
+                <th>Measurement</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>Claim Completion Rate</td>
+                <td>&gt; 70%</td>
+                <td>Completed / Started</td>
+            </tr>
+            <tr>
+                <td>Time to First Claim</td>
+                <td>&lt; 5 minutes</td>
+                <td>User analytics</td>
+            </tr>
+            <tr>
+                <td>Support Tickets</td>
+                <td>&lt; 5% of users</td>
+                <td>Support system</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <h2>7. Risk Assessment</h2>
+
+    <h3>7.1 Technical Risks</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>Risk</th>
+                <th>Probability</th>
+                <th>Impact</th>
+                <th>Mitigation</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>Smart contract bugs</td>
+                <td>Medium</td>
+                <td>High</td>
+                <td>Comprehensive testing, audit</td>
+            </tr>
+            <tr>
+                <td>Stellar network issues</td>
+                <td>Low</td>
+                <td>High</td>
+                <td>Fallback strategies, monitoring</td>
+            </tr>
+            <tr>
+                <td>Scaling challenges</td>
+                <td>Medium</td>
+                <td>Medium</td>
+                <td>Load testing, incremental rollout</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <h3>7.2 User Adoption Risks</h3>
+    <ul>
+        <li><strong>Risk:</strong> Recipients don't understand crypto wallets<br>
+            <strong>Mitigation:</strong> Clear onboarding, video tutorials, support</li>
+        <li><strong>Risk:</strong> Low claim rates<br>
+            <strong>Mitigation:</strong> Multi-channel notifications, longer expiration windows</li>
+        <li><strong>Risk:</strong> Security concerns from organizations<br>
+            <strong>Mitigation:</strong> Security audit, insurance options, clear documentation</li>
+    </ul>
+
+    <h2>8. Post-MVP Roadmap</h2>
+
+    <h3>Version 0.2 (Q2 2026)</h3>
+    <ul>
+        <li>Batch account creation API</li>
+        <li>Webhook notifications</li>
+        <li>Analytics dashboard</li>
+        <li>Additional asset support</li>
+        <li>Mobile-optimized UI</li>
+    </ul>
+
+    <h3>Version 1.0 (Q3 2026)</h3>
+    <ul>
+        <li>Mainnet production launch</li>
+        <li>Security audit completion</li>
+        <li>Native mobile apps</li>
+        <li>Advanced authentication (OAuth2)</li>
+        <li>White-label solutions</li>
+    </ul>
+
+    <div class="footer">
+        <p>
+            <strong>Bridgelet MVP Specification v0.1</strong><br>
+            This specification is a living document and will be updated as development progresses.<br>
+            Last updated: January 2025
+        </p>
+    </div>
+</body>
+</html>

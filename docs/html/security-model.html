@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bridgelet - Security Model</title>
+    <style>
+        @media print {
+            body { margin: 0; }
+            .page-break { page-break-after: always; }
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 210mm;
+            margin: 0 auto;
+            padding: 20mm;
+            background: white;
+        }
+
+        h1 {
+            color: #1a1a1a;
+            border-bottom: 3px solid #dc3545;
+            padding-bottom: 10px;
+            margin-top: 0;
+        }
+
+        h2 {
+            color: #dc3545;
+            margin-top: 30px;
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 5px;
+        }
+
+        h3 {
+            color: #333;
+            margin-top: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .header h1 {
+            border: none;
+            margin-bottom: 5px;
+        }
+
+        .header .subtitle {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .metadata {
+            background: #fff5f5;
+            padding: 15px;
+            border-left: 4px solid #dc3545;
+            margin: 20px 0;
+        }
+
+        .threat-box {
+            border: 2px solid #dc3545;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+            background: #fff5f5;
+        }
+
+        .threat-box h3 {
+            margin-top: 0;
+            color: #dc3545;
+        }
+
+        .mitigation-box {
+            border: 2px solid #28a745;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+            background: #f0fff4;
+        }
+
+        .mitigation-box h3 {
+            margin-top: 0;
+            color: #28a745;
+        }
+
+        .warning {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            margin: 15px 0;
+        }
+
+        code {
+            background: #f4f4f4;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+        }
+
+        pre {
+            background: #f4f4f4;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+
+        ul, ol {
+            padding-left: 25px;
+        }
+
+        .footer {
+            margin-top: 50px;
+            padding-top: 20px;
+            border-top: 1px solid #ddd;
+            font-size: 12px;
+            color: #666;
+            text-align: center;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+
+        th, td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+        }
+
+        th {
+            background: #dc3545;
+            color: white;
+        }
+
+        tr:nth-child(even) {
+            background: #f9f9f9;
+        }
+
+        .severity-critical {
+            background: #dc3545;
+            color: white;
+            padding: 3px 8px;
+            border-radius: 3px;
+            font-weight: bold;
+            font-size: 12px;
+        }
+
+        .severity-high {
+            background: #fd7e14;
+            color: white;
+            padding: 3px 8px;
+            border-radius: 3px;
+            font-weight: bold;
+            font-size: 12px;
+        }
+
+        .severity-medium {
+            background: #ffc107;
+            color: #333;
+            padding: 3px 8px;
+            border-radius: 3px;
+            font-weight: bold;
+            font-size: 12px;
+        }
+
+        .severity-low {
+            background: #28a745;
+            color: white;
+            padding: 3px 8px;
+            border-radius: 3px;
+            font-weight: bold;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Bridgelet</h1>
+        <p class="subtitle">Security Model & Threat Analysis</p>
+    </div>
+
+    <div class="metadata">
+        <strong>Document Version:</strong> 0.1 (MVP)<br>
+        <strong>Last Updated:</strong> January 2025<br>
+        <strong>Status:</strong> Early Development<br>
+        <strong>Security Review Status:</strong> Pre-Audit
+    </div>
+
+    <div class="warning">
+        ⚠️ <strong>Important:</strong> This document describes the security model for the MVP phase.
+        A comprehensive security audit will be conducted before mainnet deployment.
+    </div>
+
+    <h2>1. Security Overview</h2>
+    <p>
+        Bridgelet's security model is built on three core principles:
+    </p>
+    <ul>
+        <li><strong>Minimize Trust:</strong> Reduce reliance on centralized components</li>
+        <li><strong>Time-Bound Exposure:</strong> Limit vulnerability windows through expiration</li>
+        <li><strong>Single-Use Design:</strong> Minimize attack surface with disposable accounts</li>
+    </ul>
+
+    <h2>2. Threat Model</h2>
+
+    <h3>2.1 Adversary Capabilities</h3>
+    <p>We consider adversaries with the following capabilities:</p>
+    <ul>
+        <li>Network-level access (man-in-the-middle attacks)</li>
+        <li>Access to claim links through phishing or social engineering</li>
+        <li>Ability to create multiple accounts and automate attacks</li>
+        <li>Knowledge of smart contract code and system architecture</li>
+        <li>Computational resources for brute-force attempts</li>
+    </ul>
+
+    <h3>2.2 Assets to Protect</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>Asset</th>
+                <th>Criticality</th>
+                <th>Description</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>Funds in Ephemeral Accounts</td>
+                <td><span class="severity-critical">CRITICAL</span></td>
+                <td>Payment amounts waiting to be claimed</td>
+            </tr>
+            <tr>
+                <td>Claim Credentials</td>
+                <td><span class="severity-critical">CRITICAL</span></td>
+                <td>Keys/tokens that authorize fund claims</td>
+            </tr>
+            <tr>
+                <td>Smart Contract Logic</td>
+                <td><span class="severity-critical">CRITICAL</span></td>
+                <td>On-chain code controlling fund movement</td>
+            </tr>
+            <tr>
+                <td>Recipient Personal Data</td>
+                <td><span class="severity-high">HIGH</span></td>
+                <td>Email addresses, phone numbers used for claims</td>
+            </tr>
+            <tr>
+                <td>Organization API Keys</td>
+                <td><span class="severity-high">HIGH</span></td>
+                <td>Credentials for accessing Bridgelet SDK</td>
+            </tr>
+            <tr>
+                <td>Account Metadata</td>
+                <td><span class="severity-medium">MEDIUM</span></td>
+                <td>Transaction history and account states</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <div class="page-break"></div>
+
+    <h2>3. Identified Threats</h2>
+
+    <div class="threat-box">
+        <h3>🚨 Threat T1: Claim Link Interception</h3>
+        <p><strong>Severity:</strong> <span class="severity-critical">CRITICAL</span></p>
+        <p><strong>Description:</strong> Attacker intercepts claim link sent via email/SMS and claims funds before legitimate recipient.</p>
+        <p><strong>Attack Vector:</strong></p>
+        <ul>
+            <li>Email account compromise</li>
+            <li>SMS interception (SIM swapping)</li>
+            <li>Network traffic monitoring</li>
+            <li>Phishing links that steal claim credentials</li>
+        </ul>
+    </div>
+
+    <div class="mitigation-box">
+        <h3>✅ Mitigation M1: Multi-Factor Claim Verification</h3>
+        <p><strong>Implementation:</strong></p>
+        <ul>
+            <li>Require recipient to verify email/phone ownership during claim</li>
+            <li>Optional: Additional verification step (OTP, security questions)</li>
+            <li>Rate limiting on claim attempts</li>
+            <li>Suspicious activity detection (multiple failed attempts)</li>
+        </ul>
+        <p><strong>MVP Status:</strong> Basic email verification implemented; enhanced MFA post-MVP</p>
+    </div>
+
+    <div class="threat-box">
+        <h3>🚨 Threat T2: Smart Contract Vulnerabilities</h3>
+        <p><strong>Severity:</strong> <span class="severity-critical">CRITICAL</span></p>
+        <p><strong>Description:</strong> Exploitable bugs in Soroban smart contracts allowing unauthorized fund access or denial of service.</p>
+        <p><strong>Attack Vector:</strong></p>
+        <ul>
+            <li>Reentrancy attacks</li>
+            <li>Integer overflow/underflow</li>
+            <li>Access control bypasses</li>
+            <li>Logic errors in sweep conditions</li>
+        </ul>
+    </div>
+
+    <div class="mitigation-box">
+        <h3>✅ Mitigation M2: Secure Development & Auditing</h3>
+        <p><strong>Implementation:</strong></p>
+        <ul>
+            <li>Follow Soroban security best practices</li>
+            <li>Comprehensive unit and integration testing</li>
+            <li>Formal verification for critical functions</li>
+            <li>Third-party security audit before mainnet launch</li>
+            <li>Bug bounty program post-launch</li>
+        </ul>
+        <p><strong>MVP Status:</strong> Development best practices; audit scheduled for Q2 2026</p>
+    </div>
+
+    <div class="threat-box">
+        <h3>🚨 Threat T3: Private Key Compromise</h3>
+        <p><strong>Severity:</strong> <span class="severity-high">HIGH</span></p>
+        <p><strong>Description:</strong> Bridgelet SDK's private keys for ephemeral account creation are stolen or exposed.</p>
+        <p><strong>Attack Vector:</strong></p>
+        <ul>
+            <li>Server compromise</li>
+            <li>Insider threat</li>
+            <li>Insecure key storage</li>
+            <li>Code repository leak</li>
+        </ul>
+    </div>
+
+    <div class="mitigation-box">
+        <h3>✅ Mitigation M3: Secure Key Management</h3>
+        <p><strong>Implementation:</strong></p>
+        <ul>
+            <li>Use hardware security modules (HSM) for production keys</li>
+            <li>Environment-based key isolation (never in code)</li>
+            <li>Key rotation policies</li>
+            <li>Multi-signature requirements for critical operations</li>
+            <li>Encrypted key storage with strict access controls</li>
+        </ul>
+        <p><strong>MVP Status:</strong> Environment variables; HSM integration planned for production</p>
+    </div>
+
+    <div class="page-break"></div>
+
+    <div class="threat-box">
+        <h3>🚨 Threat T4: Denial of Service (DoS)</h3>
+        <p><strong>Severity:</strong> <span class="severity-medium">MEDIUM</span></p>
+        <p><strong>Description:</strong> Attacker floods system with account creation or claim requests, preventing legitimate use.</p>
+        <p><strong>Attack Vector:</strong></p>
+        <ul>
+            <li>Mass account creation requests</li>
+            <li>Repeated claim attempts</li>
+            <li>Resource exhaustion attacks</li>
+        </ul>
+    </div>
+
+    <div class="mitigation-box">
+        <h3>✅ Mitigation M4: Rate Limiting & Resource Controls</h3>
+        <p><strong>Implementation:</strong></p>
+        <ul>
+            <li>API rate limiting per organization</li>
+            <li>Account creation throttling</li>
+            <li>Claim attempt limits per account</li>
+            <li>CAPTCHA for suspicious activity patterns</li>
+            <li>Cost-based deterrence (organizations pay for account creation)</li>
+        </ul>
+        <p><strong>MVP Status:</strong> Basic rate limiting implemented</p>
+    </div>
+
+    <div class="threat-box">
+        <h3>🚨 Threat T5: Expired Account Fund Recovery Abuse</h3>
+        <p><strong>Severity:</strong> <span class="severity-medium">MEDIUM</span></p>
+        <p><strong>Description:</strong> Attacker exploits recovery mechanism to claim expired funds meant for return to organization.</p>
+        <p><strong>Attack Vector:</strong></p>
+        <ul>
+            <li>Front-running recovery transactions</li>
+            <li>Exploiting race conditions in expiration logic</li>
+        </ul>
+    </div>
+
+    <div class="mitigation-box">
+        <h3>✅ Mitigation M5: Secure Recovery Process</h3>
+        <p><strong>Implementation:</strong></p>
+        <ul>
+            <li>Hard-coded recovery address in smart contract (organization wallet)</li>
+            <li>Time-locked recovery (only after expiration + grace period)</li>
+            <li>Immutable recovery logic</li>
+            <li>Transparent on-chain verification</li>
+        </ul>
+        <p><strong>MVP Status:</strong> Implemented in smart contract</p>
+    </div>
+
+    <h2>4. Security Architecture</h2>
+
+    <h3>4.1 Defense in Depth</h3>
+    <p>Multiple security layers protect against threats:</p>
+    <ol>
+        <li><strong>Network Layer:</strong> TLS/HTTPS for all communications</li>
+        <li><strong>Application Layer:</strong> Input validation, authentication, authorization</li>
+        <li><strong>Smart Contract Layer:</strong> On-chain access controls and validations</li>
+        <li><strong>Data Layer:</strong> Encryption at rest and in transit</li>
+    </ol>
+
+    <h3>4.2 Trust Boundaries</h3>
+    <pre>
+┌─────────────────────────────────────────────┐
+│  Untrusted Zone (Public Internet)           │
+│  - Recipients                                │
+│  - Claim links                               │
+└─────────────────┬───────────────────────────┘
+                  │ TLS/HTTPS
+┌─────────────────▼───────────────────────────┐
+│  Semi-Trusted Zone (Bridgelet SDK)          │
+│  - API authentication                        │
+│  - Rate limiting                             │
+│  - Claim verification                        │
+└─────────────────┬───────────────────────────┘
+                  │ Authenticated calls
+┌─────────────────▼───────────────────────────┐
+│  Trusted Zone (Smart Contracts)             │
+│  - Immutable on-chain logic                 │
+│  - Cryptographic guarantees                 │
+│  - No human override possible               │
+└─────────────────────────────────────────────┘
+    </pre>
+
+    <div class="page-break"></div>
+
+    <h2>5. Security Best Practices</h2>
+
+    <h3>5.1 For Organizations Using Bridgelet</h3>
+    <ul>
+        <li>✅ Secure claim link delivery (use HTTPS, secure email providers)</li>
+        <li>✅ Educate recipients about phishing risks</li>
+        <li>✅ Monitor for unusual claiming patterns</li>
+        <li>✅ Set appropriate expiration windows (not too long)</li>
+        <li>✅ Rotate API keys regularly</li>
+        <li>✅ Use production keys only in production environments</li>
+    </ul>
+
+    <h3>5.2 For Recipients</h3>
+    <ul>
+        <li>✅ Verify sender before clicking claim links</li>
+        <li>✅ Check URL authenticity (official Bridgelet domain)</li>
+        <li>✅ Use secure wallet providers</li>
+        <li>✅ Never share claim codes with anyone</li>
+        <li>✅ Claim funds promptly (don't wait until expiration)</li>
+    </ul>
+
+    <h3>5.3 For Bridgelet Developers</h3>
+    <ul>
+        <li>✅ Follow secure coding standards (OWASP)</li>
+        <li>✅ Regular dependency updates and vulnerability scans</li>
+        <li>✅ Code review for all security-sensitive changes</li>
+        <li>✅ Principle of least privilege for all components</li>
+        <li>✅ Comprehensive logging and monitoring</li>
+    </ul>
+
+    <h2>6. Incident Response</h2>
+
+    <h3>6.1 Security Incident Classifications</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>Level</th>
+                <th>Examples</th>
+                <th>Response Time</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><span class="severity-critical">P0 - Critical</span></td>
+                <td>Active exploit, mass fund theft</td>
+                <td>Immediate (< 1 hour)</td>
+            </tr>
+            <tr>
+                <td><span class="severity-high">P1 - High</span></td>
+                <td>Vulnerability discovered, potential exploit</td>
+                <td>< 4 hours</td>
+            </tr>
+            <tr>
+                <td><span class="severity-medium">P2 - Medium</span></td>
+                <td>Service degradation, isolated incidents</td>
+                <td>< 24 hours</td>
+            </tr>
+            <tr>
+                <td><span class="severity-low">P3 - Low</span></td>
+                <td>Minor issues, low-risk vulnerabilities</td>
+                <td>< 1 week</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <h3>6.2 Response Procedures</h3>
+    <ol>
+        <li><strong>Detection:</strong> Automated monitoring alerts team</li>
+        <li><strong>Assessment:</strong> Determine severity and impact</li>
+        <li><strong>Containment:</strong> Limit damage (pause system if needed)</li>
+        <li><strong>Eradication:</strong> Fix vulnerability, deploy patch</li>
+        <li><strong>Recovery:</strong> Resume normal operations</li>
+        <li><strong>Post-Mortem:</strong> Document lessons learned</li>
+    </ol>
+
+    <h2>7. Audit & Compliance</h2>
+
+    <h3>7.1 Pre-Launch Requirements</h3>
+    <ul>
+        <li>✅ Smart contract security audit by reputable firm</li>
+        <li>✅ Penetration testing of SDK and APIs</li>
+        <li>✅ Code review by independent security experts</li>
+        <li>✅ Testnet deployment and public bug bounty</li>
+    </ul>
+
+    <h3>7.2 Ongoing Security</h3>
+    <ul>
+        <li>Regular security assessments (quarterly)</li>
+        <li>Continuous monitoring and alerting</li>
+        <li>Vulnerability disclosure program</li>
+        <li>Security patches within 48 hours of discovery</li>
+    </ul>
+
+    <h2>8. Future Enhancements</h2>
+
+    <h3>Post-MVP Security Roadmap</h3>
+    <ul>
+        <li><strong>Q2 2026:</strong> Hardware wallet support for organizations</li>
+        <li><strong>Q2 2026:</strong> Multi-signature claim requirements (optional)</li>
+        <li><strong>Q3 2026:</strong> Formal verification of critical contract functions</li>
+        <li><strong>Q3 2026:</strong> Decentralized claim verification (zero-knowledge proofs)</li>
+        <li><strong>Q4 2026:</strong> Insurance integration for large deployments</li>
+    </ul>
+
+    <div class="footer">
+        <p>
+            <strong>Bridgelet Security Model v0.1</strong><br>
+            This document will be updated as threats evolve and mitigations improve.<br>
+            Report security issues: <a href="mailto:security@bridgelet.org">security@bridgelet.org</a>
+        </p>
+    </div>
+</body>
+</html>
