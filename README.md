@@ -37,6 +37,7 @@ Comprehensive documentation is available in `/docs`:
 This documentation is still a work in progress and will constantly change as the project progresses. If pdf file is not visible on github, clone the repo to view full documentation
 
 ## Quick Start
+
 ```bash
 # Clone repositories
 git clone https://github.com/bridgelet-org/bridgelet-sdk.git
@@ -66,11 +67,18 @@ See [MVP Specification](./docs/mvp-specification.pdf) for details.
 
 Current phase: MVP implementation (Q1 2026)
 
+## Security
+
+Security is critical for financial infrastructure. If you discover a vulnerability, please review our [Security Policy](./SECURITY.md) for responsible disclosure guidelines.
+
+**Security Contact:** aminubabafatima8@gmail.com
+
 ## Contributing
 
 We welcome contributions! See [CONTRIBUTING.md](./CONTRIBUTING.md) for guidelines.
 
 Areas of interest:
+
 - Soroban smart contract development
 - Financial infrastructure for emerging markets
 - Developer experience and SDK design
