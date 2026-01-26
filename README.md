@@ -33,6 +33,7 @@ Comprehensive documentation is available in `/docs`:
 - [🚀 Getting Started Guide](./docs/getting-started.pdf)
 - [🔧 Integration Guide](./docs/integration-guide.pdf)
 - [📊 Use Cases & Examples](./docs/use-cases.pdf)
+- [📝 Changelog](./CHANGELOG.md)
 
 This documentation is still a work in progress and will constantly change as the project progresses. If pdf file is not visible on github, clone the repo to view full documentation
 
