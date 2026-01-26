@@ -77,6 +77,8 @@ Security is critical for financial infrastructure. If you discover a vulnerabili
 
 We welcome contributions! See [CONTRIBUTING.md](./CONTRIBUTING.md) for guidelines.
 
+Please also review our [Code of Conduct](./CODE_OF_CONDUCT.md) and [Support Guide](./SUPPORT.md) before engaging.
+
 Areas of interest:
 
 - Soroban smart contract development
@@ -89,8 +91,9 @@ MIT License - see [LICENSE](LICENSE)
 
 ## Contact
 
-- Issues: [GitHub Issues](https://bridgelet-org/bridgelet/issues)
-- Discussions: [GitHub Discussions](https://github.com/yourusername/bridgelet/discussions)
+ - Issues: [GitHub Issues](https://github.com/bridgelet-org/bridgelet/issues)
+ - Discussions: [GitHub Discussions](https://github.com/bridgelet-org/bridgelet/discussions)
+ - Support Overview: [SUPPORT.md](./SUPPORT.md)
 <!-- - Stellar Discord: [#bridgelet](https://discord.gg/stellardev) -->
 
 ---
