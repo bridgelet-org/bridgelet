@@ -73,6 +73,8 @@ See [MVP Specification](https://github.com/bridgelet-org/bridgelet/raw/main/docs
 
 **Current phase:** MVP implementation (Q1 2026)
 
+See our [Public Roadmap](./ROADMAP.md) for future plans and milestones.
+
 ## Security
 
 Security is critical for financial infrastructure. If you discover a vulnerability, please review our [Security Policy](./SECURITY.md) for responsible disclosure guidelines.
