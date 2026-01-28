@@ -1,0 +1,26 @@
+{
+  "name": "bridgelet",
+  "version": "1.0.0",
+  "description": "**Ephemeral accounts for onboarding non-crypto users into Stellar**",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/okekefrancis112/bridgelet.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/okekefrancis112/bridgelet/issues"
+  },
+  "homepage": "https://github.com/okekefrancis112/bridgelet#readme",
+  "dependencies": {
+    "puppeteer": "^24.36.0"
+  }
+}
