@@ -73,9 +73,17 @@ See [MVP Specification](https://github.com/bridgelet-org/bridgelet/raw/main/docs
 
 **Current phase:** MVP implementation (Q1 2026)
 
+## Security
+
+Security is critical for financial infrastructure. If you discover a vulnerability, please review our [Security Policy](./SECURITY.md) for responsible disclosure guidelines.
+
+**Security Contact:** aminubabafatima8@gmail.com
+
 ## Contributing
 
 We welcome contributions! See [CONTRIBUTING.md](./CONTRIBUTING.md) for guidelines.
+
+Please also review our [Code of Conduct](./CODE_OF_CONDUCT.md) and [Support Guide](./SUPPORT.md) before engaging.
 
 Areas of interest:
 
@@ -91,6 +99,8 @@ MIT License - see [LICENSE](./LICENSE)
 
 * **Issues:** [GitHub Issues](https://github.com/bridgelet-org/bridgelet/issues)
 * **Discussions:** [GitHub Discussions](https://github.com/bridgelet-org/bridgelet/discussions)
+* - Support Overview: [SUPPORT.md](./SUPPORT.md)
+<!-- - Stellar Discord: [#bridgelet](https://discord.gg/stellardev) -->
 
 ---
 
