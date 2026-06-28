@@ -1,27 +1,22 @@
-import { PageShell } from '@/components/page-shell';
-import { SharePrompt } from '@/components/share-prompt';
-import { ClaimStatusCard } from '@/components/claim-status-card';
-import { publicEnv } from '@/lib/env';
+'use client'
+
+import { useSearchParams } from 'next/navigation'
+import { PageShell } from '@/components/page-shell'
+import { SharePrompt } from '@/components/share-prompt'
+import { ClaimStatusCard, type ClaimStatus } from '@/components/claim-status-card'
+import { publicEnv } from '@/lib/env'
 
 type ClaimPageProps = {
-  params: Promise<{ token: string }>;
-};
+  params: { token: string }
+}
 
-/**
- * Claim page — resolves the token from the URL and renders the correct
- * `ClaimStatusCard` state.
- *
- * In production this would call `GET /claim/:token` to determine the real
- * status. Until the API is wired up the page uses a static demo state so all
- * three card variants can be exercised by appending `?state=claimed` or
- * `?state=expired` to the URL (handled client-side via the `ClaimStatusCard`
- * component directly on the demo page).
- */
-export default async function ClaimPage({ params }: ClaimPageProps) {
-  const { token } = await params;
+export default function ClaimPage({ params }: ClaimPageProps) {
+  const searchParams = useSearchParams()
+  const stateParam = searchParams.get('state') as ClaimStatus | null
+  const status = stateParam || 'available'
 
   // Demo data — replace with a real API fetch once /claim/:token is live.
-  const demoExpiresAt = new Date(Date.now() + 23 * 60 * 60 * 1000).toISOString();
+  const demoExpiresAt = new Date(Date.now() + 23 * 60 * 60 * 1000).toISOString()
 
   return (
     <PageShell
@@ -29,11 +24,10 @@ export default async function ClaimPage({ params }: ClaimPageProps) {
       description="A payment has been sent to you via Bridgelet. Review the details below and claim it to your Stellar wallet."
     >
       <div className="space-y-6">
-        {/* Available state */}
         <section aria-labelledby="available-heading">
           <h2 id="available-heading" className="sr-only">Available payment</h2>
           <ClaimStatusCard
-            status="available"
+            status={status}
             amountStroops="50000000"
             assetCode="XLM"
             expiresAt={demoExpiresAt}
@@ -44,11 +38,11 @@ export default async function ClaimPage({ params }: ClaimPageProps) {
 
         <p className="text-xs text-slate-400 text-center">
           Token:{' '}
-          <span className="font-mono break-all">{token}</span>
+          <span className="font-mono break-all">{params.token}</span>
         </p>
 
         <SharePrompt appUrl={publicEnv.NEXT_PUBLIC_APP_URL} />
       </div>
     </PageShell>
-  );
+  )
 }
