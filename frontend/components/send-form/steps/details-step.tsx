@@ -19,12 +19,11 @@ export function DetailsStep({ state, onChange, onBack, onNext }: DetailsStepProp
     <form onSubmit={handleSubmit} className="space-y-4" noValidate>
       <div>
         <label htmlFor="recipient-email" className="block text-sm font-medium text-slate-900">
-          Recipient email
+          Recipient email <span className="font-normal text-slate-500">(optional)</span>
         </label>
         <input
           id="recipient-email"
           type="email"
-          required
           value={state.recipientEmail}
           onChange={(e) => onChange({ recipientEmail: e.target.value })}
           placeholder="recipient@example.com"
