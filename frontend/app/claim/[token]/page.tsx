@@ -1,16 +1,18 @@
 'use client'
 
 import { useSearchParams } from 'next/navigation'
+import { use } from 'react'
 import { PageShell } from '@/components/page-shell'
 import { SharePrompt } from '@/components/share-prompt'
 import { ClaimStatusCard, type ClaimStatus } from '@/components/claim-status-card'
 import { publicEnv } from '@/lib/env'
 
 type ClaimPageProps = {
-  params: { token: string }
+  params: Promise<{ token: string }>
 }
 
 export default function ClaimPage({ params }: ClaimPageProps) {
+  const { token } = use(params)
   const searchParams = useSearchParams()
   const stateParam = searchParams.get('state') as ClaimStatus | null
   const status = stateParam || 'available'
@@ -38,7 +40,7 @@ export default function ClaimPage({ params }: ClaimPageProps) {
 
         <p className="text-xs text-slate-400 text-center">
           Token:{' '}
-          <span className="font-mono break-all">{params.token}</span>
+          <span className="font-mono break-all">{token}</span>
         </p>
 
         <SharePrompt appUrl={publicEnv.NEXT_PUBLIC_APP_URL} />
