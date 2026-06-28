@@ -4,14 +4,16 @@ test.describe('Send Success Screen', () => {
   test('should show success screen and match snapshot', async ({ page }) => {
     // Mock the connectFreighter function to return a test public key
     await page.addInitScript(() => {
+      // @ts-ignore: Mocking for test purposes
       const original = window.require
+      // @ts-ignore: Mocking for test purposes
       window.require = (mod: string) => {
         if (mod === '@/lib/wallet') {
           return {
             connectFreighter: () => Promise.resolve({ publicKey: 'GABC123456789' })
           }
         }
-        return original(mod)
+        return original?.(mod)
       }
     })
 
