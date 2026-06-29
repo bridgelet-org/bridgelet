@@ -54,7 +54,6 @@ export function ConfirmStep({ state, onBack }: ConfirmStepProps) {
           A claim link has been sent to <strong>{state.recipientEmail}</strong>. They have 24
           hours to claim their funds.
         </p>
-
         {claimUrl && (
           <div className="mt-3 rounded-lg border border-green-200 bg-white px-3 py-2">
             <p className="text-sm font-medium text-green-800">Claim link</p>

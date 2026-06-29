@@ -20,9 +20,10 @@ export default function RootLayout({ children }: RootLayoutProps) {
   return (
     <html lang="en">
       <body>
-        {children}
-        {isDev && <DevToolbar />}
-        {isDev && <MockProvider />}
+        <MockProvider>
+          {children}
+          {isDev && <DevToolbar />}
+        </MockProvider>
       </body>
     </html>
   );

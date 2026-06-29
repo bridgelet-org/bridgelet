@@ -1,13 +1,23 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 
-export function MockProvider() {
+export function MockProvider({ children }: { children: React.ReactNode }) {
+  const [ready, setReady] = useState(false);
+
   useEffect(() => {
-    if (process.env.NODE_ENV === 'development') {
-      import('@/mocks').then(({ initMocks }) => initMocks());
+    const isDev = process.env.NODE_ENV === 'development';
+    const isDemo = typeof window !== 'undefined' && window.location.search.includes('demo=true');
+
+    if (isDev || isDemo) {
+      import('@/mocks').then(({ initMocks }) => {
+        initMocks().then(() => setReady(true));
+      });
+    } else {
+      setReady(true);
     }
   }, []);
 
-  return null;
+  if (!ready) return null;
+  return <>{children}</>;
 }
