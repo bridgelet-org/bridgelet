@@ -24,6 +24,36 @@ export function AccessibleClaimForm({ onSubmit, isLoading = false }: Props) {
     <form onSubmit={handleSubmit} noValidate aria-label="Claim payment form">
       <div className="space-y-4">
         <div>
+          <label className="block text-sm font-medium text-slate-700 mb-2">
+            Network <span aria-label="required">*</span>
+          </label>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            <label className="relative flex cursor-pointer items-center justify-center rounded-lg border border-indigo-600 bg-white p-3 shadow-sm hover:bg-slate-50">
+              <input type="radio" name="claim-network" value="stellar" defaultChecked className="sr-only" />
+              <span className="text-sm font-medium text-slate-900">Stellar</span>
+              <span className="absolute -top-2 -right-2 flex h-4 w-4 items-center justify-center rounded-full bg-indigo-600 text-[10px] text-white">✓</span>
+            </label>
+            
+            <label className="relative flex cursor-not-allowed items-center justify-center rounded-lg border border-slate-200 bg-slate-50 p-3 opacity-70">
+              <input type="radio" name="claim-network" value="base" disabled className="sr-only" />
+              <span className="text-sm font-medium text-slate-500">Base</span>
+              <span className="absolute -top-2 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-slate-200 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-slate-600">Coming Soon</span>
+            </label>
+            
+            <label className="relative flex cursor-not-allowed items-center justify-center rounded-lg border border-slate-200 bg-slate-50 p-3 opacity-70">
+              <input type="radio" name="claim-network" value="polygon" disabled className="sr-only" />
+              <span className="text-sm font-medium text-slate-500">Polygon</span>
+              <span className="absolute -top-2 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-slate-200 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-slate-600">Coming Soon</span>
+            </label>
+
+            <label className="relative flex cursor-not-allowed items-center justify-center rounded-lg border border-slate-200 bg-slate-50 p-3 opacity-70">
+              <input type="radio" name="claim-network" value="solana" disabled className="sr-only" />
+              <span className="text-sm font-medium text-slate-500">Solana</span>
+              <span className="absolute -top-2 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-slate-200 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-slate-600">Coming Soon</span>
+            </label>
+          </div>
+        </div>
+        <div>
           <label htmlFor="stellar-address" className="block text-sm font-medium text-slate-700">
             Your Stellar wallet address <span aria-label="required">*</span>
           </label>

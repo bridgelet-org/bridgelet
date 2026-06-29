@@ -18,6 +18,37 @@ export function DetailsStep({ state, onChange, onBack, onNext }: DetailsStepProp
   return (
     <form onSubmit={handleSubmit} className="space-y-4" noValidate>
       <div>
+        <label className="block text-sm font-medium text-slate-900 mb-2">
+          Network
+        </label>
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          <label className="relative flex cursor-pointer items-center justify-center rounded-lg border border-slate-900 bg-white p-3 shadow-sm hover:bg-slate-50">
+            <input type="radio" name="network" value="stellar" defaultChecked className="sr-only" />
+            <span className="text-sm font-medium text-slate-900">Stellar</span>
+            <span className="absolute -top-2 -right-2 flex h-4 w-4 items-center justify-center rounded-full bg-slate-900 text-[10px] text-white">✓</span>
+          </label>
+          
+          <label className="relative flex cursor-not-allowed items-center justify-center rounded-lg border border-slate-200 bg-slate-50 p-3 opacity-70">
+            <input type="radio" name="network" value="base" disabled className="sr-only" />
+            <span className="text-sm font-medium text-slate-500">Base</span>
+            <span className="absolute -top-2 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-slate-200 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-slate-600">Coming Soon</span>
+          </label>
+          
+          <label className="relative flex cursor-not-allowed items-center justify-center rounded-lg border border-slate-200 bg-slate-50 p-3 opacity-70">
+            <input type="radio" name="network" value="polygon" disabled className="sr-only" />
+            <span className="text-sm font-medium text-slate-500">Polygon</span>
+            <span className="absolute -top-2 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-slate-200 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-slate-600">Coming Soon</span>
+          </label>
+
+          <label className="relative flex cursor-not-allowed items-center justify-center rounded-lg border border-slate-200 bg-slate-50 p-3 opacity-70">
+            <input type="radio" name="network" value="solana" disabled className="sr-only" />
+            <span className="text-sm font-medium text-slate-500">Solana</span>
+            <span className="absolute -top-2 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-slate-200 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-slate-600">Coming Soon</span>
+          </label>
+        </div>
+      </div>
+
+      <div>
         <label htmlFor="recipient-email" className="block text-sm font-medium text-slate-900">
           Recipient email
         </label>
