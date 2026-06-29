@@ -74,10 +74,15 @@ export interface ApiError {
   statusCode: number;
 }
 
-export {
+import {
   BridgeletClient,
   type BridgeletClientOptions,
 } from '@/lib/create-bridgelet-client';
+
+export {
+  BridgeletClient,
+  type BridgeletClientOptions,
+};
 
 let _defaultClient: BridgeletClient | null = null;
 
