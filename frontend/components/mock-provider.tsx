@@ -4,7 +4,8 @@ import { useEffect } from 'react';
 
 export function MockProvider() {
   useEffect(() => {
-    if (process.env.NODE_ENV === 'development') {
+    const isDemo = new URLSearchParams(window.location.search).get('demo') === 'true';
+    if (process.env.NODE_ENV === 'development' || isDemo) {
       import('@/mocks').then(({ initMocks }) => initMocks());
     }
   }, []);

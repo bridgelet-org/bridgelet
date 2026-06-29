@@ -22,7 +22,7 @@ export default function RootLayout({ children }: RootLayoutProps) {
       <body>
         {children}
         {isDev && <DevToolbar />}
-        {isDev && <MockProvider />}
+        <MockProvider />
       </body>
     </html>
   );

@@ -1,6 +1,6 @@
 import { PageShell } from '@/components/page-shell';
 import { SharePrompt } from '@/components/share-prompt';
-import { ClaimStatusCard } from '@/components/claim-status-card';
+import { ClaimFlow } from '@/components/claim-flow';
 import { publicEnv } from '@/lib/env';
 
 type ClaimPageProps = {
@@ -32,12 +32,10 @@ export default async function ClaimPage({ params }: ClaimPageProps) {
         {/* Available state */}
         <section aria-labelledby="available-heading">
           <h2 id="available-heading" className="sr-only">Available payment</h2>
-          <ClaimStatusCard
-            status="available"
-            amountStroops="50000000"
-            assetCode="XLM"
-            expiresAt={demoExpiresAt}
-            memo="Invoice #42"
+          <ClaimFlow
+            token={token}
+            defaultStatus="available"
+            demoExpiresAt={demoExpiresAt}
             supportEmail={publicEnv.NEXT_PUBLIC_SUPPORT_EMAIL}
           />
         </section>
