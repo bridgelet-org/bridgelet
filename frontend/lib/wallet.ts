@@ -47,6 +47,12 @@ export async function connectFreighter(): Promise<ConnectedWallet> {
   }
 
   return { publicKey, type: "freighter" };
+  const { address } = await freighter.getAddress();
+  if (!address) {
+    throw new Error("Freighter did not return a public key. Did you approve the request?");
+  }
+
+  return { publicKey: address, type: "freighter" };
 }
 
 // LOBSTR is mobile-only, so on desktop we deeplink and poll for a result
