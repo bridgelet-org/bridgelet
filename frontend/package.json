@@ -15,20 +15,35 @@
   "dependencies": {
     "@stellar/freighter-api": "^6.0.1",
     "@stellar/stellar-sdk": "^15.1.0",
+    "storybook": "storybook dev -p 6006",
+    "build-storybook": "storybook build",
+    "generate:types": "node scripts/generate-types.mjs"
+  },
+  "dependencies": {
+    "@stellar/freighter-api": "^6.0.1",
+    "@stellar/stellar-sdk": "^16.0.1",
     "next": "^16.0.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },
   "devDependencies": {
     "@playwright/test": "^1.61.1",
+    "@axe-core/playwright": "^4.12.0",
+    "@chromatic-com/storybook": "^5.2.1",
+    "@playwright/test": "^1.61.1",
+    "@storybook/addon-a11y": "^10.4.6",
+    "@storybook/addon-docs": "^10.4.6",
+    "@storybook/nextjs-vite": "10.4.6",
     "@tailwindcss/postcss": "^4.0.0",
     "@types/node": "^22.0.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "msw": "^2.0.0",
     "openapi-typescript": "^7.0.0",
+    "storybook": "^10.4.6",
     "tailwindcss": "^4.0.0",
-    "typescript": "^5.0.0"
+    "typescript": "^5.0.0",
+    "vite": "^6.3.5"
   },
   "engines": {
     "node": ">=20.10.0"

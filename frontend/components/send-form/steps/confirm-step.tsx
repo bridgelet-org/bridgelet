@@ -2,6 +2,8 @@
 
 import { useState } from 'react';
 import type { SendFormState } from '../index';
+import { useNfc } from '@/hooks/use-nfc';
+import { createPaymentIntent } from '@/lib/bridgelet';
 
 type ConfirmStepProps = {
   state: SendFormState;
@@ -12,13 +14,26 @@ export function ConfirmStep({ state, onBack }: ConfirmStepProps) {
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [claimUrl, setClaimUrl] = useState<string | null>(null);
+  const { isSupported, writeUrl, isWriting, error: nfcError } = useNfc();
 
   async function handleConfirm() {
     setSubmitting(true);
     setError(null);
     try {
-      // Placeholder: wire up to POST /api/accounts + POST /send in a real impl.
-      await new Promise((res) => setTimeout(res, 800));
+      const amountStroops = Math.round(Number.parseFloat(state.amountXlm) * 10_000_000).toString();
+      const response = await createPaymentIntent({
+        senderPublicKey: state.publicKey,
+        amountStroops,
+        assetCode: state.assetCode,
+        memo: state.memo || undefined,
+      });
+
+      const resolvedClaimUrl = response.claimUrl.startsWith('http')
+        ? response.claimUrl
+        : `${window.location.origin}${response.claimUrl}`;
+
+      setClaimUrl(resolvedClaimUrl);
       setSubmitted(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong.');
@@ -39,6 +54,37 @@ export function ConfirmStep({ state, onBack }: ConfirmStepProps) {
           A claim link has been sent to <strong>{state.recipientEmail}</strong>. They have 24
           hours to claim their funds.
         </p>
+
+        {claimUrl && (
+          <div className="mt-3 rounded-lg border border-green-200 bg-white px-3 py-2">
+            <p className="text-sm font-medium text-green-800">Claim link</p>
+            <a
+              href={claimUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              data-testid="claim-link"
+              className="mt-1 block break-all text-sm text-green-700 underline underline-offset-2"
+            >
+              {claimUrl}
+            </a>
+          </div>
+        )}
+
+        {isSupported && claimUrl && (
+          <div className="mt-4 border-t border-green-200 pt-4">
+            <button
+              onClick={() => writeUrl(claimUrl)}
+              disabled={isWriting}
+              className="inline-flex items-center rounded-lg bg-green-700 px-4 py-2 text-sm font-medium text-white transition hover:bg-green-800 disabled:opacity-60"
+            >
+              <svg className="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+              {isWriting ? 'Ready to tap... hold tag to back of phone' : 'Write to NFC Tag'}
+            </button>
+            {nfcError && <p className="mt-2 text-xs text-red-600">{nfcError}</p>}
+          </div>
+        )}
       </div>
     );
   }

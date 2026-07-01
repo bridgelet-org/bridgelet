@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
-import { connectFreighter } from '@/lib/wallet';
+import { useEffect, useState } from 'react';
+import { connectFreighter, loadPersistedWallet } from '@/lib/wallet';
+import { ChainSelector } from '@/components/chain-selector';
 
 type ConnectStepProps = {
   publicKey: string;
@@ -11,6 +12,15 @@ type ConnectStepProps = {
 export function ConnectStep({ publicKey, onConnected }: ConnectStepProps) {
   const [status, setStatus] = useState<'idle' | 'connecting' | 'error'>('idle');
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!publicKey) {
+      const persistedWallet = loadPersistedWallet();
+      if (persistedWallet?.publicKey) {
+        onConnected(persistedWallet.publicKey);
+      }
+    }
+  }, [onConnected, publicKey]);
 
   async function handleConnect() {
     setStatus('connecting');
@@ -40,6 +50,10 @@ export function ConnectStep({ publicKey, onConnected }: ConnectStepProps) {
         Connect your Freighter wallet to authorise payments. No password required — signing
         with your key proves you control the address.
       </p>
+      
+      <div className="py-2">
+        <ChainSelector />
+      </div>
       <button
         type="button"
         onClick={handleConnect}
