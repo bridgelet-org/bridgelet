@@ -1,6 +1,7 @@
 import { setupWorker } from 'msw/browser';
 import { accountHandlers } from './handlers/accounts';
 import { claimsHandlers } from './handlers/claims';
+import { horizonHandlers } from './handlers/horizon';
 
 /**
  * MSW service worker for browser environments.

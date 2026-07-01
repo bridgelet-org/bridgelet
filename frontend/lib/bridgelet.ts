@@ -76,6 +76,11 @@ export interface ApiError {
   statusCode: number;
 }
 
+import {
+  BridgeletClient,
+  type BridgeletClientOptions,
+};
+
 export {
   BridgeletClient,
   type BridgeletClientOptions,
