@@ -26,8 +26,8 @@ export default function PlaygroundPage() {
   const [loading, setLoading] = useState(false);
 
   const client = new BridgeletClient({
-    baseUrl: process.env.NEXT_PUBLIC_API_BASE_URL,
-    apiKey: process.env.NEXT_PUBLIC_API_KEY,
+    baseUrl: process.env[`NEXT_PUBLIC_API_BASE_URL`],
+    apiKey: process.env[`NEXT_PUBLIC_API_KEY`],
   } as BridgeletClientOptions);
 
   const handleEndpointChange = (endpoint: Endpoint) => {
@@ -49,18 +49,18 @@ export default function PlaygroundPage() {
       let result: unknown;
       switch (selected) {
         case "getClaimDetails":
-          result = await client.getClaimDetails(params.token);
+          result = await client.getClaimDetails(params[`token`] ?? "");
           break;
         case "createPaymentIntent":
           result = await client.createPaymentIntent({
-            senderPublicKey: params.senderPublicKey,
-            amountStroops: params.amountStroops,
-            assetCode: params.assetCode,
+            senderPublicKey: params[`senderPublicKey`] ?? "",
+            amountStroops: params[`amountStroops`] ?? "",
+            assetCode: params[`assetCode`] ?? "",
           });
           break;
         case "redeemClaim":
-          result = await client.redeemClaim(params.token, {
-            recipientPublicKey: params.recipientPublicKey,
+          result = await client.redeemClaim(params[`token`] ?? "", {
+            recipientPublicKey: params[`recipientPublicKey`] ?? "",
           });
           break;
       }
