@@ -9,6 +9,8 @@
  * See scripts/generate-types.mjs for full instructions.
  */
 
+import { BridgeletClient, type BridgeletClientOptions } from '@/lib/create-bridgelet-client';
+
 // ─── Payment Intent ──────────────────────────────────────────────────────────
 
 /** Request body for POST /send */
@@ -77,7 +79,7 @@ export interface ApiError {
 import {
   BridgeletClient,
   type BridgeletClientOptions,
-} from '@/lib/create-bridgelet-client';
+};
 
 export {
   BridgeletClient,

@@ -9,4 +9,4 @@ import { horizonHandlers } from './handlers/horizon';
  * Start this once in development to intercept fetch/XHR calls.
  * The worker is only initialised when this module is imported.
  */
-export const worker = setupWorker(...accountHandlers, ...horizonHandlers, ...claimsHandlers);
+export const worker = setupWorker(...accountHandlers, ...claimsHandlers);

@@ -7,6 +7,14 @@
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
+    "generate:types": "node scripts/generate-types.mjs",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:install": "playwright install"
+  },
+  "dependencies": {
+    "@stellar/freighter-api": "^6.0.1",
+    "@stellar/stellar-sdk": "^15.1.0",
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build",
     "generate:types": "node scripts/generate-types.mjs"
@@ -19,6 +27,7 @@
     "react-dom": "^19.0.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.61.1",
     "@axe-core/playwright": "^4.12.0",
     "@chromatic-com/storybook": "^5.2.1",
     "@playwright/test": "^1.61.1",
