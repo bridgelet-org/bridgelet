@@ -8,6 +8,10 @@ import { ClaimStatusCard, type ClaimStatus } from '@/components/claim-status-car
 import { publicEnv } from '@/lib/env'
 
 type ClaimPageProps = {
+  params: { token: string }
+}
+
+export default function ClaimPage({ params }: ClaimPageProps) {
   params: Promise<{ token: string }>
 }
 
@@ -40,7 +44,7 @@ export default function ClaimPage({ params }: ClaimPageProps) {
 
         <p className="text-xs text-slate-400 text-center">
           Token:{' '}
-          <span className="font-mono break-all">{token}</span>
+          <span className="font-mono break-all">{params.token}</span>
         </p>
 
         <SharePrompt appUrl={publicEnv.NEXT_PUBLIC_APP_URL} />
