@@ -41,6 +41,12 @@ export async function connectFreighter(): Promise<ConnectedWallet> {
   // Request access — this opens the Freighter popup
   await freighter.requestAccess();
 
+  const { publicKey } = await freighter.getPublicKey();
+  if (!publicKey) {
+    throw new Error("Freighter did not return a public key. Did you approve the request?");
+  }
+
+  return { publicKey, type: "freighter" };
   const { address } = await freighter.getAddress();
   if (!address) {
     throw new Error("Freighter did not return a public key. Did you approve the request?");
