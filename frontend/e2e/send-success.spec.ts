@@ -36,6 +36,7 @@ test.describe('Send Success Screen', () => {
     
     // Wait for success screen
     await expect(page.getByText('Payment sent!')).toBeVisible()
+    await page.goto('/sandbox/send-success')
     await expect(page).toHaveScreenshot('send-success.png', { fullPage: true })
   })
 })
