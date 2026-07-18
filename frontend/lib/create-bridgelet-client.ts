@@ -7,6 +7,22 @@ import type {
   RedeemClaimResponse,
 } from '@/lib/bridgelet';
 
+export const SWEEP_STUB_WARNING = 'Note: fund sweep is running in MVP stub mode. Tokens are reserved but not yet transferred on chain.';
+
+export class RateLimitError extends Error {
+  readonly retryAfter: number | null;
+  constructor(retryAfter: number | null) {
+    super(
+      retryAfter != null
+        ? `Please wait ${retryAfter} second${retryAfter !== 1 ? 's' : 
+          ''} before retrying.`
+        : `Too many requests. Please wait a moment before retrying.`,
+    );
+    this.name = 'RateLimitError';
+    this.retryAfter = retryAfter;
+  }
+}
+
 export interface BridgeletClientOptions {
   baseUrl?: string;
   apiKey?: string;
@@ -124,4 +140,31 @@ export class BridgeletClient {
       },
     );
   }
+}
+
+let _defaultClient: BridgeletClient | null = null;
+
+export function defaultClient(): BridgeletClient {
+  if (!_defaultClient) {
+    _defaultClient = new BridgeletClient();
+  }
+  return _defaultClient;
+}
+
+export function getClaimDetails(token: string):
+Promise<ClaimDetailsResponse> {
+  return defaultClient().getClaimDetails(token);
+}
+
+export function createPaymentIntent(
+  data: CreatePaymentIntentRequest,
+): Promise<CreatePaymentIntentResponse> {
+  return defaultClient().createPaymentIntent(data);
+}
+
+export function redeemClaim(
+  token: string,
+  data: RedeemClaimRequest,
+): Promise<RedeemClaimResponse> {
+  return defaultClient().redeemClaim(token, data);
 }
