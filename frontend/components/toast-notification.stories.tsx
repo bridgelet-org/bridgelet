@@ -22,3 +22,7 @@ export const Error: Story = {
 export const Info: Story = {
   args: { message: 'Your claim link will expire in 24 hours.', variant: 'info' },
 };
+
+export const Warning: Story = {
+  args: { message: 'Your session will expire in 5 minutes.', variant: 'warning' },
+};

@@ -5,6 +5,7 @@ import { DevToolbar } from '@/components/dev-toolbar';
 import { MockProvider } from '@/components/mock-provider';
 import { ServiceWorkerRegister } from '@/components/service-worker-register';
 import { ThemeProvider } from '@/components/theme-provider';
+import { ToastProvider } from '@/components/toast-provider';
 
 export const metadata: Metadata = {
   title: 'Bridgelet Payments',
@@ -44,10 +45,12 @@ export default function RootLayout({ children }: RootLayoutProps) {
       </head>
       <body>
         <ThemeProvider>
-          <ServiceWorkerRegister />
-          {children}
-          {isDev && <DevToolbar />}
-          {isDev && <MockProvider />}
+          <ToastProvider>
+            <ServiceWorkerRegister />
+            {children}
+            {isDev && <DevToolbar />}
+            {isDev && <MockProvider />}
+          </ToastProvider>
         </ThemeProvider>
       </body>
     </html>

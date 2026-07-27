@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 import Logo from './logo';
+import { SiteFooter } from './site-footer';
 import { ThemeToggle } from './theme-toggle';
 
 type PageShellProps = {
@@ -39,6 +40,7 @@ export function PageShell({ title, description, children, footer }: PageShellPro
         </section>
       </main>
       {footer}
+      <SiteFooter />
     </div>
   );
 }

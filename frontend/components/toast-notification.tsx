@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 
-export type ToastVariant = 'success' | 'error' | 'info';
+export type ToastVariant = 'success' | 'error' | 'warning' | 'info';
 
 type ToastNotificationProps = {
   message: string;
@@ -15,19 +15,21 @@ type ToastNotificationProps = {
 const VARIANT_STYLES: Record<ToastVariant, string> = {
   success: 'bg-emerald-50 border-emerald-200 text-emerald-900',
   error: 'bg-red-50 border-red-200 text-red-900',
+  warning: 'bg-amber-50 border-amber-200 text-amber-900',
   info: 'bg-blue-50 border-blue-200 text-blue-900',
 };
 
 const ICONS: Record<ToastVariant, string> = {
   success: '✓',
   error: '✕',
+  warning: '!',
   info: 'i',
 };
 
 export function ToastNotification({
   message,
   variant = 'info',
-  duration = 4000,
+  duration = 5000,
   onDismiss,
 }: ToastNotificationProps) {
   const [visible, setVisible] = useState(true);
