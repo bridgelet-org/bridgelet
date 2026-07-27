@@ -50,6 +50,17 @@ The details step (`steps/details-step.tsx`) collects the payment details:
 
 Validation runs on submit and then re-runs on every change so errors clear as soon as the input becomes valid. Errors are announced to assistive technology via `role="alert"` and linked to their fields with `aria-describedby`/`aria-invalid`.
 
+## FAQ accordion
+
+The homepage now includes an accessible FAQ accordion covering:
+
+- What is an ephemeral account?
+- Do recipients need a wallet?
+- What happens if the payment is unclaimed?
+- Is it safe?
+
+The component uses keyboard navigation and WAI-ARIA accordion patterns so users can open and close items using Enter, Space, Arrow Up/Down, Home, and End.
+
 ## SDK wrapper (`lib/bridgelet.ts`)
 
 `lib/bridgelet.ts` is the typed entry point for the bridgelet-sdk API. The confirm step of the send form creates ephemeral accounts through it:

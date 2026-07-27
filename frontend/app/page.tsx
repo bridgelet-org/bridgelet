@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { PageShell } from '@/components/page-shell';
 import { HowItWorks } from '@/components/how-it-works';
 import { CTABanner } from '@/components/cta-banner';
+import { FAQAccordion } from '@/components/faq-accordion';
 
 export default function HomePage() {
   return (
@@ -29,6 +30,7 @@ export default function HomePage() {
             </Link>
           </nav>
         </div>
+        <FAQAccordion />
       </div>
     </PageShell>
   );
