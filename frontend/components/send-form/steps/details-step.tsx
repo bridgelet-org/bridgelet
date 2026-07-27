@@ -1,6 +1,8 @@
 'use client';
 
+import { useState } from 'react';
 import type { SendFormState } from '../index';
+import { ChainSelector } from '../../chain-selector';
 
 type DetailsStepProps = {
   state: SendFormState;
@@ -10,6 +12,8 @@ type DetailsStepProps = {
 };
 
 export function DetailsStep({ state, onChange, onBack, onNext }: DetailsStepProps) {
+  const [selectedChain, setSelectedChain] = useState('stellar');
+
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     onNext();
@@ -17,6 +21,11 @@ export function DetailsStep({ state, onChange, onBack, onNext }: DetailsStepProp
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4" noValidate>
+      <ChainSelector
+        selectedChainId={selectedChain}
+        onSelectChain={setSelectedChain}
+      />
+
       <div>
         <label htmlFor="recipient-email" className="block text-sm font-medium text-slate-900">
           Recipient email
