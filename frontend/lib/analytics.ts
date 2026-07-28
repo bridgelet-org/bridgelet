@@ -1,9 +1,5 @@
 // #118 – Privacy-respecting analytics events (Plausible-compatible, no PII)
-type ClaimEvent =
-  | 'claim_page_viewed'
-  | 'claim_initiated'
-  | 'claim_success'
-  | 'claim_error';
+type ClaimEvent = 'claim_page_viewed' | 'claim_initiated' | 'claim_success' | 'claim_error';
 
 type EventProps = Record<string, string | number | boolean>;
 
@@ -25,7 +21,7 @@ function track(event: ClaimEvent, props?: EventProps): void {
 
 export const analytics = {
   claimPageViewed: () => track('claim_page_viewed'),
-  claimInitiated:  () => track('claim_initiated'),
-  claimSuccess:    () => track('claim_success'),
-  claimError:      (reason: string) => track('claim_error', { reason }),
+  claimInitiated: () => track('claim_initiated'),
+  claimSuccess: () => track('claim_success'),
+  claimError: (reason: string) => track('claim_error', { reason }),
 };

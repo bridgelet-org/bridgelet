@@ -22,9 +22,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 
 // Resolve API URL from env, falling back to local dev default
 const apiUrl =
-  process.env.BRIDGELET_API_URL ??
-  process.env.NEXT_PUBLIC_API_BASE_URL ??
-  'http://localhost:4000';
+  process.env.BRIDGELET_API_URL ?? process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:4000';
 
 const specUrl = `${apiUrl}/api/docs-json`;
 const outFile = resolve(__dirname, '../lib/bridgelet.ts');
@@ -38,6 +36,8 @@ try {
   console.log('Tip: commit the updated lib/bridgelet.ts so types stay in sync with the API.');
 } catch (err) {
   console.error('\nGeneration failed:', err instanceof Error ? err.message : err);
-  console.error('Ensure the SDK is running and GET /api/docs-json returns a valid OpenAPI 3.x spec.');
+  console.error(
+    'Ensure the SDK is running and GET /api/docs-json returns a valid OpenAPI 3.x spec.',
+  );
   process.exit(1);
 }

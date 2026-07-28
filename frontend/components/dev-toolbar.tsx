@@ -62,7 +62,9 @@ export function DevToolbar() {
         aria-label="Open developer toolbar"
         className="fixed bottom-4 right-4 z-[9999] flex h-8 w-8 items-center justify-center rounded-full bg-slate-800 text-white shadow-lg hover:bg-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-800"
       >
-        <span aria-hidden="true" className="text-[13px]">🛠</span>
+        <span aria-hidden="true" className="text-[13px]">
+          🛠
+        </span>
       </button>
     );
   }

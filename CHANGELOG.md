@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Playwright E2E suite for the reference UI (`frontend/playwright.config.ts`, `frontend/e2e/`) targeting `localhost:3000`, with `test:e2e` / `test:e2e:ui` scripts and Frontend CI running E2E against the built Next.js app
 - Initial MVP implementation of Bridgelet for ephemeral Stellar accounts
 - **bridgelet-core**: Soroban smart contracts for on-chain account restrictions, sweep logic, and event emission ([bridgelet-core](https://github.com/bridgelet-org/bridgelet-core))
 - **bridgelet-sdk**: NestJS backend SDK for account lifecycle management, claim authentication, and webhook system ([bridgelet-sdk](https://github.com/bridgelet-org/bridgelet-sdk))

@@ -50,9 +50,7 @@ export const quarters: Quarter[] = [
       },
       {
         label: 'Infrastructure',
-        items: [
-          { label: 'Stellar Testnet deployment scripts', done: false },
-        ],
+        items: [{ label: 'Stellar Testnet deployment scripts', done: false }],
       },
     ],
   },
@@ -85,9 +83,7 @@ export const quarters: Quarter[] = [
       },
       {
         label: 'Network',
-        items: [
-          { label: 'Mainnet Beta Launch (Limited pilot)', done: false },
-        ],
+        items: [{ label: 'Mainnet Beta Launch (Limited pilot)', done: false }],
       },
     ],
   },

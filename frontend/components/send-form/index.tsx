@@ -2,33 +2,39 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { ConnectStep } from './steps/connect-step';
+import { ExpiryStep } from './steps/expiry-step';
 import { DetailsStep } from './steps/details-step';
 import { ConfirmStep } from './steps/confirm-step';
 
-export type SendFormStep = 'connect' | 'details' | 'confirm';
+export type SendFormStep = 'connect' | 'expiry' | 'details' | 'confirm';
 
 export interface SendFormState {
   publicKey: string;
+  recipientName: string;
   recipientEmail: string;
   amountXlm: string;
   assetCode: string;
   memo: string;
+  expiresIn: number;
 }
 
 const INITIAL_STATE: SendFormState = {
   publicKey: '',
+  recipientName: '',
   recipientEmail: '',
   amountXlm: '',
   assetCode: 'XLM',
   memo: '',
+  expiresIn: 7 * 24 * 60 * 60,
 };
 
-const STEP_ORDER: SendFormStep[] = ['connect', 'details', 'confirm'];
+const STEP_ORDER: SendFormStep[] = ['connect', 'expiry', 'details', 'confirm'];
 
 const STEP_LABELS: Record<SendFormStep, string> = {
-  connect: 'Step 1 of 3: Connect Wallet',
-  details: 'Step 2 of 3: Payment Details',
-  confirm: 'Step 3 of 3: Confirm & Send',
+  connect: 'Step 1 of 4: Connect wallet',
+  expiry: 'Step 2 of 4: Set expiry',
+  details: 'Step 3 of 4: Set account details',
+  confirm: 'Step 4 of 4: Create account',
 };
 
 /**
@@ -67,7 +73,7 @@ export function SendForm() {
   return (
     <div className="space-y-6">
       {/* Step indicator */}
-      <nav aria-label="Send form progress">
+      <nav aria-label="Create ephemeral account progress">
         <ol className="flex gap-2" role="list">
           {STEP_ORDER.map((s, i) => {
             const isCurrent = s === step;
@@ -82,11 +88,7 @@ export function SendForm() {
                 <span
                   aria-current={isCurrent ? 'step' : undefined}
                   className={`text-xs font-medium ${
-                    isCurrent
-                      ? 'text-slate-900'
-                      : isDone
-                        ? 'text-green-600'
-                        : 'text-slate-400'
+                    isCurrent ? 'text-slate-900' : isDone ? 'text-green-700' : 'text-slate-500'
                   }`}
                 >
                   {i + 1}. {s.charAt(0).toUpperCase() + s.slice(1)}
@@ -118,17 +120,18 @@ export function SendForm() {
           }}
         />
       )}
-      {step === 'details' && (
-        <DetailsStep
-          state={formState}
-          onChange={updateState}
+      {step === 'expiry' && (
+        <ExpiryStep
+          expiresIn={formState.expiresIn}
+          onChange={(expiresIn) => updateState({ expiresIn })}
           onBack={goBack}
           onNext={goNext}
         />
       )}
-      {step === 'confirm' && (
-        <ConfirmStep state={formState} onBack={goBack} />
+      {step === 'details' && (
+        <DetailsStep state={formState} onChange={updateState} onBack={goBack} onNext={goNext} />
       )}
+      {step === 'confirm' && <ConfirmStep state={formState} onBack={goBack} />}
     </div>
   );
 }
