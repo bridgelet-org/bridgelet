@@ -4,8 +4,8 @@ import { SendForm } from '@/components/send-form';
 export default function SendPage() {
   return (
     <PageShell
-      title="Send a Payment"
-      description="Send crypto to anyone — even recipients with no wallet. They claim from a secure link."
+      title="Create a new ephemeral account"
+      description="Ephemeral accounts are temporary accounts that can be used to send and receive crypto. They are a great way to try out the network without having to create a full account."
     >
       <SendForm />
     </PageShell>

@@ -2,16 +2,22 @@
 
 import { useState } from 'react';
 import { RateLimitBanner } from '@/components/rate-limit-banner';
-import { RateLimitError } from '@/lib/redeem';
+import { RateLimitError } from '@/lib/api/client';
+import { ChainSelector } from '@/components/chain-selector';
+import { AccountStatus } from '@/lib/api/types';
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-export type ClaimStatus = 'available' | 'claimed' | 'expired';
+/**
+ * ClaimStatus now mirrors the backend's real AccountStatus enum (Issue 5)
+ * instead of the old three-value `'available' | 'claimed' | 'expired'`
+ * model, which had no way to represent INITIALIZING, PENDING_PAYMENT,
+ * CLAIMING, PARTIAL_SWEEP, or FAILED accounts.
+ */
+export type ClaimStatus = AccountStatus;
 
 export interface ClaimStatusCardProps {
-  /** Current state of the claim token. */
+  /** Current lifecycle status of the account, as returned by the backend. */
   status: ClaimStatus;
-  /** Payment amount in stroops (1 XLM = 10_000_000). Required for `available`. */
+  /** Payment amount in stroops (1 XLM = 10_000_000). Required for `pending_claim`. */
   amountStroops?: string;
   /** ISO 4217 asset code, e.g. "XLM" or "USDC". */
   assetCode?: string;
@@ -19,11 +25,11 @@ export interface ClaimStatusCardProps {
   expiresAt?: string;
   /** Optional sender memo. */
   memo?: string;
-  /** Called when the recipient taps "Claim now". */
-  onClaim?: () => void | Promise<void>;
+  /** Called when the recipient submits a destination address to claim to. Also used to retry a PARTIAL_SWEEP. */
+  onClaim?: (destinationAddress: string) => void | Promise<void>;
   /** Developer-facing note from the API (e.g. sweep_status stub message). */
   sweepNote?: string;
-  /** Support contact email shown in the expired state. */
+  /** Support contact email shown in the expired/failed states. */
   supportEmail?: string;
 }
 
@@ -47,17 +53,59 @@ function formatExpiry(iso: string): string {
   }
 }
 
-// ─── Sub-components ───────────────────────────────────────────────────────────
+// ─── Display metadata for every real backend status ───────────────────────────
+
+const HEADERS: Record<ClaimStatus, string> = {
+  [AccountStatus.INITIALIZING]: 'Setting up your payment',
+  [AccountStatus.PENDING_PAYMENT]: 'Waiting for payment',
+  [AccountStatus.PENDING_CLAIM]: 'You have a payment waiting',
+  [AccountStatus.CLAIMING]: 'Claim in progress',
+  [AccountStatus.PARTIAL_SWEEP]: 'Finishing up your claim',
+  [AccountStatus.CLAIMED]: 'Payment already claimed',
+  [AccountStatus.EXPIRED]: 'Payment link expired',
+  [AccountStatus.FAILED]: 'Something went wrong',
+};
+
+const BORDER_COLORS: Record<ClaimStatus, string> = {
+  [AccountStatus.INITIALIZING]: 'border-slate-200',
+  [AccountStatus.PENDING_PAYMENT]: 'border-amber-200',
+  [AccountStatus.PENDING_CLAIM]: 'border-green-200',
+  [AccountStatus.CLAIMING]: 'border-blue-200',
+  [AccountStatus.PARTIAL_SWEEP]: 'border-blue-200',
+  [AccountStatus.CLAIMED]: 'border-blue-200',
+  [AccountStatus.EXPIRED]: 'border-red-200',
+  [AccountStatus.FAILED]: 'border-red-200',
+};
+
+const BADGE_STYLES: Record<ClaimStatus, { dot: string; text: string; label: string }> = {
+  [AccountStatus.INITIALIZING]: {
+    dot: 'bg-slate-400',
+    text: 'text-slate-600',
+    label: 'Setting up',
+  },
+  [AccountStatus.PENDING_PAYMENT]: {
+    dot: 'bg-amber-500',
+    text: 'text-amber-700',
+    label: 'Awaiting payment',
+  },
+  [AccountStatus.PENDING_CLAIM]: {
+    dot: 'bg-green-500',
+    text: 'text-green-700',
+    label: 'Available',
+  },
+  [AccountStatus.CLAIMING]: { dot: 'bg-blue-500', text: 'text-blue-700', label: 'Processing' },
+  [AccountStatus.PARTIAL_SWEEP]: { dot: 'bg-blue-500', text: 'text-blue-700', label: 'Processing' },
+  [AccountStatus.CLAIMED]: { dot: 'bg-blue-500', text: 'text-blue-700', label: 'Claimed' },
+  [AccountStatus.EXPIRED]: { dot: 'bg-red-500', text: 'text-red-700', label: 'Expired' },
+  [AccountStatus.FAILED]: { dot: 'bg-red-500', text: 'text-red-700', label: 'Failed' },
+};
 
 function StatusBadge({ status }: { status: ClaimStatus }) {
-  const styles: Record<ClaimStatus, { dot: string; text: string; label: string }> = {
-    available: { dot: 'bg-green-500', text: 'text-green-700', label: 'Available' },
-    claimed:   { dot: 'bg-blue-500',  text: 'text-blue-700',  label: 'Claimed'   },
-    expired:   { dot: 'bg-red-500',   text: 'text-red-700',   label: 'Expired'   },
-  };
-  const { dot, text, label } = styles[status];
+  const { dot, text, label } = BADGE_STYLES[status];
   return (
-    <span className={`inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider ${text}`}>
+    <span
+      className={`inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider ${text}`}
+    >
       <span className={`inline-block h-2 w-2 rounded-full ${dot}`} aria-hidden="true" />
       {label}
     </span>
@@ -73,22 +121,39 @@ function AvailablePanel({
   memo,
   onClaim,
   sweepNote,
-}: Pick<ClaimStatusCardProps, 'amountStroops' | 'assetCode' | 'expiresAt' | 'memo' | 'onClaim' | 'sweepNote'>) {
+}: Pick<
+  ClaimStatusCardProps,
+  'amountStroops' | 'assetCode' | 'expiresAt' | 'memo' | 'onClaim' | 'sweepNote'
+>) {
   const [claiming, setClaiming] = useState(false);
   const [done, setDone] = useState(false);
   const [rateLimit, setRateLimit] = useState<number | null | undefined>(undefined);
+  const [claimError, setClaimError] = useState<string | null>(null);
+  const [destinationAddress, setDestinationAddress] = useState('');
+
+  // Matches the backend's Stellar public key validation (StrKey ed25519 public keys).
+  const isValidAddress = /^G[A-Z2-7]{55}$/.test(destinationAddress);
 
   async function handleClaim() {
+    if (!isValidAddress) return;
     setClaiming(true);
     setRateLimit(undefined);
+    setClaimError(null);
     try {
-      await onClaim?.();
+      await onClaim?.(destinationAddress);
       setDone(true);
     } catch (err) {
       if (err instanceof RateLimitError) {
         setRateLimit(err.retryAfter);
       } else {
-        throw err;
+        // `handleClaim` is wired up as `onClick={handleClaim}` directly, so
+        // nothing awaits or catches this async function's own returned
+        // promise. Rethrowing here would just become an unhandled
+        // rejection with no user-visible feedback — surface it in state
+        // instead.
+        setClaimError(
+          err instanceof Error ? err.message : 'Something went wrong. Please try again.',
+        );
       }
     } finally {
       setClaiming(false);
@@ -116,9 +181,11 @@ function AvailablePanel({
         <div className="flex justify-between">
           <dt className="font-medium text-slate-700">Amount</dt>
           <dd className="font-semibold text-slate-900">
-            {amountStroops
-              ? stroopsToDisplay(amountStroops, assetCode)
-              : <span className="text-slate-400">—</span>}
+            {amountStroops ? (
+              stroopsToDisplay(amountStroops, assetCode)
+            ) : (
+              <span className="text-slate-400">—</span>
+            )}
           </dd>
         </div>
         {expiresAt && (
@@ -136,19 +203,95 @@ function AvailablePanel({
       </dl>
 
       {rateLimit !== undefined && <RateLimitBanner retryAfter={rateLimit} />}
+      {claimError && (
+        <p
+          role="alert"
+          className="text-sm text-red-700 bg-red-50 border border-red-200 rounded px-3 py-2"
+        >
+          {claimError}
+        </p>
+      )}
+
+      <div>
+        <label
+          htmlFor="destination-address"
+          className="mb-1 block text-xs font-medium text-slate-700"
+        >
+          Your Stellar wallet address
+        </label>
+        <input
+          id="destination-address"
+          type="text"
+          inputMode="text"
+          autoComplete="off"
+          spellCheck={false}
+          placeholder="G..."
+          value={destinationAddress}
+          onChange={(e) => setDestinationAddress(e.target.value.trim())}
+          className="w-full rounded-lg border border-slate-300 px-3 py-2 font-mono text-xs text-slate-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-600"
+        />
+        {destinationAddress.length > 0 && !isValidAddress && (
+          <p className="mt-1 text-xs text-red-600">
+            Enter a valid Stellar public key (starts with G, 56 characters).
+          </p>
+        )}
+      </div>
 
       <button
         type="button"
         onClick={handleClaim}
-        disabled={claiming}
+        disabled={claiming || !isValidAddress}
         className="w-full rounded-lg bg-green-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-green-700 disabled:opacity-60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-600"
       >
         {claiming ? 'Claiming…' : 'Claim now'}
       </button>
 
+      <div className="pt-2">
+        <ChainSelector />
+      </div>
+
       <p className="text-xs text-slate-500">
         Funds are held on-chain. Claiming transfers them directly to your Stellar wallet.
       </p>
+    </div>
+  );
+}
+
+function NotReadyPanel({ status }: { status: ClaimStatus }) {
+  const message =
+    status === AccountStatus.INITIALIZING
+      ? 'The sender is setting up this payment. This page will update automatically once it is ready.'
+      : 'The sender\u2019s payment hasn\u2019t confirmed on-chain yet. This usually takes a few seconds to a couple of minutes.';
+  return (
+    <div className="flex items-center gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
+      <span
+        className="h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-amber-400 border-t-transparent"
+        aria-hidden="true"
+      />
+      <p className="text-sm text-amber-800">{message}</p>
+    </div>
+  );
+}
+
+function ProcessingPanel({ status, sweepNote }: { status: ClaimStatus; sweepNote?: string }) {
+  const message =
+    status === AccountStatus.PARTIAL_SWEEP
+      ? 'Your claim was authorized and is finishing up. If this takes more than a few minutes, tap Claim now to retry the transfer.'
+      : 'Your claim is being processed on-chain. This page will update automatically.';
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-3 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3">
+        <span
+          className="h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-blue-400 border-t-transparent"
+          aria-hidden="true"
+        />
+        <p className="text-sm text-blue-800">{message}</p>
+      </div>
+      {sweepNote && (
+        <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-3 py-2">
+          🛠 Dev note: {sweepNote}
+        </p>
+      )}
     </div>
   );
 }
@@ -165,13 +308,17 @@ function ClaimedPanel() {
           stroke="currentColor"
           strokeWidth={2}
         >
-          <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+          />
         </svg>
         <div>
           <p className="text-sm font-semibold text-blue-800">Payment already claimed</p>
           <p className="text-xs text-blue-600 mt-0.5">
-            These funds have been transferred to the recipient&apos;s wallet. Each claim link
-            can only be used once.
+            These funds have been transferred to the recipient&apos;s wallet. Each claim link can
+            only be used once.
           </p>
         </div>
       </div>
@@ -197,14 +344,16 @@ function ExpiredPanel({
           stroke="currentColor"
           strokeWidth={2}
         >
-          <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+          />
         </svg>
         <div>
           <p className="text-sm font-semibold text-red-800">This claim link has expired</p>
           {expiresAt && (
-            <p className="text-xs text-red-600 mt-0.5">
-              Expired on {formatExpiry(expiresAt)}.
-            </p>
+            <p className="text-xs text-red-700 mt-0.5">Expired on {formatExpiry(expiresAt)}.</p>
           )}
         </div>
       </div>
@@ -231,14 +380,54 @@ function ExpiredPanel({
   );
 }
 
+function FailedPanel({ supportEmail }: Pick<ClaimStatusCardProps, 'supportEmail'>) {
+  return (
+    <div className="space-y-3">
+      <div className="flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3">
+        <svg
+          aria-hidden="true"
+          className="mt-0.5 h-5 w-5 shrink-0 text-red-500"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+          strokeWidth={2}
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+          />
+        </svg>
+        <div>
+          <p className="text-sm font-semibold text-red-800">This payment couldn&apos;t be set up</p>
+          <p className="text-xs text-red-700 mt-0.5">
+            Something went wrong while creating or funding this payment. It has not been claimed and
+            no funds have moved.
+          </p>
+        </div>
+      </div>
+      {supportEmail && (
+        <p className="text-xs text-slate-500">
+          Contact the sender, or reach us at{' '}
+          <a
+            href={`mailto:${supportEmail}`}
+            className="underline underline-offset-2 hover:text-slate-900"
+          >
+            {supportEmail}
+          </a>
+          .
+        </p>
+      )}
+    </div>
+  );
+}
+
 // ─── Main component ───────────────────────────────────────────────────────────
 
 /**
- * Renders the correct UI for a claim token based on its current status.
- *
- * - `available`  → amount + claim button
- * - `claimed`    → success notice (already redeemed)
- * - `expired`    → expiry date + contact-sender instructions
+ * Renders the correct UI for a claim token based on its current account
+ * status. Every value of AccountStatus is handled explicitly (Issue 5) —
+ * there is no silent "unknown status" fallback.
  */
 export function ClaimStatusCard({
   status,
@@ -250,34 +439,25 @@ export function ClaimStatusCard({
   sweepNote,
   supportEmail,
 }: ClaimStatusCardProps) {
-  const headers: Record<ClaimStatus, string> = {
-    available: 'You have a payment waiting',
-    claimed:   'Payment already claimed',
-    expired:   'Payment link expired',
-  };
-
-  const borderColors: Record<ClaimStatus, string> = {
-    available: 'border-green-200',
-    claimed:   'border-blue-200',
-    expired:   'border-red-200',
-  };
-
   return (
     <article
       aria-label={`Claim status: ${status}`}
       aria-live="polite"
       aria-atomic="true"
       aria-relevant="additions text"
-      className={`rounded-xl border-2 ${borderColors[status]} bg-white p-5 shadow-sm space-y-4`}
+      className={`rounded-xl border-2 ${BORDER_COLORS[status]} bg-white p-5 shadow-sm space-y-4`}
     >
       <header className="flex items-center justify-between">
-        <h2 className="text-base font-semibold text-slate-900">{headers[status]}</h2>
+        <h2 className="text-base font-semibold text-slate-900">{HEADERS[status]}</h2>
         <StatusBadge status={status} />
       </header>
 
       <hr className="border-slate-100" />
 
-      {status === 'available' && (
+      {(status === AccountStatus.INITIALIZING || status === AccountStatus.PENDING_PAYMENT) && (
+        <NotReadyPanel status={status} />
+      )}
+      {status === AccountStatus.PENDING_CLAIM && (
         <AvailablePanel
           amountStroops={amountStroops}
           assetCode={assetCode}
@@ -287,10 +467,14 @@ export function ClaimStatusCard({
           sweepNote={sweepNote}
         />
       )}
-      {status === 'claimed' && <ClaimedPanel />}
-      {status === 'expired' && (
+      {(status === AccountStatus.CLAIMING || status === AccountStatus.PARTIAL_SWEEP) && (
+        <ProcessingPanel status={status} sweepNote={sweepNote} />
+      )}
+      {status === AccountStatus.CLAIMED && <ClaimedPanel />}
+      {status === AccountStatus.EXPIRED && (
         <ExpiredPanel expiresAt={expiresAt} supportEmail={supportEmail} />
       )}
+      {status === AccountStatus.FAILED && <FailedPanel supportEmail={supportEmail} />}
     </article>
   );
 }

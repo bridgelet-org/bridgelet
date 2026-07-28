@@ -1,68 +1,64 @@
 /**
  * Bridgelet API TypeScript types
- *
- * These types are manually maintained as a baseline.
- * Once the SDK exposes an OpenAPI spec at /api/docs-json, regenerate with:
- *
- *   npm run generate:types
- *
- * See scripts/generate-types.mjs for full instructions.
  */
 
 // ─── Payment Intent ──────────────────────────────────────────────────────────
 
 /** Request body for POST /send */
-export interface CreatePaymentIntentRequest {
-  /** Stellar public key of the sender (G...) */
-  senderPublicKey: string;
-  /** Amount in stroops (1 XLM = 10_000_000) */
-  amountStroops: string;
-  /** ISO 4217 asset code, e.g. "USDC" or "XLM" */
-  assetCode: string;
-  /** Optional memo attached to the Stellar transaction */
-  memo?: string;
+export interface CreateAccountRequest {
+  fundingSource: string;
+  recovery_address: string;
+  amount: string;
+  asset_code?: string;
+  asset_issuer?: string;
+  expiresIn: number;
+  metadata?: Record<string, unknown>;
+  signedTxXdr?: string;
+  signerAddress?: string;
+  networkPassphrase?: string;
+  signingMode?: 'backend' | 'freighter-client';
 }
+
+export type AccountStatus = 'pending' | 'claimed' | 'expired';
 
 /** Response from POST /send */
-export interface CreatePaymentIntentResponse {
-  /** Unique identifier for this payment intent */
-  intentId: string;
-  /** One-time claim token delivered to the recipient */
-  claimToken: string;
-  /** URL the recipient uses to claim the payment */
-  claimUrl: string;
-  /** ISO 8601 timestamp after which the token expires */
+export interface AccountResponse {
+  accountId: string;
+  publicKey: string;
+  claimUrl: string | null;
+  txHash?: string;
+  amount: string;
+  asset: string;
+  status: AccountStatus;
   expiresAt: string;
+  createdAt: string;
+  claimedAt?: string | null;
+  destination?: string;
+  metadata?: Record<string, unknown>;
 }
 
-// ─── Claim ───────────────────────────────────────────────────────────────────
-
-/** Response from GET /claim/:token */
-export interface ClaimDetailsResponse {
-  /** Whether the claim token is still valid and unclaimed */
-  valid: boolean;
-  /** Amount in stroops */
-  amountStroops: string;
-  /** Asset code */
-  assetCode: string;
-  /** ISO 8601 expiry timestamp */
-  expiresAt: string;
-  /** Optional sender memo */
-  memo?: string;
+export interface VerifyClaimRequest {
+  claimToken: string;
 }
 
 /** Request body for POST /claim/:token/redeem */
 export interface RedeemClaimRequest {
-  /** Recipient's Stellar public key */
-  recipientPublicKey: string;
+  claimToken: string;
+  destinationAddress: string;
 }
 
 /** Response from POST /claim/:token/redeem */
 export interface RedeemClaimResponse {
-  /** Stellar transaction hash */
-  txHash: string;
-  /** Stellar Explorer link for this transaction */
-  explorerUrl: string;
+  success: boolean;
+  txHash?: string;
+  amountSwept: string;
+  asset: string;
+  destination: string;
+  sweptAt?: string;
+  message?: string;
+  isPartial?: boolean;
+  contractAuthHash?: string;
+  error?: string;
 }
 
 // ─── Error envelope ──────────────────────────────────────────────────────────
@@ -74,10 +70,22 @@ export interface ApiError {
   statusCode: number;
 }
 
-export {
+import {
   BridgeletClient,
+  BridgeletApiError,
+  RateLimitError,
   type BridgeletClientOptions,
 } from '@/lib/create-bridgelet-client';
+
+export { BridgeletClient, BridgeletApiError, RateLimitError, type BridgeletClientOptions };
+
+// ─── Ephemeral account ───────────────────────────────────────────────────────
+
+/**
+ * An ephemeral Stellar account returned by the SDK's `POST /accounts`
+ * endpoint. Alias of `AccountResponse`, named for send-form callers.
+ */
+export type EphemeralAccount = AccountResponse;
 
 let _defaultClient: BridgeletClient | null = null;
 
@@ -88,19 +96,26 @@ function defaultClient(): BridgeletClient {
   return _defaultClient;
 }
 
-export function getClaimDetails(token: string): Promise<ClaimDetailsResponse> {
-  return defaultClient().getClaimDetails(token);
-}
-
-export function createPaymentIntent(
-  data: CreatePaymentIntentRequest,
-): Promise<CreatePaymentIntentResponse> {
-  return defaultClient().createPaymentIntent(data);
+/**
+ * Create an ephemeral account by wrapping the SDK's `POST /accounts`
+ * endpoint.
+ *
+ * Auth: the request is routed through this app's own `/api/accounts` route
+ * handler, which attaches the `Authorization: Bearer` header server-side —
+ * the SDK token is never exposed to the browser.
+ *
+ * Errors: non-2xx responses are parsed into typed errors by the underlying
+ * client — `RateLimitError` on 429 (with `retryAfter`) and
+ * `BridgeletApiError` (with `statusCode` and error code) otherwise.
+ * Transient network failures and 5xx responses are retried with backoff.
+ */
+export function createEphemeralAccount(data: CreateAccountRequest): Promise<EphemeralAccount> {
+  return defaultClient().createAccount(data);
 }
 
 export function redeemClaim(
   token: string,
-  data: RedeemClaimRequest,
+  destinationAddress: string,
 ): Promise<RedeemClaimResponse> {
-  return defaultClient().redeemClaim(token, data);
+  return defaultClient().redeemClaim(token, destinationAddress);
 }

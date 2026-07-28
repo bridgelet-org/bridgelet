@@ -4,13 +4,18 @@ import { quarters, communityRequests, longTermVision } from '@/lib/roadmap-data'
 
 export const metadata: Metadata = {
   title: 'Roadmap — Bridgelet',
-  description: 'Development timeline, planned features, and community priorities for the Bridgelet project.',
+  description:
+    'Development timeline, planned features, and community priorities for the Bridgelet project.',
 };
 
 function CheckIcon() {
   return (
     <svg className="h-4 w-4 shrink-0 text-emerald-500" viewBox="0 0 20 20" fill="currentColor">
-      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+      <path
+        fillRule="evenodd"
+        d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+        clipRule="evenodd"
+      />
     </svg>
   );
 }
@@ -18,7 +23,11 @@ function CheckIcon() {
 function MinusIcon() {
   return (
     <svg className="h-4 w-4 shrink-0 text-slate-300" viewBox="0 0 20 20" fill="currentColor">
-      <path fillRule="evenodd" d="M3 10a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd" />
+      <path
+        fillRule="evenodd"
+        d="M3 10a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z"
+        clipRule="evenodd"
+      />
     </svg>
   );
 }
@@ -54,11 +63,14 @@ export default function RoadmapPage() {
         <div className="space-y-2">
           <div className="flex items-center justify-between text-sm">
             <span className="font-medium text-slate-700">Overall Progress</span>
-            <span className="text-slate-500">{doneCount} / {totalCount} complete</span>
+            <span className="text-slate-500">
+              {doneCount} / {totalCount} complete
+            </span>
           </div>
           <ProgressBar value={overallProgress} />
           <p className="text-xs text-slate-400">
-            Phase: MVP Implementation — Building core primitives for ephemeral account creation and sweeping.
+            Phase: MVP Implementation — Building core primitives for ephemeral account creation and
+            sweeping.
           </p>
         </div>
 
@@ -71,7 +83,10 @@ export default function RoadmapPage() {
             const quarterProgress = Math.round((quarterDone / quarterTotal) * 100);
 
             return (
-              <div key={quarter.id} className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+              <div
+                key={quarter.id}
+                className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm"
+              >
                 <div className="mb-4 flex items-start justify-between gap-4">
                   <div>
                     <h2 className="text-xl font-semibold text-slate-900">
@@ -96,7 +111,10 @@ export default function RoadmapPage() {
                       </h3>
                       <ul className="space-y-1">
                         {category.items.map((item) => (
-                          <li key={item.label} className="flex items-start gap-2 text-sm text-slate-700">
+                          <li
+                            key={item.label}
+                            className="flex items-start gap-2 text-sm text-slate-700"
+                          >
                             {item.done ? <CheckIcon /> : <MinusIcon />}
                             <span className={item.done ? 'text-slate-500' : ''}>
                               {item.done ? <s>{item.label}</s> : item.label}
@@ -151,7 +169,8 @@ export default function RoadmapPage() {
         <div className="space-y-3">
           <h2 className="text-lg font-semibold text-slate-900">Long-term Vision 🔭</h2>
           <p className="text-sm text-slate-500">
-            Bridgelet aims to become the standard &ldquo;invisible bridge&rdquo; for the Stellar network.
+            Bridgelet aims to become the standard &ldquo;invisible bridge&rdquo; for the Stellar
+            network.
           </p>
           <ol className="list-inside list-decimal space-y-2 text-sm text-slate-700">
             {longTermVision.map((point, i) => (

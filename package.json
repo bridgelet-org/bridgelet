@@ -7,6 +7,7 @@
     "doc": "docs"
   },
   "scripts": {
+    "build": "npm --prefix frontend run build",
     "test": "echo \"Run npm test inside frontend/ for app tests\" && exit 0"
   },
   "repository": {
@@ -15,7 +16,7 @@
   },
   "keywords": [],
   "author": "",
-  "license": "ISC",
+  "license": "ISC", 
   "bugs": {
     "url": "https://github.com/okekefrancis112/bridgelet/issues"
   },

@@ -12,6 +12,9 @@ jobs:
   build-and-test:
     name: Lint, type-check, test, and build
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
 
     steps:
       - name: Checkout repository
@@ -22,7 +25,7 @@ jobs:
         with:
           node-version: 20
           cache: npm
-          cache-dependency-path: package-lock.json
+          cache-dependency-path: frontend/package-lock.json
 
       - name: Install dependencies
         run: npm ci
@@ -30,20 +33,48 @@ jobs:
       - name: Detect package scripts
         id: pkg
         run: |
-          node -e "const fs = require('fs'); const pkg = require('./package.json'); const s = pkg.scripts || {}; const out = [`has_lint=${'lint' in s}`, `has_type_check=${'type-check' in s}`, `has_build=${'build' in s}`, `has_test=${'test' in s}`].join('\n'); fs.appendFileSync(process.env.GITHUB_OUTPUT, out + '\n');"
+          node -e '
+          const fs = require("fs");
+          const pkg = require("./package.json");
+          const s = pkg.scripts || {};
+          const out = [
+            "has_lint=" + ("lint" in s),
+            "has_typecheck=" + ("typecheck" in s),
+            "has_build=" + ("build" in s),
+            "has_test=" + ("test" in s),
+            "has_e2e=" + ("test:e2e" in s)
+          ].join("\n");
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, out + "\n");'
 
       - name: Run lint
         if: steps.pkg.outputs.has_lint == 'true'
         run: npm run lint
 
       - name: Run TypeScript type-check
-        if: steps.pkg.outputs.has_type_check == 'true'
-        run: npm run type-check
+        if: steps.pkg.outputs.has_typecheck == 'true'
+        run: npm run typecheck
 
-      - name: Run tests
+      - name: Run unit tests
         if: steps.pkg.outputs.has_test == 'true'
         run: npm test
 
       - name: Build app
-        if: steps.pkg.outputs.has_build == 'true'
         run: npm run build
+
+      - name: Install Playwright browsers
+        if: steps.pkg.outputs.has_e2e == 'true'
+        run: npx playwright install --with-deps chromium
+
+      - name: Run E2E tests against built app
+        if: steps.pkg.outputs.has_e2e == 'true'
+        run: npm run test:e2e
+        env:
+          CI: true
+
+      - name: Upload Playwright report
+        if: failure() && steps.pkg.outputs.has_e2e == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: frontend/playwright-report/
+          retention-days: 7
