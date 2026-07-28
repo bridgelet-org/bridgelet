@@ -3,9 +3,13 @@
 import { useState } from 'react';
 import type { SendFormState } from '../index';
 import { useNfc } from '@/hooks/use-nfc';
-import { BridgeletClient, RateLimitError, BridgeletApiError } from '@/lib/api/client';
+import { BridgeletClient, RateLimitError } from '@/lib/api/client';
 import { createEphemeralAccount, type EphemeralAccount } from '@/lib/bridgelet';
-import { isFreighterTransactionSigningAvailable, signFreighterTransaction } from '@/lib/wallet';
+import {
+  FreighterSenderSigningError,
+  toCreateAccountRequestWithFreighterSignature,
+  tryFreighterSenderSigning,
+} from '@/lib/freighter-sender-signing';
 import {
   classifyAccountCreationError,
   AccountCreationErrorCode,
@@ -24,16 +28,18 @@ const MAX_RETRIES = 3;
 
 const client = new BridgeletClient();
 
-function formatExpiryLabel(seconds: number): string {
-  const days = Math.round(seconds / (24 * 60 * 60));
-  if (days === 1) return '24 hours';
-  if (days < 7) return `${days} days`;
-  if (days === 7) return '7 days';
-  if (days === 30) return '30 days';
-  return `${days} days`;
-}
-
 function classifyError(err: unknown): AccountCreationErrorInfo {
+  if (err instanceof FreighterSenderSigningError) {
+    return {
+      code: AccountCreationErrorCode.INVALID_REQUEST,
+      userMessage: err.message,
+      retryable: err.code === 'USER_REJECTED',
+      suggestion:
+        err.code === 'SIGNER_MISMATCH'
+          ? 'Reconnect the Freighter wallet that funds this payment, then try again.'
+          : 'Approve the Freighter prompt, or go back and reconnect your wallet.',
+    };
+  }
   if (err instanceof RateLimitError) {
     return {
       code: AccountCreationErrorCode.RATE_LIMITED,
@@ -50,8 +56,14 @@ type ConfirmStepProps = {
   onBack: () => void;
 };
 
+type SubmitPhase = 'idle' | 'preparing' | 'awaiting-freighter' | 'submitting';
+
 export function ConfirmStep({ state, onBack }: ConfirmStepProps) {
   const [submitting, setSubmitting] = useState(false);
+  const [submitPhase, setSubmitPhase] = useState<SubmitPhase>('idle');
+  const [signingModeUsed, setSigningModeUsed] = useState<'freighter-client' | 'backend' | null>(
+    null,
+  );
   const [submitted, setSubmitted] = useState(false);
   const [errorInfo, setErrorInfo] = useState<AccountCreationErrorInfo | null>(null);
   const [retryCount, setRetryCount] = useState(0);
@@ -74,48 +86,27 @@ export function ConfirmStep({ state, onBack }: ConfirmStepProps) {
     };
   }
 
-  function canFallbackToBackendSigning(err: unknown): boolean {
-    if (err instanceof BridgeletApiError && [404, 405, 422, 501].includes(err.statusCode)) {
-      return true;
-    }
-
-    if (!(err instanceof Error)) return false;
-    return (
-      err.message.includes('Missing unsigned transaction XDR') ||
-      err.message.includes('Freighter transaction signing is not available') ||
-      err.message.includes('did not return a signed transaction')
-    );
-  }
-
   async function executeCreateAccount(attempt: number) {
     setSubmitting(true);
+    setSubmitPhase('preparing');
     setErrorInfo(null);
     setRetryAfter(null);
     try {
       const payload = buildCreateAccountPayload();
 
+      setSubmitPhase('awaiting-freighter');
+      const signing = await tryFreighterSenderSigning(client, payload);
+
+      setSubmitPhase('submitting');
       let account: EphemeralAccount;
-
-      try {
-        if (isFreighterTransactionSigningAvailable()) {
-          const prepared = await client.prepareAccountTransaction(payload);
-          const signed = await signFreighterTransaction(prepared.unsignedTxXdr);
-          account = await createEphemeralAccount({
-            ...payload,
-            signedTxXdr: signed.signedTxXdr,
-            signerAddress: signed.signerAddress,
-            networkPassphrase: signed.networkPassphrase,
-            signingMode: 'freighter-client',
-          });
-        } else {
-          account = await createEphemeralAccount(payload);
-        }
-      } catch (err) {
-        if (!canFallbackToBackendSigning(err)) {
-          throw err;
-        }
-
+      if (signing.mode === 'freighter-client') {
+        account = await createEphemeralAccount(
+          toCreateAccountRequestWithFreighterSignature(payload, signing.signed),
+        );
+        setSigningModeUsed('freighter-client');
+      } else {
         account = await createEphemeralAccount(payload);
+        setSigningModeUsed('backend');
       }
 
       if (!account.claimUrl) {
@@ -137,6 +128,7 @@ export function ConfirmStep({ state, onBack }: ConfirmStepProps) {
       setRetryCount(attempt);
     } finally {
       setSubmitting(false);
+      setSubmitPhase('idle');
     }
   }
 
@@ -148,6 +140,12 @@ export function ConfirmStep({ state, onBack }: ConfirmStepProps) {
     const nextAttempt = retryCount + 1;
     if (nextAttempt > MAX_RETRIES) return;
     executeCreateAccount(nextAttempt);
+  }
+
+  function submittingLabel(): string {
+    if (submitPhase === 'awaiting-freighter') return 'Waiting for Freighter…';
+    if (submitPhase === 'preparing') return 'Preparing transaction…';
+    return 'Sending…';
   }
 
   if (submitted) {
@@ -166,8 +164,14 @@ export function ConfirmStep({ state, onBack }: ConfirmStepProps) {
           ) : (
             <>Your claim link is ready to share with your recipient.</>
           )}{' '}
-          They have 24 hours to claim their funds.
+          They have {formatExpiryLabel(state.expiresIn || DEFAULT_EXPIRES_IN_SECONDS)} to claim
+          their funds.
         </p>
+        {signingModeUsed === 'freighter-client' && (
+          <p className="mt-2 text-xs text-green-700">
+            Account creation was authorised with Freighter client-side signing.
+          </p>
+        )}
 
         {isSupported && claimUrl && (
           <div className="mt-4 border-t border-green-200 pt-4">
@@ -225,6 +229,10 @@ export function ConfirmStep({ state, onBack }: ConfirmStepProps) {
             <dd className="text-slate-600">{state.memo}</dd>
           </div>
         )}
+        <div className="flex justify-between py-1.5">
+          <dt className="font-medium text-slate-700">Signing</dt>
+          <dd className="text-slate-600">Freighter (experimental) with backend fallback</dd>
+        </div>
       </dl>
 
       {errorInfo && (
@@ -273,7 +281,7 @@ export function ConfirmStep({ state, onBack }: ConfirmStepProps) {
             disabled={submitting}
             className="rounded-lg bg-red-700 px-4 py-2 text-sm font-medium text-white transition hover:bg-red-800 disabled:opacity-60"
           >
-            {submitting ? 'Retrying…' : `Try Again (${MAX_RETRIES - retryCount} left)`}
+            {submitting ? submittingLabel() : `Try Again (${MAX_RETRIES - retryCount} left)`}
           </button>
         ) : (
           <button
@@ -282,7 +290,7 @@ export function ConfirmStep({ state, onBack }: ConfirmStepProps) {
             disabled={submitting}
             className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-700 disabled:opacity-60"
           >
-            {submitting ? 'Sending…' : 'Confirm & Send'}
+            {submitting ? submittingLabel() : 'Confirm & Send'}
           </button>
         )}
       </div>
@@ -301,4 +309,13 @@ export function ConfirmStep({ state, onBack }: ConfirmStepProps) {
       )}
     </div>
   );
+}
+
+function formatExpiryLabel(seconds: number): string {
+  const days = Math.round(seconds / (24 * 60 * 60));
+  if (days === 1) return '24 hours';
+  if (days < 7) return `${days} days`;
+  if (days === 7) return '7 days';
+  if (days === 30) return '30 days';
+  return `${days} days`;
 }

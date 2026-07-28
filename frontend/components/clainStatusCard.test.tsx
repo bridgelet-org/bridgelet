@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ClaimStatusCard } from './claim-status-card';
 import { RateLimitError } from '@/lib/api/client';
@@ -19,6 +19,11 @@ vi.mock('@/components/chain-selector', () => ({
 
 // A valid-looking Stellar public key (G + 55 base32 chars).
 const VALID_ADDRESS = 'G' + 'A'.repeat(55);
+
+function setDestinationAddress(value: string) {
+  const input = screen.getByLabelText(/your stellar wallet address/i);
+  fireEvent.change(input, { target: { value } });
+}
 
 describe('ClaimStatusCard', () => {
   // ─── INITIALIZING / PENDING_PAYMENT ────────────────────────────────────
@@ -57,24 +62,21 @@ describe('ClaimStatusCard', () => {
       expect(screen.getByText('—')).toBeInTheDocument();
     });
 
-    it('disables the claim button until a valid address is entered', async () => {
-      const user = userEvent.setup();
+    it('disables the claim button until a valid address is entered', () => {
       render(<ClaimStatusCard status={AccountStatus.PENDING_CLAIM} amountStroops="10000000" />);
       const button = screen.getByRole('button', { name: /claim now/i });
       expect(button).toBeDisabled();
 
-      const input = screen.getByLabelText(/your stellar wallet address/i);
-      await user.type(input, 'not-a-valid-address');
+      setDestinationAddress('not-a-valid-address');
       expect(button).toBeDisabled();
       expect(screen.getByText(/enter a valid stellar public key/i)).toBeInTheDocument();
 
-      await user.clear(input);
-      await user.type(input, VALID_ADDRESS);
+      setDestinationAddress(VALID_ADDRESS);
       expect(button).toBeEnabled();
     });
 
     it('calls onClaim with the destination address and shows success state', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ delay: null });
       const onClaim = vi.fn().mockResolvedValue(undefined);
       render(
         <ClaimStatusCard
@@ -85,8 +87,7 @@ describe('ClaimStatusCard', () => {
         />,
       );
 
-      const input = screen.getByLabelText(/your stellar wallet address/i);
-      await user.type(input, VALID_ADDRESS);
+      setDestinationAddress(VALID_ADDRESS);
       await user.click(screen.getByRole('button', { name: /claim now/i }));
 
       await waitFor(() => expect(onClaim).toHaveBeenCalledWith(VALID_ADDRESS));
@@ -95,7 +96,7 @@ describe('ClaimStatusCard', () => {
     });
 
     it('shows a rate limit banner when onClaim throws RateLimitError', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ delay: null });
       const onClaim = vi.fn().mockRejectedValue(new RateLimitError(30));
       render(
         <ClaimStatusCard
@@ -105,8 +106,7 @@ describe('ClaimStatusCard', () => {
         />,
       );
 
-      const input = screen.getByLabelText(/your stellar wallet address/i);
-      await user.type(input, VALID_ADDRESS);
+      setDestinationAddress(VALID_ADDRESS);
       await user.click(screen.getByRole('button', { name: /claim now/i }));
 
       expect(await screen.findByTestId('rate-limit-banner')).toHaveTextContent('retry: 30');
@@ -115,7 +115,7 @@ describe('ClaimStatusCard', () => {
     });
 
     it('shows a visible error message for a non-rate-limit rejection', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ delay: null });
       const onClaim = vi.fn().mockRejectedValue(new Error('boom'));
       render(
         <ClaimStatusCard
@@ -125,8 +125,7 @@ describe('ClaimStatusCard', () => {
         />,
       );
 
-      const input = screen.getByLabelText(/your stellar wallet address/i);
-      await user.type(input, VALID_ADDRESS);
+      setDestinationAddress(VALID_ADDRESS);
       await user.click(screen.getByRole('button', { name: /claim now/i }));
 
       expect(await screen.findByRole('alert')).toHaveTextContent('boom');
@@ -134,7 +133,7 @@ describe('ClaimStatusCard', () => {
     });
 
     it('clears a previous error on the next claim attempt', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ delay: null });
       const onClaim = vi
         .fn()
         .mockRejectedValueOnce(new Error('boom'))
@@ -147,8 +146,7 @@ describe('ClaimStatusCard', () => {
         />,
       );
 
-      const input = screen.getByLabelText(/your stellar wallet address/i);
-      await user.type(input, VALID_ADDRESS);
+      setDestinationAddress(VALID_ADDRESS);
       const button = screen.getByRole('button', { name: /claim now/i });
       await user.click(button);
       expect(await screen.findByRole('alert')).toBeInTheDocument();

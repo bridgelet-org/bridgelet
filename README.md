@@ -58,6 +58,7 @@ Comprehensive documentation is available in the [`/docs`](./docs) directory:
 | [💡 Use Cases & Examples](https://github.com/bridgelet-org/bridgelet/raw/main/docs/use-cases.pdf)      | Real-world use cases and examples                |
 | [📋 MVP Specification](https://github.com/bridgelet-org/bridgelet/raw/main/docs/mvp-specification.pdf) | Minimum viable product requirements              |
 | [🧪 Testing Guide](./TESTING.md)                                                                       | Testing strategy, Lighthouse CI, and guidelines  |
+| [🔐 Freighter Sender Signing Experiment](./docs/experiments/freighter-sender-signing.md)               | Client-side Freighter signing for account creation |
 
 > **📌 Note:** If PDFs don't render in your browser, click the links above to download them directly, or see the [docs directory](./docs) for more information.
 
