@@ -34,16 +34,26 @@ export function FreighterConnect({ onAddress }: Props) {
 
   return (
     <div className="space-y-2">
-      <button type="button" onClick={connect} disabled={status === 'connecting'}
-        className="rounded bg-indigo-600 px-4 py-2 text-sm text-white hover:bg-indigo-700 disabled:opacity-60">
+      <button
+        type="button"
+        onClick={connect}
+        disabled={status === 'connecting'}
+        className="rounded bg-indigo-600 px-4 py-2 text-sm text-white hover:bg-indigo-700 disabled:opacity-60"
+      >
         {status === 'connecting' ? 'Connecting…' : 'Connect Freighter Wallet'}
       </button>
       {status === 'error' && error && (
         <p className="text-sm text-red-600">
           {error}{' '}
           {!window?.freighter && (
-            <a href="https://freighter.app" target="_blank" rel="noopener noreferrer"
-              className="underline">Install Freighter</a>
+            <a
+              href="https://freighter.app"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline"
+            >
+              Install Freighter
+            </a>
           )}
         </p>
       )}

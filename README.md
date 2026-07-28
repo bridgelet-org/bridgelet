@@ -8,6 +8,10 @@
 
 Bridgelet is an open-source infrastructure SDK that enables organizations to send payments to recipients who don't have crypto wallets yet. It creates secure, single-use Stellar accounts that automatically bridge recipients into permanent wallets when they claim funds.
 
+Bridgelet reduces wallet friction in mass payment scenarios such as payro;;, aid disbursements, airdrops, and remittances without erequiring recipients to understand seed phrases or Steller concepts upfront.
+
+Bridgelet is designed as infrastructure, not an end-user wallet or disbursement platform. It can operate as a standalone or integrated with systems like the Stellar Disbursement Platform (SDP)
+
 **The problem:** Mass payments (payroll, aid, airdrops) fail when recipients don't have wallets or understand seed phrases.
 
 **The solution:** Create temporary accounts that recipients can claim without crypto knowledge, then auto-sweep funds to permanent wallets.
@@ -53,7 +57,8 @@ Comprehensive documentation is available in the [`/docs`](./docs) directory:
 | [🔧 Integration Guide](https://github.com/bridgelet-org/bridgelet/raw/main/docs/integration-guide.pdf) | Step-by-step integration instructions            |
 | [💡 Use Cases & Examples](https://github.com/bridgelet-org/bridgelet/raw/main/docs/use-cases.pdf)      | Real-world use cases and examples                |
 | [📋 MVP Specification](https://github.com/bridgelet-org/bridgelet/raw/main/docs/mvp-specification.pdf) | Minimum viable product requirements              |
-| [🧪 Testing Guide](./TESTING.md)                                                                       | Testing strategy, guidelines, and best practices |
+| [🧪 Testing Guide](./TESTING.md)                                                                       | Testing strategy, Lighthouse CI, and guidelines  |
+| [🔐 Freighter Sender Signing Experiment](./docs/experiments/freighter-sender-signing.md)               | Client-side Freighter signing for account creation |
 
 > **📌 Note:** If PDFs don't render in your browser, click the links above to download them directly, or see the [docs directory](./docs) for more information.
 
@@ -84,7 +89,7 @@ npm run dev
 The application will be available at `http://localhost:3000`. 
 
 #### Core Pages:
-- `/` — Homepage & Explainer
+- `/` — Homepage & animated How It Works explainer
 - `/send` — Sender Flow (Create ephemeral account)
 - `/claim/[token]` — Recipient Flow (Direct claim redemption)
 

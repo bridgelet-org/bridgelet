@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { connectFreighter } from '@/lib/wallet';
+import { ChainSelector } from '@/components/chain-selector';
 
 type ConnectStepProps = {
   publicKey: string;
@@ -37,9 +38,13 @@ export function ConnectStep({ publicKey, onConnected }: ConnectStepProps) {
   return (
     <div className="space-y-3">
       <p className="text-sm text-slate-600">
-        Connect your Freighter wallet to authorise payments. No password required — signing
-        with your key proves you control the address.
+        Connect your Freighter wallet to authorise payments. No password required — signing with
+        your key proves you control the address.
       </p>
+
+      <div className="py-2">
+        <ChainSelector />
+      </div>
       <button
         type="button"
         onClick={handleConnect}
