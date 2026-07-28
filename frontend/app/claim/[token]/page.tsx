@@ -26,7 +26,7 @@ export default async function ClaimPage({ params }: ClaimPageProps) {
           initialView={initialView}
         />
 
-        <p className="text-xs text-slate-400 text-center">
+        <p className="text-xs text-slate-500 text-center">
           Token: <span className="font-mono break-all">{token}</span>
         </p>
 

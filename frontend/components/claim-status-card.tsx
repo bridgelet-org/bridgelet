@@ -353,7 +353,7 @@ function ExpiredPanel({
         <div>
           <p className="text-sm font-semibold text-red-800">This claim link has expired</p>
           {expiresAt && (
-            <p className="text-xs text-red-600 mt-0.5">Expired on {formatExpiry(expiresAt)}.</p>
+            <p className="text-xs text-red-700 mt-0.5">Expired on {formatExpiry(expiresAt)}.</p>
           )}
         </div>
       </div>
@@ -400,7 +400,7 @@ function FailedPanel({ supportEmail }: Pick<ClaimStatusCardProps, 'supportEmail'
         </svg>
         <div>
           <p className="text-sm font-semibold text-red-800">This payment couldn&apos;t be set up</p>
-          <p className="text-xs text-red-600 mt-0.5">
+          <p className="text-xs text-red-700 mt-0.5">
             Something went wrong while creating or funding this payment. It has not been claimed and
             no funds have moved.
           </p>
