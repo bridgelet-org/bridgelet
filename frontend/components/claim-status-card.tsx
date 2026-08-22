@@ -197,6 +197,11 @@ function AvailablePanel({
 
   return (
     <div className="space-y-4">
+      {/* Screen-reader-only live region for claiming state changes */}
+      <p role="status" aria-live="assertive" className="sr-only">
+        {claiming ? 'Claim in progress. This may take a few moments.' : ''}
+      </p>
+
       <dl className="space-y-2 text-sm">
         <div className="flex justify-between">
           <dt className="font-medium text-slate-700 dark:text-slate-300">Amount</dt>
@@ -232,7 +237,7 @@ function AvailablePanel({
         </p>
       )}
 
-      <div>
+      <div aria-busy={claiming || undefined}>
         <label
           htmlFor="destination-address"
           className="mb-1 block text-xs font-medium text-slate-700 dark:text-slate-300"

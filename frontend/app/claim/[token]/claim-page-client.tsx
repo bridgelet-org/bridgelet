@@ -56,7 +56,11 @@ export function ClaimPageClient({ token, supportEmail, initialView }: ClaimPageC
 
   if (!view) {
     return (
-      <div className="flex items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 px-4 py-4">
+      <div
+        role="status"
+        aria-live="polite"
+        className="flex items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 px-4 py-4"
+      >
         <span
           className="h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-slate-400 border-t-transparent"
           aria-hidden="true"

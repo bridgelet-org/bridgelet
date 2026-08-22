@@ -13,8 +13,14 @@ type PageShellProps = {
 export function PageShell({ title, description, children, footer }: PageShellProps) {
   return (
     <div className="flex min-h-screen flex-col bg-slate-50 dark:bg-slate-950">
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[100] focus:rounded-lg focus:bg-white focus:px-4 focus:py-2.5 focus:text-sm focus:font-semibold focus:text-slate-900 focus:shadow-lg dark:focus:bg-slate-900 dark:focus:text-white"
+      >
+        Skip to main content
+      </a>
       <SiteNav />
-      <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 px-6 py-12">
+      <main id="main-content" className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 px-6 py-12">
         <header className="space-y-2">
           <h1 className="text-3xl font-semibold tracking-tight text-slate-950 dark:text-slate-50">
             {title}
