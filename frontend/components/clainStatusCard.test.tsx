@@ -2,7 +2,6 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ClaimStatusCard } from './claim-status-card';
-import { RateLimitError } from '@/lib/api/client';
 import { AccountStatus } from '@/lib/api/types';
 
 // ─── Mocks ──────────────────────────────────────────────────────────────────
@@ -75,10 +74,10 @@ describe('ClaimStatusCard', () => {
       expect(button).toBeEnabled();
     });
 
-    it('calls onClaim with the destination address and shows success state', async () => {
+    it('calls onClaim with the destination address and shows success state via redemptionStatus', async () => {
       const user = userEvent.setup({ delay: null });
       const onClaim = vi.fn().mockResolvedValue(undefined);
-      render(
+      const { rerender } = render(
         <ClaimStatusCard
           status={AccountStatus.PENDING_CLAIM}
           amountStroops="10000000"
@@ -90,31 +89,35 @@ describe('ClaimStatusCard', () => {
       setDestinationAddress(VALID_ADDRESS);
       await user.click(screen.getByRole('button', { name: /claim now/i }));
 
+      // The parent (ClaimPageClient) would set redemptionStatus to 'confirmed'
+      // after onClaim resolves. Simulate that by re-rendering with the prop.
       await waitFor(() => expect(onClaim).toHaveBeenCalledWith(VALID_ADDRESS));
-      expect(await screen.findByText(/claim submitted/i)).toBeInTheDocument();
-      expect(screen.getByText(/stub: sweep pending/)).toBeInTheDocument();
-    });
-
-    it('shows a rate limit banner when onClaim throws RateLimitError', async () => {
-      const user = userEvent.setup({ delay: null });
-      const onClaim = vi.fn().mockRejectedValue(new RateLimitError(30));
-      render(
+      rerender(
         <ClaimStatusCard
           status={AccountStatus.PENDING_CLAIM}
           amountStroops="10000000"
           onClaim={onClaim}
+          sweepNote="stub: sweep pending"
+          redemptionStatus="confirmed"
         />,
       );
-
-      setDestinationAddress(VALID_ADDRESS);
-      await user.click(screen.getByRole('button', { name: /claim now/i }));
-
-      expect(await screen.findByTestId('rate-limit-banner')).toHaveTextContent('retry: 30');
-      // Should not show the success state.
-      expect(screen.queryByText(/claim submitted/i)).not.toBeInTheDocument();
+      expect(await screen.findByText(/claim submitted/i)).toBeInTheDocument();
+      expect(screen.getByText(/stub: sweep pending/)).toBeInTheDocument();
     });
 
-    it('shows a visible error message for a non-rate-limit rejection', async () => {
+    it('shows a rate limit banner when redemptionRetryAfter is provided', () => {
+      render(
+        <ClaimStatusCard
+          status={AccountStatus.PENDING_CLAIM}
+          amountStroops="10000000"
+          redemptionStatus="failed-safe-to-retry"
+          redemptionRetryAfter={30}
+        />,
+      );
+      expect(screen.getByTestId('rate-limit-banner')).toHaveTextContent('retry: 30');
+    });
+
+    it('shows a visible error message when onClaim throws', async () => {
       const user = userEvent.setup({ delay: null });
       const onClaim = vi.fn().mockRejectedValue(new Error('boom'));
       render(
@@ -138,7 +141,7 @@ describe('ClaimStatusCard', () => {
         .fn()
         .mockRejectedValueOnce(new Error('boom'))
         .mockResolvedValueOnce(undefined);
-      render(
+      const { rerender } = render(
         <ClaimStatusCard
           status={AccountStatus.PENDING_CLAIM}
           amountStroops="10000000"
@@ -151,9 +154,58 @@ describe('ClaimStatusCard', () => {
       await user.click(button);
       expect(await screen.findByRole('alert')).toBeInTheDocument();
 
-      await user.click(button);
-      await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument());
+      // Retry: parent would set redemptionStatus back to idle, then confirmed
+      rerender(
+        <ClaimStatusCard
+          status={AccountStatus.PENDING_CLAIM}
+          amountStroops="10000000"
+          onClaim={onClaim}
+          redemptionStatus="confirmed"
+        />,
+      );
       expect(await screen.findByText(/claim submitted/i)).toBeInTheDocument();
+    });
+
+    it('shows pending-confirmation state with spinner', () => {
+      render(
+        <ClaimStatusCard
+          status={AccountStatus.PENDING_CLAIM}
+          amountStroops="10000000"
+          redemptionStatus="pending-confirmation"
+          redemptionError="Checking your claim status…"
+        />,
+      );
+      expect(screen.getByText(/checking your claim status/i)).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /claim received/i })).toBeDisabled();
+    });
+
+    it('shows failed-safe-to-retry state with try-again button', () => {
+      render(
+        <ClaimStatusCard
+          status={AccountStatus.PENDING_CLAIM}
+          amountStroops="10000000"
+          redemptionStatus="failed-safe-to-retry"
+          redemptionError="Network error"
+        />,
+      );
+      expect(screen.getByText(/network error/i)).toBeInTheDocument();
+      expect(screen.getByText(/safe to try again/i)).toBeInTheDocument();
+      // Retry still requires a valid address (the button is disabled until one is entered).
+      setDestinationAddress(VALID_ADDRESS);
+      expect(screen.getByRole('button', { name: /try again/i })).toBeEnabled();
+    });
+
+    it('shows failed-needs-support state with do-not-retry message', () => {
+      render(
+        <ClaimStatusCard
+          status={AccountStatus.PENDING_CLAIM}
+          amountStroops="10000000"
+          redemptionStatus="failed-needs-support"
+          redemptionError="This claim has expired"
+        />,
+      );
+      expect(screen.getByText(/this claim has expired/i)).toBeInTheDocument();
+      expect(screen.getByText(/do not submit again/i)).toBeInTheDocument();
     });
 
     it('renders the ChainSelector', () => {
@@ -186,8 +238,6 @@ describe('ClaimStatusCard', () => {
 
   it('shows the claimed state', () => {
     render(<ClaimStatusCard status={AccountStatus.CLAIMED} />);
-    // "Payment already claimed" appears twice (card header + panel body),
-    // so scope to the header role instead of a plain text match.
     expect(screen.getByRole('heading', { name: 'Payment already claimed' })).toBeInTheDocument();
     expect(screen.getByText(/transferred to the recipient/i)).toBeInTheDocument();
   });

@@ -1,10 +1,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { ClaimStatusCard } from '@/components/claim-status-card';
+import { ClaimStatusCard, type ClaimRedemptionStatus } from '@/components/claim-status-card';
 import { AccountStatus } from '@/lib/api/types';
-import { BridgeletClient, BridgeletApiError } from '@/lib/api/client';
 import { ClaimView, loadClaimView, toStroops } from '@/lib/claim-view';
+import { submitClaimRedemption } from '@/lib/claim-redemption';
 
 interface ClaimPageClientProps {
   token: string;
@@ -12,11 +12,12 @@ interface ClaimPageClientProps {
   initialView?: ClaimView;
 }
 
-const client = new BridgeletClient();
-
 export function ClaimPageClient({ token, supportEmail, initialView }: ClaimPageClientProps) {
   const [view, setView] = useState<ClaimView | null>(initialView ?? null);
   const [loadError, setLoadError] = useState(false);
+  const [redemptionStatus, setRedemptionStatus] = useState<ClaimRedemptionStatus>('idle');
+  const [redemptionError, setRedemptionError] = useState<string | null>(null);
+  const [redemptionRetryAfter, setRedemptionRetryAfter] = useState<number | null | undefined>(undefined);
 
   useEffect(() => {
     let cancelled = false;
@@ -33,15 +34,38 @@ export function ClaimPageClient({ token, supportEmail, initialView }: ClaimPageC
   }, [token]);
 
   async function handleClaim(destinationAddress: string) {
-    const result = await client.redeemClaim(token, destinationAddress);
-    if (!result.success) {
-      throw new Error(result.error ?? 'Claim could not be completed. Please try again.');
+    setRedemptionStatus('submitting');
+    setRedemptionError(null);
+
+    const outcome = await submitClaimRedemption(token, destinationAddress);
+
+    switch (outcome.kind) {
+      case 'confirmed': {
+        setRedemptionStatus('confirmed');
+        setView((prev) => ({
+          ...(prev ?? { status: AccountStatus.CLAIMED }),
+          status: outcome.isPartial ? AccountStatus.PARTIAL_SWEEP : AccountStatus.CLAIMED,
+          sweepNote: outcome.message,
+        }));
+        return;
+      }
+      case 'pending-confirmation': {
+        setRedemptionStatus('pending-confirmation');
+        setRedemptionError(outcome.message);
+        return;
+      }
+      case 'failed-safe-to-retry': {
+        setRedemptionStatus('failed-safe-to-retry');
+        setRedemptionError(outcome.error);
+        setRedemptionRetryAfter(outcome.retryInSeconds);
+        return;
+      }
+      case 'failed-needs-support': {
+        setRedemptionStatus('failed-needs-support');
+        setRedemptionError(outcome.error);
+        return;
+      }
     }
-    setView((prev) => ({
-      ...(prev ?? { status: AccountStatus.CLAIMED }),
-      status: result.isPartial ? AccountStatus.PARTIAL_SWEEP : AccountStatus.CLAIMED,
-      sweepNote: result.message,
-    }));
   }
 
   if (loadError) {
@@ -75,6 +99,9 @@ export function ClaimPageClient({ token, supportEmail, initialView }: ClaimPageC
       sweepNote={view.sweepNote}
       supportEmail={supportEmail}
       onClaim={handleClaim}
+      redemptionStatus={redemptionStatus}
+      redemptionError={redemptionError}
+      redemptionRetryAfter={redemptionRetryAfter}
     />
   );
 }

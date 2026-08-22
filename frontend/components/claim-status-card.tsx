@@ -14,6 +14,20 @@ import { AccountStatus } from '@/lib/api/types';
  */
 export type ClaimStatus = AccountStatus;
 
+/**
+ * Redemption state machine driven from the claim page. `idle` means no
+ * submission has happened yet; `submitting` is the in-flight sweep; the
+ * remaining states mirror the classified outcomes of
+ * `submitClaimRedemption` in `@/lib/claim-redemption`.
+ */
+export type ClaimRedemptionStatus =
+  | 'idle'
+  | 'submitting'
+  | 'confirmed'
+  | 'pending-confirmation'
+  | 'failed-safe-to-retry'
+  | 'failed-needs-support';
+
 export interface ClaimStatusCardProps {
   /** Current lifecycle status of the account, as returned by the backend. */
   status: ClaimStatus;
@@ -31,6 +45,12 @@ export interface ClaimStatusCardProps {
   sweepNote?: string;
   /** Support contact email shown in the expired/failed states. */
   supportEmail?: string;
+  /** Current claim-redemption state (managed by ClaimPageClient). */
+  redemptionStatus?: ClaimRedemptionStatus;
+  /** Plain-language error/message for the current redemption state. */
+  redemptionError?: string | null;
+  /** Seconds to wait before a safe retry (from a 429 response). */
+  redemptionRetryAfter?: number | null | undefined;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -141,42 +161,46 @@ function AvailablePanel({
   memo,
   onClaim,
   sweepNote,
+  redemptionStatus = 'idle',
+  redemptionError,
+  redemptionRetryAfter,
 }: Pick<
   ClaimStatusCardProps,
-  'amountStroops' | 'assetCode' | 'expiresAt' | 'memo' | 'onClaim' | 'sweepNote'
+  | 'amountStroops'
+  | 'assetCode'
+  | 'expiresAt'
+  | 'memo'
+  | 'onClaim'
+  | 'sweepNote'
+  | 'redemptionStatus'
+  | 'redemptionError'
+  | 'redemptionRetryAfter'
 >) {
-  const [claiming, setClaiming] = useState(false);
-  const [done, setDone] = useState(false);
-  const [rateLimit, setRateLimit] = useState<number | null | undefined>(undefined);
-  const [claimError, setClaimError] = useState<string | null>(null);
+  const [localError, setLocalError] = useState<string | null>(null);
   const [destinationAddress, setDestinationAddress] = useState('');
 
   // Matches the backend's Stellar public key validation (StrKey ed25519 public keys).
   const isValidAddress = /^G[A-Z2-7]{55}$/.test(destinationAddress);
 
+  const claiming = redemptionStatus === 'submitting';
+  const done = redemptionStatus === 'confirmed';
+  // "The server acknowledged our sweep, we're just waiting for it to land"
+  const awaitingConfirmation = redemptionStatus === 'pending-confirmation';
+  const failedSafeToRetry = redemptionStatus === 'failed-safe-to-retry';
+  const failedNeedsSupport = redemptionStatus === 'failed-needs-support';
+
   async function handleClaim() {
     if (!isValidAddress) return;
-    setClaiming(true);
-    setRateLimit(undefined);
-    setClaimError(null);
+    setLocalError(null);
     try {
       await onClaim?.(destinationAddress);
-      setDone(true);
     } catch (err) {
-      if (err instanceof RateLimitError) {
-        setRateLimit(err.retryAfter);
-      } else {
-        // `handleClaim` is wired up as `onClick={handleClaim}` directly, so
-        // nothing awaits or catches this async function's own returned
-        // promise. Rethrowing here would just become an unhandled
-        // rejection with no user-visible feedback — surface it in state
-        // instead.
-        setClaimError(
-          err instanceof Error ? err.message : 'Something went wrong. Please try again.',
-        );
-      }
-    } finally {
-      setClaiming(false);
+      // Fallback for callers that still throw instead of classifying
+      // outcomes: surface the message so the user is never left with a
+      // silent failure.
+      setLocalError(
+        err instanceof Error ? err.message : 'Something went wrong. Please try again.',
+      );
     }
   }
 
@@ -222,13 +246,62 @@ function AvailablePanel({
         )}
       </dl>
 
-      {rateLimit !== undefined && <RateLimitBanner retryAfter={rateLimit} />}
-      {claimError && (
+      {redemptionRetryAfter !== undefined && redemptionRetryAfter !== null && (
+        <RateLimitBanner retryAfter={redemptionRetryAfter} />
+      )}
+
+      {awaitingConfirmation && (
+        <div
+          role="status"
+          className="flex items-center gap-3 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 dark:border-blue-800 dark:bg-blue-950"
+        >
+          <span
+            className="h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-blue-400 border-t-transparent dark:border-blue-500"
+            aria-hidden="true"
+          />
+          <p className="text-sm text-blue-800 dark:text-blue-300">
+            {redemptionError ??
+              'Your claim was received. We are checking its status — your money will appear in your wallet shortly.'}
+          </p>
+        </div>
+      )}
+
+      {failedSafeToRetry && (
+        <div
+          role="alert"
+          className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 dark:border-amber-800 dark:bg-amber-950"
+        >
+          <p className="text-sm font-medium text-amber-800 dark:text-amber-300">
+            {redemptionError ?? 'The request did not go through.'}
+          </p>
+          <p className="mt-1 text-xs text-amber-700 dark:text-amber-400">
+            Nothing was sent and it is safe to try again. If this keeps happening, your payment
+            is being slowed by network congestion — please wait a moment before retrying.
+          </p>
+        </div>
+      )}
+
+      {failedNeedsSupport && (
+        <div
+          role="alert"
+          className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 dark:border-red-800 dark:bg-red-950"
+        >
+          <p className="text-sm font-medium text-red-800 dark:text-red-300">
+            {redemptionError ?? 'Something went wrong with your claim.'}
+          </p>
+          <p className="mt-1 text-xs text-red-700 dark:text-red-400">
+            Please do not submit again — your payment may be on its way. Check your wallet for
+            the transfer, and contact the sender or support if it does not arrive.
+          </p>
+        </div>
+      )}
+
+      {localError && (
         <p
           role="alert"
           className="text-sm text-red-700 bg-red-50 border border-red-200 rounded px-3 py-2 dark:text-red-300 dark:bg-red-950 dark:border-red-800"
         >
-          {claimError}
+          {localError}
         </p>
       )}
 
@@ -248,7 +321,8 @@ function AvailablePanel({
           placeholder="G..."
           value={destinationAddress}
           onChange={(e) => setDestinationAddress(e.target.value.trim())}
-          className="w-full rounded-lg border border-slate-300 px-3 py-2 font-mono text-xs text-slate-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-600 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:focus-visible:outline-green-500"
+          disabled={claiming || awaitingConfirmation}
+          className="w-full rounded-lg border border-slate-300 px-3 py-2 font-mono text-xs text-slate-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-600 disabled:opacity-60 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:focus-visible:outline-green-500"
         />
         {destinationAddress.length > 0 && !isValidAddress && (
           <p className="mt-1 text-xs text-red-600 dark:text-red-400">
@@ -260,10 +334,16 @@ function AvailablePanel({
       <button
         type="button"
         onClick={handleClaim}
-        disabled={claiming || !isValidAddress}
+        disabled={claiming || awaitingConfirmation || !isValidAddress}
         className="w-full rounded-lg bg-green-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-green-700 disabled:opacity-60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-600 dark:bg-green-700 dark:hover:bg-green-600"
       >
-        {claiming ? 'Claiming…' : 'Claim now'}
+        {claiming
+          ? 'Claiming…'
+          : awaitingConfirmation
+            ? 'Claim received…'
+            : failedSafeToRetry
+              ? 'Try again'
+              : 'Claim now'}
       </button>
 
       <div className="pt-2">
@@ -466,6 +546,9 @@ export function ClaimStatusCard({
   onClaim,
   sweepNote,
   supportEmail,
+  redemptionStatus,
+  redemptionError,
+  redemptionRetryAfter,
 }: ClaimStatusCardProps) {
   return (
     <article
@@ -495,6 +578,9 @@ export function ClaimStatusCard({
           memo={memo}
           onClaim={onClaim}
           sweepNote={sweepNote}
+          redemptionStatus={redemptionStatus}
+          redemptionError={redemptionError}
+          redemptionRetryAfter={redemptionRetryAfter}
         />
       )}
       {(status === AccountStatus.CLAIMING || status === AccountStatus.PARTIAL_SWEEP) && (
