@@ -24,8 +24,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { CameraView, useCameraPermissions } from 'expo-camera';
-import type { BarcodeScanningResult } from 'expo-camera';
+import { CameraView, BarcodeScanningResult, useCameraPermissions } from 'expo-camera';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -72,7 +71,7 @@ export function ClaimQRScanner({ onClaimCodeScanned, onClose }: ClaimQRScannerPr
   }, [permission, requestPermission]);
 
   const handleBarCodeScanned = useCallback(
-    ({ data }: BarcodeScanningResult) => {
+    ({ data }: { data: string }) => {
       // Debounce: ignore repeated scans within 2 seconds
       if (cooldownRef.current || scanned) return;
       cooldownRef.current = true;

@@ -99,7 +99,7 @@ export async function initI18n(): Promise<void> {
       interpolation: {
         escapeValue: false, // React Native handles XSS
       },
-      compatibilityJSON: 'v3',
+      compatibilityJSON: 'v4',
     });
 }
 

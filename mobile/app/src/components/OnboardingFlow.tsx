@@ -65,7 +65,7 @@ const SLIDES: OnboardingSlide[] = [
     emoji: '👝',
     title: 'Your personal digital wallet',
     body:
-      'We'll create a secure wallet for you — think of it like a digital purse ' +
+      'We\'ll create a secure wallet for you — think of it like a digital purse ' +
       'that lives on your phone. Only you can access it. ' +
       'We never store your password or hold your money.',
   },

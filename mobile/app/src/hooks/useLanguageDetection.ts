@@ -15,7 +15,7 @@ export function useLanguageDetection(
   const [isDetecting, setIsDetecting] = useState<boolean>(false);
   const [alternatives, setAlternatives] = useState<LanguageDetectionResult['alternatives']>([]);
   
-  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastTextRef = useRef<string>('');
 
   /**
