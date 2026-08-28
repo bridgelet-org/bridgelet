@@ -3,8 +3,8 @@
 import { useEffect, useState } from 'react';
 import { ClaimStatusCard } from '@/components/claim-status-card';
 import { AccountStatus } from '@/lib/api/types';
-import { BridgeletClient, BridgeletApiError } from '@/lib/api/client';
-import { ClaimView, loadClaimView, toStroops } from '@/lib/claim-view';
+import { BridgeletClient } from '@/lib/api/client';
+import { ClaimView, loadClaimView, markTokenClaimed } from '@/lib/claim-view';
 
 interface ClaimPageClientProps {
   token: string;
@@ -37,10 +37,17 @@ export function ClaimPageClient({ token, supportEmail, initialView }: ClaimPageC
     if (!result.success) {
       throw new Error(result.error ?? 'Claim could not be completed. Please try again.');
     }
+    // #435: record this session as the one that claimed the token
+    markTokenClaimed(token);
     setView((prev) => ({
       ...(prev ?? { status: AccountStatus.CLAIMED }),
       status: result.isPartial ? AccountStatus.PARTIAL_SWEEP : AccountStatus.CLAIMED,
       sweepNote: result.message,
+      // #435: we just claimed it in this session
+      claimedByMe: true,
+      // #433: destination and amount for success state
+      sweepDestination: destinationAddress,
+      sweepAmountStroops: prev?.amountStroops,
     }));
   }
 
@@ -75,6 +82,9 @@ export function ClaimPageClient({ token, supportEmail, initialView }: ClaimPageC
       sweepNote={view.sweepNote}
       supportEmail={supportEmail}
       onClaim={handleClaim}
+      claimedByMe={view.claimedByMe}
+      sweepDestination={view.sweepDestination}
+      sweepAmountStroops={view.sweepAmountStroops}
     />
   );
 }

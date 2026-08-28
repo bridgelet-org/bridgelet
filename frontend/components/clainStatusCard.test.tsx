@@ -17,6 +17,24 @@ vi.mock('@/components/chain-selector', () => ({
   ChainSelector: () => <div data-testid="chain-selector" />,
 }));
 
+// #432: mock WalletConnect so we can test it independently of Freighter
+vi.mock('@/components/wallet-connect', () => ({
+  WalletConnect: ({
+    onConnected,
+    onRejected,
+  }: {
+    onConnected?: (w: { publicKey: string }) => void;
+    onRejected?: (msg: string) => void;
+  }) => (
+    <div>
+      <button onClick={() => onConnected?.({ publicKey: 'G' + 'B'.repeat(55) })}>
+        Connect Freighter Wallet
+      </button>
+      <button onClick={() => onRejected?.('User rejected')}>Simulate reject</button>
+    </div>
+  ),
+}));
+
 // A valid-looking Stellar public key (G + 55 base32 chars).
 const VALID_ADDRESS = 'G' + 'A'.repeat(55);
 
@@ -75,7 +93,17 @@ describe('ClaimStatusCard', () => {
       expect(button).toBeEnabled();
     });
 
-    it('calls onClaim with the destination address and shows success state', async () => {
+    // #432: wallet-connect path is shown alongside manual entry
+    it('shows the wallet connect option alongside manual entry', () => {
+      render(<ClaimStatusCard status={AccountStatus.PENDING_CLAIM} amountStroops="10000000" />);
+      expect(screen.getByText(/already have a stellar wallet/i)).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /connect freighter wallet/i })).toBeInTheDocument();
+      expect(screen.getByText(/new to stellar/i)).toBeInTheDocument();
+      expect(screen.getByLabelText(/your stellar wallet address/i)).toBeInTheDocument();
+    });
+
+    // #432: wallet connect prefills address and shows confirmation before sweep
+    it('prefills address from wallet connect and shows confirmation step', async () => {
       const user = userEvent.setup({ delay: null });
       const onClaim = vi.fn().mockResolvedValue(undefined);
       render(
@@ -83,16 +111,73 @@ describe('ClaimStatusCard', () => {
           status={AccountStatus.PENDING_CLAIM}
           amountStroops="10000000"
           onClaim={onClaim}
-          sweepNote="stub: sweep pending"
+        />,
+      );
+
+      // Connect wallet via mock
+      await user.click(screen.getByRole('button', { name: /connect freighter wallet/i }));
+
+      // Should show connected address and a "Claim to …" button
+      expect(await screen.findByText(/freighter connected/i)).toBeInTheDocument();
+      const claimToBtn = screen.getByRole('button', { name: /claim to/i });
+      expect(claimToBtn).toBeInTheDocument();
+
+      // Click it → should show confirmation dialog
+      await user.click(claimToBtn);
+      expect(await screen.findByRole('dialog', { name: /confirm destination address/i })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /confirm & send/i })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /back/i })).toBeInTheDocument();
+
+      // onClaim should NOT have been called yet
+      expect(onClaim).not.toHaveBeenCalled();
+    });
+
+    // #432: wallet connect rejection shows contextual fallback message
+    it('shows a non-alarming message when wallet connect is rejected', async () => {
+      const user = userEvent.setup({ delay: null });
+      render(<ClaimStatusCard status={AccountStatus.PENDING_CLAIM} amountStroops="10000000" />);
+
+      await user.click(screen.getByRole('button', { name: /simulate reject/i }));
+
+      expect(await screen.findByRole('alert')).toHaveTextContent(/user rejected/i);
+      // Manual entry should still be accessible
+      expect(screen.getByLabelText(/your stellar wallet address/i)).toBeInTheDocument();
+    });
+
+    // #433: claim now → confirmation → confirm & send → sweep in progress → success
+    it('shows confirmation step, then sweep-in-progress, then final success state', async () => {
+      const user = userEvent.setup({ delay: null });
+      const onClaim = vi.fn().mockResolvedValue(undefined);
+      render(
+        <ClaimStatusCard
+          status={AccountStatus.PENDING_CLAIM}
+          amountStroops="10000000"
+          assetCode="XLM"
+          onClaim={onClaim}
         />,
       );
 
       setDestinationAddress(VALID_ADDRESS);
       await user.click(screen.getByRole('button', { name: /claim now/i }));
 
+      // Confirmation step shown
+      expect(await screen.findByRole('dialog', { name: /confirm destination address/i })).toBeInTheDocument();
+
+      // Confirm
+      await user.click(screen.getByRole('button', { name: /confirm & send/i }));
+
       await waitFor(() => expect(onClaim).toHaveBeenCalledWith(VALID_ADDRESS));
-      expect(await screen.findByText(/claim submitted/i)).toBeInTheDocument();
-      expect(screen.getByText(/stub: sweep pending/)).toBeInTheDocument();
+
+      // #433: sweep-in-progress state shown
+      expect(await screen.findByText(/funds are moving to your wallet/i)).toBeInTheDocument();
+
+      // #433: final success state appears after 2s (we fake timers are not needed as we just await)
+      await waitFor(
+        () => expect(screen.getByText(/payment sent successfully/i)).toBeInTheDocument(),
+        { timeout: 3500 },
+      );
+      expect(screen.getByText(/1\.00 XLM/)).toBeInTheDocument();
+      expect(screen.getByText(VALID_ADDRESS)).toBeInTheDocument();
     });
 
     it('shows a rate limit banner when onClaim throws RateLimitError', async () => {
@@ -109,9 +194,13 @@ describe('ClaimStatusCard', () => {
       setDestinationAddress(VALID_ADDRESS);
       await user.click(screen.getByRole('button', { name: /claim now/i }));
 
+      // Confirmation step
+      expect(await screen.findByRole('dialog', { name: /confirm destination address/i })).toBeInTheDocument();
+      await user.click(screen.getByRole('button', { name: /confirm & send/i }));
+
       expect(await screen.findByTestId('rate-limit-banner')).toHaveTextContent('retry: 30');
-      // Should not show the success state.
-      expect(screen.queryByText(/claim submitted/i)).not.toBeInTheDocument();
+      // Should not show the success state
+      expect(screen.queryByText(/payment sent successfully/i)).not.toBeInTheDocument();
     });
 
     it('shows a visible error message for a non-rate-limit rejection', async () => {
@@ -127,33 +216,23 @@ describe('ClaimStatusCard', () => {
 
       setDestinationAddress(VALID_ADDRESS);
       await user.click(screen.getByRole('button', { name: /claim now/i }));
+      await user.click(await screen.findByRole('button', { name: /confirm & send/i }));
 
       expect(await screen.findByRole('alert')).toHaveTextContent('boom');
-      expect(screen.queryByText(/claim submitted/i)).not.toBeInTheDocument();
+      expect(screen.queryByText(/payment sent successfully/i)).not.toBeInTheDocument();
     });
 
-    it('clears a previous error on the next claim attempt', async () => {
+    it('back button on confirmation returns to the address entry form', async () => {
       const user = userEvent.setup({ delay: null });
-      const onClaim = vi
-        .fn()
-        .mockRejectedValueOnce(new Error('boom'))
-        .mockResolvedValueOnce(undefined);
-      render(
-        <ClaimStatusCard
-          status={AccountStatus.PENDING_CLAIM}
-          amountStroops="10000000"
-          onClaim={onClaim}
-        />,
-      );
+      render(<ClaimStatusCard status={AccountStatus.PENDING_CLAIM} amountStroops="10000000" />);
 
       setDestinationAddress(VALID_ADDRESS);
-      const button = screen.getByRole('button', { name: /claim now/i });
-      await user.click(button);
-      expect(await screen.findByRole('alert')).toBeInTheDocument();
+      await user.click(screen.getByRole('button', { name: /claim now/i }));
+      expect(await screen.findByRole('dialog', { name: /confirm destination address/i })).toBeInTheDocument();
 
-      await user.click(button);
-      await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument());
-      expect(await screen.findByText(/claim submitted/i)).toBeInTheDocument();
+      await user.click(screen.getByRole('button', { name: /back/i }));
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      expect(screen.getByLabelText(/your stellar wallet address/i)).toBeInTheDocument();
     });
 
     it('renders the ChainSelector', () => {
@@ -164,13 +243,14 @@ describe('ClaimStatusCard', () => {
 
   // ─── CLAIMING / PARTIAL_SWEEP ──────────────────────────────────────────
 
-  it('shows a processing message for CLAIMING', () => {
+  // #433: CLAIMING shows "funds are moving" distinct from initial claim step
+  it('shows a "funds are moving" message for CLAIMING', () => {
     render(<ClaimStatusCard status={AccountStatus.CLAIMING} />);
-    expect(screen.getByText('Claim in progress')).toBeInTheDocument();
-    expect(screen.getByText(/being processed on-chain/i)).toBeInTheDocument();
+    expect(screen.getByText('Funds are moving to your wallet')).toBeInTheDocument();
+    expect(screen.getByText(/being processed on the Stellar network/i)).toBeInTheDocument();
   });
 
-  it('shows a retry hint and sweep note for PARTIAL_SWEEP', () => {
+  it('shows a finalizing message and sweep note for PARTIAL_SWEEP', () => {
     render(
       <ClaimStatusCard
         status={AccountStatus.PARTIAL_SWEEP}
@@ -178,27 +258,78 @@ describe('ClaimStatusCard', () => {
       />,
     );
     expect(screen.getByText('Finishing up your claim')).toBeInTheDocument();
-    expect(screen.getByText(/tap claim now to retry/i)).toBeInTheDocument();
+    expect(screen.getByText(/finalizing your transfer/i)).toBeInTheDocument();
     expect(screen.getByText(/1 of 2 legs complete/)).toBeInTheDocument();
   });
 
   // ─── CLAIMED ────────────────────────────────────────────────────────────
 
-  it('shows the claimed state', () => {
-    render(<ClaimStatusCard status={AccountStatus.CLAIMED} />);
-    // "Payment already claimed" appears twice (card header + panel body),
-    // so scope to the header role instead of a plain text match.
-    expect(screen.getByRole('heading', { name: 'Payment already claimed' })).toBeInTheDocument();
-    expect(screen.getByText(/transferred to the recipient/i)).toBeInTheDocument();
+  // #435: "claimed by someone else" state — neutral, not alarming
+  it('shows the "claimed by someone else" state when claimedByMe is false', () => {
+    render(<ClaimStatusCard status={AccountStatus.CLAIMED} claimedByMe={false} />);
+    expect(
+      screen.getByRole('heading', { name: 'Payment already claimed' }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/each claim link can only be used once/i)).toBeInTheDocument();
+    // Should NOT offer a claim action
+    expect(screen.queryByRole('button', { name: /claim/i })).not.toBeInTheDocument();
+  });
+
+  // #435: "claimed by you" state — success confirmation
+  it('shows the "claimed by you" success state when claimedByMe is true', () => {
+    render(
+      <ClaimStatusCard
+        status={AccountStatus.CLAIMED}
+        claimedByMe={true}
+        sweepAmountStroops="10000000"
+        assetCode="XLM"
+        sweepDestination={VALID_ADDRESS}
+        supportEmail="support@example.com"
+      />,
+    );
+    expect(
+      screen.getByRole('heading', { name: 'Payment claimed by you' }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/you already claimed this payment/i)).toBeInTheDocument();
+    expect(screen.getByText(/1\.00 XLM/)).toBeInTheDocument();
+    expect(screen.getByText(VALID_ADDRESS)).toBeInTheDocument();
+    // Should NOT offer a claim action
+    expect(screen.queryByRole('button', { name: /claim/i })).not.toBeInTheDocument();
+  });
+
+  // #435: support link shown in "claimed by someone else" state
+  it('shows a support link in the "claimed by someone else" state', () => {
+    render(
+      <ClaimStatusCard
+        status={AccountStatus.CLAIMED}
+        claimedByMe={false}
+        supportEmail="help@example.com"
+      />,
+    );
+    const link = screen.getByRole('link', { name: 'help@example.com' });
+    expect(link).toHaveAttribute('href', 'mailto:help@example.com');
   });
 
   // ─── EXPIRED ────────────────────────────────────────────────────────────
 
   describe('EXPIRED', () => {
+    // #434: visually distinct from FAILED (amber vs red)
     it('shows the expiry date when provided', () => {
       render(<ClaimStatusCard status={AccountStatus.EXPIRED} expiresAt="2026-01-01T00:00:00Z" />);
       expect(screen.getByText('Payment link expired')).toBeInTheDocument();
       expect(screen.getByText(/expired on/i)).toBeInTheDocument();
+    });
+
+    // #434: explains funds are returned to sender
+    it('explains that funds are automatically returned to the sender', () => {
+      render(<ClaimStatusCard status={AccountStatus.EXPIRED} />);
+      expect(screen.getByText(/automatically returned to the sender/i)).toBeInTheDocument();
+    });
+
+    // #434: no claim action offered
+    it('does not offer a claim action when expired', () => {
+      render(<ClaimStatusCard status={AccountStatus.EXPIRED} />);
+      expect(screen.queryByRole('button', { name: /claim/i })).not.toBeInTheDocument();
     });
 
     it('renders a mailto link when supportEmail is provided', () => {
