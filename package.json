@@ -27,6 +27,7 @@
   },
   "homepage": "https://github.com/okekefrancis112/bridgelet#readme",
   "dependencies": {
+    "lucide-react-native": "^1.34.0",
     "puppeteer": "^24.36.0"
   },
   "devDependencies": {
