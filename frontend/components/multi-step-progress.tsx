@@ -33,12 +33,12 @@ export function MultiStepProgress({
         <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
           <div
             className="h-full rounded-full bg-sky-600 transition-all duration-500 ease-out"
-            style={{ width: \`\${progress}%\` }}
+            style={{ width: `${progress}%` }}
             role="progressbar"
             aria-valuenow={currentStep + 1}
             aria-valuemin={1}
             aria-valuemax={steps.length}
-            aria-label={\`Step \${currentStep + 1} of \${steps.length}\`}
+            aria-label={`Step ${currentStep + 1} of ${steps.length}`}
           />
         </div>
       </div>
@@ -60,14 +60,14 @@ export function MultiStepProgress({
               <button
                 onClick={isClickable ? () => onStepClick(index) : undefined}
                 disabled={!isClickable}
-                aria-label={\`\${step.label}\${isCompleted ? ' (completed)' : isCurrent ? ' (current)' : ''}\`}
-                className={\`flex items-center justify-center rounded-full border-2 transition-all duration-300 \${sizeClasses[size]} \${
+                aria-label={`${step.label}${isCompleted ? ' (completed)' : isCurrent ? ' (current)' : ''}`}
+                className={`flex items-center justify-center rounded-full border-2 transition-all duration-300 ${sizeClasses[size]} ${
                   isCompleted
                     ? 'border-sky-600 bg-sky-600 text-white'
                     : isCurrent
                       ? 'border-sky-600 bg-white text-sky-600 shadow-md dark:bg-slate-900'
                       : 'border-slate-300 bg-white text-slate-400 dark:border-slate-600 dark:bg-slate-800'
-                } \${isClickable ? 'cursor-pointer hover:shadow-md' : 'cursor-default'}\`}
+                } ${isClickable ? 'cursor-pointer hover:shadow-md' : 'cursor-default'}`}
               >
                 {isCompleted ? (
                   <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
@@ -78,9 +78,9 @@ export function MultiStepProgress({
                 )}
               </button>
 
-              <span className={\`mt-2 text-center text-xs font-medium \${
+              <span className={`mt-2 text-center text-xs font-medium ${
                 isCurrent ? 'text-sky-600 dark:text-sky-400' : isCompleted ? 'text-slate-700 dark:text-slate-300' : 'text-slate-400 dark:text-slate-500'
-              }\`}>
+              }`}>
                 {step.label}
               </span>
 

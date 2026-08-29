@@ -1,12 +1,12 @@
 import { render, screen, waitFor } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach, type MockInstance } from 'vitest';
 import QRCode from 'qrcode';
 import { ClaimQrCode } from './claim-qr-code';
 
 // Issue #423 — the claim-link QR code on the send flow's success screen.
 
 describe('ClaimQrCode', () => {
-  let fetchSpy: ReturnType<typeof vi.spyOn>;
+  let fetchSpy: MockInstance<typeof globalThis.fetch>;
 
   beforeEach(() => {
     fetchSpy = vi.spyOn(global, 'fetch');

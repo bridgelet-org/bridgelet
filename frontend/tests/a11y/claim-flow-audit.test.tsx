@@ -3,6 +3,7 @@ import { render } from '@testing-library/react';
 import { runAxe, summarizeViolations } from './axe';
 import { AccessibleClaimForm } from '@/components/accessible-claim-form';
 import { ClaimStatusCard } from '@/components/claim-status-card';
+import { AccountStatus } from '@/lib/api/types';
 
 /**
  * WCAG 2.1 AA automated audit for the claim flow (Issue #466).
@@ -31,7 +32,7 @@ describe('WCAG 2.1 AA audit — claim flow', () => {
   it('checks the existing-wallet claim status card for formal issues', async () => {
     const { container } = render(
       <ClaimStatusCard
-        status="pending_claim"
+        status={AccountStatus.PENDING_CLAIM}
         amountStroops="10000000"
         assetCode="XLM"
         expiresAt="2099-01-01T00:00:00.000Z"

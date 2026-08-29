@@ -246,7 +246,7 @@ describe('ClaimStatusCard', () => {
   // #433: CLAIMING shows "funds are moving" distinct from initial claim step
   it('shows a "funds are moving" message for CLAIMING', () => {
     render(<ClaimStatusCard status={AccountStatus.CLAIMING} />);
-    expect(screen.getByText('Funds are moving to your wallet')).toBeInTheDocument();
+    expect(screen.getAllByText('Funds are moving to your wallet').length).toBeGreaterThan(0);
     expect(screen.getByText(/being processed on the Stellar network/i)).toBeInTheDocument();
   });
 

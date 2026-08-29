@@ -9,7 +9,9 @@ export async function runAxe(
   options?: axe.RunOptions,
 ): Promise<AxeResult> {
   const results = await axe.run(container, {
-    disable: ['color-contrast'],
+    rules: {
+      'color-contrast': { enabled: false },
+    },
     ...options,
   });
   return {

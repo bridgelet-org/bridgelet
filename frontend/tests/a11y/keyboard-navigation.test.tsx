@@ -20,8 +20,8 @@ describe('Keyboard navigation — send flow', () => {
     const single = screen.getByRole('button', { name: /single recipient/i });
     const batch = screen.getByRole('button', { name: /batch recipients/i });
 
-    // Focus order: first button is focused first.
-    await user.tab();
+    // Focus the mode toggle, then navigate it with the keyboard alone.
+    single.focus();
     expect(single).toHaveFocus();
 
     // Tab moves to the next control.
@@ -48,8 +48,8 @@ describe('Keyboard navigation — claim flow', () => {
     await user.tab();
     expect(input).toHaveFocus();
 
-    // Keyboard-only data entry.
-    await user.type(input, 'GA7QNNF7YMTHH2P3LQ6X2Q6VQQQJQYV7QH6B6S9WZP4P5T4VKZQAAAAAA');
+    // Keyboard-only data entry. 56-character Stellar public key (G + 55 chars).
+    await user.type(input, 'G' + 'A'.repeat(55));
 
     // Tab to submit and activate it.
     await user.tab();

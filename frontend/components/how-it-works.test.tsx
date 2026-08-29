@@ -22,14 +22,16 @@ describe('HowItWorks', () => {
 
     const steps = screen.getAllByRole('listitem');
     expect(steps).toHaveLength(3);
-    expect(screen.getByLabelText(/step 1: sender creates ephemeral account/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/step 2: recipient claims via link/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/step 3: funds sweep to permanent wallet/i)).toBeInTheDocument();
+    expect(screen.getByRole('listitem', { name: /step 1: sender creates ephemeral account/i })).toBeInTheDocument();
+    expect(screen.getByRole('listitem', { name: /step 2: recipient claims via link/i })).toBeInTheDocument();
+    expect(screen.getByRole('listitem', { name: /step 3: funds sweep to permanent wallet/i })).toBeInTheDocument();
   });
 
   it('sets the first step as current by default', () => {
     render(<HowItWorks intervalMs={999999} />);
-    expect(screen.getByLabelText(/step 1: sender creates ephemeral account/i)).toHaveAttribute(
+    expect(
+      screen.getByRole('listitem', { name: /step 1: sender creates ephemeral account/i }),
+    ).toHaveAttribute(
       'aria-current',
       'step',
     );
@@ -38,22 +40,30 @@ describe('HowItWorks', () => {
   it('rotates the active step after the interval', async () => {
     vi.useFakeTimers();
     render(<HowItWorks intervalMs={1000} />);
-    expect(screen.getByLabelText(/step 1: sender creates ephemeral account/i)).toHaveAttribute('aria-current', 'step');
+    expect(
+      screen.getByRole('listitem', { name: /step 1: sender creates ephemeral account/i }),
+    ).toHaveAttribute('aria-current', 'step');
 
     await act(async () => {
       vi.advanceTimersByTime(1000);
     });
-    expect(screen.getByLabelText(/step 2: recipient claims via link/i)).toHaveAttribute('aria-current', 'step');
+    expect(
+      screen.getByRole('listitem', { name: /step 2: recipient claims via link/i }),
+    ).toHaveAttribute('aria-current', 'step');
 
     await act(async () => {
       vi.advanceTimersByTime(1000);
     });
-    expect(screen.getByLabelText(/step 3: funds sweep to permanent wallet/i)).toHaveAttribute('aria-current', 'step');
+    expect(
+      screen.getByRole('listitem', { name: /step 3: funds sweep to permanent wallet/i }),
+    ).toHaveAttribute('aria-current', 'step');
 
     await act(async () => {
       vi.advanceTimersByTime(1000);
     });
-    expect(screen.getByLabelText(/step 1: sender creates ephemeral account/i)).toHaveAttribute('aria-current', 'step');
+    expect(
+      screen.getByRole('listitem', { name: /step 1: sender creates ephemeral account/i }),
+    ).toHaveAttribute('aria-current', 'step');
   });
 
   it('announces the active step in a live region', () => {

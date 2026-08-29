@@ -59,7 +59,9 @@ describe('BridgeletClient', () => {
   let client: BridgeletClient;
 
   beforeEach(() => {
-    vi.useFakeTimers();
+    // Backoff sleeps must actually elapse, so advance the fake clock as real
+    // time passes (retry tests await real setTimeout-based backoffs).
+    vi.useFakeTimers({ shouldAdvanceTime: true });
     vi.spyOn(Math, 'random').mockReturnValue(0.5);
     client = new BridgeletClient({
       baseUrl: 'https://api.test.com',
@@ -176,14 +178,17 @@ describe('BridgeletClient', () => {
       mockFetch.mockResolvedValueOnce(jsonResponse({ id: '1', status: 'created' }));
 
       const result = await client.createAccount({
-        recipientEmail: 'test@example.com',
+        fundingSource: 'wallet',
+        recovery_address: 'GRECOVERY123',
         amount: '10',
-        assetCode: 'XLM',
+        asset_code: 'XLM',
+        expiresIn: 3600,
       });
 
       expect(mockFetch).toHaveBeenCalledWith(
         'https://app.test.com/api/accounts',
         expect.objectContaining({ method: 'POST' }),
+        expect.any(Number),
       );
       expect(result).toEqual({ id: '1', status: 'created' });
     });
@@ -195,6 +200,7 @@ describe('BridgeletClient', () => {
       expect(mockFetch).toHaveBeenCalledWith(
         'https://api.test.com/claims/verify',
         expect.objectContaining({ method: 'POST' }),
+        expect.any(Number),
       );
     });
 
@@ -207,6 +213,7 @@ describe('BridgeletClient', () => {
       expect(mockFetch).toHaveBeenCalledWith(
         'https://api.test.com/claims/redeem',
         expect.objectContaining({ method: 'POST' }),
+        expect.any(Number),
       );
     });
 
@@ -217,6 +224,7 @@ describe('BridgeletClient', () => {
       expect(mockFetch).toHaveBeenCalledWith(
         'https://app.test.com/api/accounts/123',
         expect.anything(),
+        expect.any(Number),
       );
     });
   });

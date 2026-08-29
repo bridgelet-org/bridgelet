@@ -72,11 +72,11 @@ export function AutoSweepRetryStatus({
   if (state.status === 'idle') return null;
 
   return (
-    <div role="status" aria-live="polite" className={\`rounded-lg border p-4 \${
+    <div role="status" aria-live="polite" className={`rounded-lg border p-4 ${
       state.status === 'succeeded' ? 'border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-900/30'
       : state.status === 'failed' ? 'border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-900/30'
       : 'border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-900/30'
-    }\`}>
+    }`}>
       <div className="flex items-start gap-3">
         <div className="flex-shrink-0 mt-0.5">
           {state.status === 'retrying' && (

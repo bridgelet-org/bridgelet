@@ -119,7 +119,7 @@ export default function SendPage() {
               {errorState.canRetry && (
                 <button
                   type="button"
-                  onClick={handleSendSubmission}
+                  onClick={() => handleSendSubmission()}
                   className="mt-2 block font-semibold text-blue-600 underline hover:text-blue-800"
                 >
                   🔄 Retry Submission

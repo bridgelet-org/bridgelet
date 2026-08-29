@@ -26,6 +26,13 @@ const nextConfig = {
   },
 
   /**
+   * Next 16 builds with Turbopack by default. Declaring an explicit turbopack
+   * config (alongside the webpack budget below) keeps `next build` from
+   * erroring on the webpack-only configuration block.
+   */
+  turbopack: {},
+
+  /**
    * Issue #473: Bundle size budget enforcement.
    *
    * Webpack performance hints are set to 'error' in production so that
@@ -47,6 +54,20 @@ const nextConfig = {
       };
     }
     return config;
+  },
+
+  /**
+   * The claim page contains a bearer token in its URL, so it must never leak
+   * the referrer. Kept narrowly scoped to /claim/:token so other routes keep
+   * sending referrer data to analytics.
+   */
+  async headers() {
+    return [
+      {
+        source: '/claim/:token',
+        headers: [{ key: 'Referrer-Policy', value: 'no-referrer' }],
+      },
+    ];
   },
 };
 
