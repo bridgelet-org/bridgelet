@@ -29,7 +29,7 @@
     "resend": "^6.16.0"
   },
   "devDependencies": {
-    "@chromatic-com/storybook": "^3.2.0",
+    "@chromatic-com/storybook": "^4.0.0",
     "@lhci/cli": "^0.15.1",
     "@storybook/nextjs-vite": "^10.4.6",
     "@tailwindcss/postcss": "^4.0.0",
