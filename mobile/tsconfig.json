@@ -5,6 +5,7 @@
     "target": "esnext",
     "lib": ["esnext", "dom"],
     "moduleResolution": "node",
+    "resolveJsonModule": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
     "jsx": "react-native",
