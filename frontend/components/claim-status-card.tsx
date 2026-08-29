@@ -6,7 +6,8 @@ import { RateLimitError } from '@/lib/api/client';
 import { ChainSelector } from '@/components/chain-selector';
 import { WalletConnect } from '@/components/wallet-connect';
 import { AccountStatus } from '@/lib/api/types';
-
+import type { ClaimErrorCode } from '@/lib/claim-errors';
+import { getClaimErrorMessage } from '@/lib/claim-errors';
 /**
  * ClaimStatus now mirrors the backend's real AccountStatus enum (Issue 5)
  * instead of the old three-value `'available' | 'claimed' | 'expired'`
@@ -170,9 +171,10 @@ function AvailablePanel({
   memo,
   onClaim,
   sweepNote,
+  supportEmail,
 }: Pick<
   ClaimStatusCardProps,
-  'amountStroops' | 'assetCode' | 'expiresAt' | 'memo' | 'onClaim' | 'sweepNote'
+  'amountStroops' | 'assetCode' | 'expiresAt' | 'memo' | 'onClaim' | 'sweepNote' | 'supportEmail'
 >) {
   // Wallet-connect state
   const [connectedAddress, setConnectedAddress] = useState<string | null>(null);
@@ -188,6 +190,8 @@ function AvailablePanel({
   const [claiming, setClaiming] = useState(false);
   const [rateLimit, setRateLimit] = useState<number | null | undefined>(undefined);
   const [claimError, setClaimError] = useState<string | null>(null);
+  /** Typed error code for the new congestion-aware UI states. */
+  const [claimErrorCode, setClaimErrorCode] = useState<ClaimErrorCode | null>(null);
 
   // #433 post-claim states
   const [sweepInProgress, setSweepInProgress] = useState(false);
@@ -209,6 +213,7 @@ function AvailablePanel({
   async function executeClaim(address: string) {
     setClaiming(true);
     setClaimError(null);
+    setClaimErrorCode(null);
     setRateLimit(undefined);
     try {
       await onClaim?.(address);
@@ -225,6 +230,15 @@ function AvailablePanel({
     } catch (err) {
       if (err instanceof RateLimitError) {
         setRateLimit(err.retryAfter);
+      } else if (
+        err instanceof Error &&
+        'code' in err &&
+        typeof (err as { code: unknown }).code === 'string'
+      ) {
+        // Typed ClaimError from our claim-errors module
+        const code = (err as { code: ClaimErrorCode }).code;
+        setClaimErrorCode(code);
+        setClaimError(getClaimErrorMessage(code));
       } else {
         setClaimError(
           err instanceof Error ? err.message : 'Something went wrong. Please try again.',
@@ -235,6 +249,15 @@ function AvailablePanel({
       setClaiming(false);
     }
   }
+
+  /** Whether the current error is retryable. */
+  const canRetry = claimErrorCode === 'SUBMISSION_FAILED_RETRYABLE';
+
+  /** Whether the current error is ambiguous (checking status). */
+  const isChecking = claimErrorCode === 'SUBMISSION_TIMEOUT';
+
+  /** Whether the error is terminal (needs support). */
+  const needsSupport = claimErrorCode === 'SUBMISSION_FAILED_FINAL';
 
   // #433: Sweep-in-progress state — distinct from claim initiation.
   if (sweepInProgress) {
@@ -257,6 +280,106 @@ function AvailablePanel({
             seconds.
           </p>
         </div>
+      </div>
+    );
+  }
+
+  // Checking status after ambiguous submission (network congestion).
+  if (isChecking) {
+    return (
+      <div
+        role="status"
+        aria-live="polite"
+        className="space-y-3"
+      >
+        <div
+          className="flex items-center gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-4 dark:border-amber-800 dark:bg-amber-950"
+        >
+          <span
+            className="h-5 w-5 shrink-0 animate-spin rounded-full border-2 border-amber-400 border-t-transparent dark:border-amber-500"
+            aria-hidden="true"
+          />
+          <div>
+            <p className="text-sm font-semibold text-amber-800 dark:text-amber-200">
+              Checking on your payment
+            </p>
+            <p className="text-xs text-amber-600 mt-0.5 dark:text-amber-400">
+              The Stellar network is busy right now. We're verifying whether your transfer went
+              through — this may take a moment.
+            </p>
+          </div>
+        </div>
+        <p className="text-xs text-slate-500 dark:text-slate-400">
+          <strong>Don't close this page.</strong> Your funds are safe. We'll show you the result as
+          soon as we know.
+        </p>
+      </div>
+    );
+  }
+
+  // Retryable failure — safe to try again.
+  if (claimError && canRetry) {
+    return (
+      <div className="space-y-3">
+        <div
+          role="alert"
+          className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 dark:border-amber-800 dark:bg-amber-950"
+        >
+          <p className="text-sm font-semibold text-amber-800 dark:text-amber-200">
+            Something went wrong, but it's safe to try again
+          </p>
+          <p className="text-xs text-amber-600 mt-0.5 dark:text-amber-400">
+            {claimError}
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              setClaimError(null);
+              setClaimErrorCode(null);
+              // Re-trigger the claim flow by clearing pending address
+              // so the user sees the confirmation step again.
+            }}
+            className="flex-1 rounded-lg bg-green-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-green-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-600 dark:bg-green-700 dark:hover:bg-green-600"
+          >
+            Try again
+          </button>
+        </div>
+        <p className="text-xs text-slate-500 dark:text-slate-400">
+          It's completely safe to retry — your payment won't be duplicated.
+        </p>
+      </div>
+    );
+  }
+
+  // Terminal failure — needs support.
+  if (claimError && needsSupport) {
+    return (
+      <div className="space-y-3">
+        <div
+          role="alert"
+          className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 dark:border-red-800 dark:bg-red-950"
+        >
+          <p className="text-sm font-semibold text-red-800 dark:text-red-300">
+            We need to look into this
+          </p>
+          <p className="text-xs text-red-600 mt-0.5 dark:text-red-400">
+            {claimError}
+          </p>
+        </div>
+        <p className="text-xs text-slate-500 dark:text-slate-400">
+          Your funds are safe — they haven't been moved. Please contact our support team so we can
+          sort this out for you.
+        </p>
+        {supportEmail && (
+          <a
+            href={`mailto:${supportEmail}`}
+            className="inline-block rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-800"
+          >
+            Contact support
+          </a>
+        )}
       </div>
     );
   }
@@ -328,7 +451,7 @@ function AvailablePanel({
         </div>
 
         {rateLimit !== undefined && <RateLimitBanner retryAfter={rateLimit} />}
-        {claimError && (
+        {claimError && !canRetry && !isChecking && !needsSupport && (
           <p
             role="alert"
             className="text-sm text-red-700 bg-red-50 border border-red-200 rounded px-3 py-2 dark:text-red-300 dark:bg-red-950 dark:border-red-800"
@@ -460,7 +583,7 @@ function AvailablePanel({
         </p>
         <div className="space-y-3">
           {rateLimit !== undefined && <RateLimitBanner retryAfter={rateLimit} />}
-          {claimError && (
+          {claimError && !canRetry && !isChecking && !needsSupport && (
             <p
               role="alert"
               className="text-sm text-red-700 bg-red-50 border border-red-200 rounded px-3 py-2 dark:text-red-300 dark:bg-red-950 dark:border-red-800"
@@ -869,6 +992,7 @@ export function ClaimStatusCard({
           memo={memo}
           onClaim={onClaim}
           sweepNote={sweepNote}
+          supportEmail={supportEmail}
         />
       )}
       {(status === AccountStatus.CLAIMING || status === AccountStatus.PARTIAL_SWEEP) && (
