@@ -49,7 +49,7 @@ export function WalletConnect({ onConnected, onRejected }: WalletConnectProps) {
       <button
         onClick={handleConnect}
         disabled={status === 'connecting'}
-        className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-700 disabled:opacity-60"
+        className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-700 disabled:opacity-60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900"
         type="button"
       >
         {status === 'connecting' ? 'Connecting…' : 'Connect Freighter Wallet'}
@@ -59,13 +59,14 @@ export function WalletConnect({ onConnected, onRejected }: WalletConnectProps) {
         Auth is wallet-based — signing a transaction with your Freighter key proves you control this
         address. No password or JWT is required.{' '}
         <a
-          href="https://docs.freighter.app"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="underline underline-offset-2 hover:text-slate-800"
-        >
-          Install Freighter
-        </a>
+            href="https://docs.freighter.app"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Install Freighter wallet (opens in new tab)"
+            className="underline underline-offset-2 hover:text-slate-800"
+          >
+            Install Freighter
+          </a>
       </p>
     </div>
   );
