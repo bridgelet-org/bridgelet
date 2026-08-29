@@ -8,6 +8,7 @@ import {
   clearPersistedWallet,
 } from '@/lib/wallet';
 import { ChainSelector } from '@/components/chain-selector';
+import { isValidStellarAddress } from '@/lib/validation/stellar-address';
 
 type ConnectStepProps = {
   publicKey: string;
@@ -64,6 +65,13 @@ export function ConnectStep({ publicKey, onConnected, extensionSupportedOverride
     if (publicKey) return; // parent already has a key — nothing to restore
     const saved = loadPersistedWallet();
     if (saved?.publicKey) {
+      // Issue #420 — never trust a persisted address blindly; a corrupted
+      // or tampered localStorage value should never silently become the
+      // funding/recovery address for a payment.
+      if (!isValidStellarAddress(saved.publicKey)) {
+        clearPersistedWallet();
+        return;
+      }
       onConnected(saved.publicKey);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -74,6 +82,14 @@ export function ConnectStep({ publicKey, onConnected, extensionSupportedOverride
     setError(null);
     try {
       const wallet = await connectFreighter();
+      // Issue #420 — reject a malformed destination/funding address before
+      // it ever reaches the send form, rather than letting an invalid key
+      // silently flow through to submission.
+      if (!isValidStellarAddress(wallet.publicKey)) {
+        setStatus('error');
+        setError('Freighter returned an address in an unexpected format. Please try reconnecting.');
+        return;
+      }
       persistWallet(wallet);
       setStatus('idle');
       onConnected(wallet.publicKey);

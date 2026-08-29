@@ -180,4 +180,33 @@ describe('ConnectStep', () => {
       expect(screen.getByRole('button', { name: /connect freighter wallet/i })).toBeEnabled(),
     );
   });
+
+  // ── Destination address format validation (Issue #420) ──────────────────
+
+  it('rejects a malformed address returned by Freighter instead of connecting', async () => {
+    mockConnectFreighter.mockResolvedValue({ publicKey: 'not-a-real-address' });
+    const onConnected = vi.fn();
+    const user = userEvent.setup();
+
+    render(<ConnectStep publicKey="" onConnected={onConnected} extensionSupportedOverride={true} />);
+    await user.click(screen.getByRole('button', { name: /connect freighter wallet/i }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/unexpected format/i);
+    expect(onConnected).not.toHaveBeenCalled();
+    expect(mockPersistWallet).not.toHaveBeenCalled();
+  });
+
+  it('discards a corrupted persisted wallet address instead of auto-connecting it', async () => {
+    mockLoadPersistedWallet.mockReturnValue({ publicKey: 'corrupted-value', type: 'freighter' });
+    const onConnected = vi.fn();
+
+    render(<ConnectStep publicKey="" onConnected={onConnected} extensionSupportedOverride={true} />);
+
+    // Give the restore effect time to run.
+    await new Promise((r) => setTimeout(r, 50));
+
+    expect(onConnected).not.toHaveBeenCalled();
+    expect(mockClearPersistedWallet).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole('button', { name: /connect freighter wallet/i })).toBeInTheDocument();
+  });
 });

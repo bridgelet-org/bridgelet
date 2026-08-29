@@ -4,10 +4,21 @@ import { useEffect, useState } from 'react';
 import type { SendFormState } from '../index';
 import { ChainSelector } from '../../chain-selector';
 import { getXlmUsdRate, formatFiat } from '@/lib/xlm-price';
+import { isValidStellarAddress } from '@/lib/validation/stellar-address';
+import { getAccountBalance } from '@/lib/wallet-balance';
 
 const SUPPORTED_ASSETS = ['XLM', 'USDC'] as const;
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/**
+ * Issue #420 — Minimum send amount per asset. For XLM this reflects
+ * Stellar's ~1 XLM base account reserve (the ephemeral account being
+ * funded must clear the network's minimum balance to exist at all); the
+ * same floor is applied to other supported assets for a simple, predictable
+ * rule rather than tracking a separate reserve model per asset.
+ */
+const MIN_AMOUNT: Record<string, number> = { XLM: 1, USDC: 1 };
 
 type FieldErrors = {
   recipientEmail?: string;
@@ -27,6 +38,11 @@ export function validateDetails(state: SendFormState): FieldErrors {
     errors.amountXlm = 'Enter an amount.';
   } else if (amount <= 0) {
     errors.amountXlm = 'Amount must be greater than 0.';
+  } else {
+    const min = MIN_AMOUNT[state.assetCode] ?? MIN_AMOUNT['XLM']!;
+    if (amount < min) {
+      errors.amountXlm = `Minimum amount is ${min} ${state.assetCode || 'XLM'}.`;
+    }
   }
 
   if (!SUPPORTED_ASSETS.includes(state.assetCode as (typeof SUPPORTED_ASSETS)[number])) {
@@ -49,6 +65,12 @@ export function DetailsStep({ state, onChange, onBack, onNext }: DetailsStepProp
   const [touched, setTouched] = useState(false);
   const [usdRate, setUsdRate] = useState<number | null>(null);
 
+  // Issue #420 — sender balance, used to block amounts above what the
+  // connected wallet actually holds. Only looked up once we have a
+  // well-formed Stellar address (the funding source from ConnectStep) —
+  // never fired for a placeholder/invalid key.
+  const [balance, setBalance] = useState<number | null>(null);
+
   useEffect(() => {
     let cancelled = false;
     getXlmUsdRate().then((rate) => {
@@ -60,18 +82,42 @@ export function DetailsStep({ state, onChange, onBack, onNext }: DetailsStepProp
   }, []);
 
   useEffect(() => {
+    let cancelled = false;
+    if (!isValidStellarAddress(state.publicKey)) {
+      setBalance(null);
+      return;
+    }
+    getAccountBalance(state.publicKey, state.assetCode).then((b) => {
+      if (!cancelled) setBalance(b);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [state.publicKey, state.assetCode]);
+
+  useEffect(() => {
     if (touched) setErrors(validateDetails(state));
   }, [state.recipientEmail, state.amountXlm, state.assetCode, touched]);
+
+  const amount = Number(state.amountXlm);
+  const insufficientBalance =
+    balance !== null && !Number.isNaN(amount) && amount > 0 && amount > balance;
+
+  function markTouched() {
+    if (!touched) {
+      setTouched(true);
+      setErrors(validateDetails(state));
+    }
+  }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     const nextErrors = validateDetails(state);
     setErrors(nextErrors);
     setTouched(true);
-    if (Object.keys(nextErrors).length === 0) onNext();
+    if (Object.keys(nextErrors).length === 0 && !insufficientBalance) onNext();
   }
 
-  const amount = Number(state.amountXlm);
   const showConversion =
     state.assetCode === 'XLM' && usdRate !== null && !Number.isNaN(amount) && amount > 0;
 
@@ -106,6 +152,7 @@ export function DetailsStep({ state, onChange, onBack, onNext }: DetailsStepProp
           type="email"
           value={state.recipientEmail}
           onChange={(e) => onChange({ recipientEmail: e.target.value })}
+          onBlur={markTouched}
           placeholder="recipient@example.com"
           aria-invalid={errors.recipientEmail ? true : undefined}
           aria-describedby={errors.recipientEmail ? 'recipient-email-error' : undefined}
@@ -135,11 +182,14 @@ export function DetailsStep({ state, onChange, onBack, onNext }: DetailsStepProp
             step="any"
             value={state.amountXlm}
             onChange={(e) => onChange({ amountXlm: e.target.value })}
+            onBlur={markTouched}
             placeholder="0.00"
-            aria-invalid={errors.amountXlm ? true : undefined}
-            aria-describedby={errors.amountXlm ? 'amount-error' : undefined}
+            aria-invalid={errors.amountXlm || insufficientBalance ? true : undefined}
+            aria-describedby={
+              errors.amountXlm ? 'amount-error' : insufficientBalance ? 'amount-balance-error' : undefined
+            }
             className={`block w-full rounded-lg border px-3 py-2 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-1 dark:bg-slate-800 dark:text-slate-100 dark:placeholder-slate-500 ${
-              errors.amountXlm
+              errors.amountXlm || insufficientBalance
                 ? 'border-red-400 focus:border-red-500 focus:ring-red-500 dark:border-red-600'
                 : 'border-slate-300 focus:border-slate-500 focus:ring-slate-500 dark:border-slate-600 dark:focus:border-slate-400 dark:focus:ring-slate-400'
             }`}
@@ -163,6 +213,16 @@ export function DetailsStep({ state, onChange, onBack, onNext }: DetailsStepProp
         {errors.amountXlm && (
           <p id="amount-error" role="alert" className="mt-1 text-sm text-red-600 dark:text-red-400">
             {errors.amountXlm}
+          </p>
+        )}
+        {/* Issue #420 — amount above sender balance blocked client-side */}
+        {!errors.amountXlm && insufficientBalance && (
+          <p
+            id="amount-balance-error"
+            role="alert"
+            className="mt-1 text-sm text-red-600 dark:text-red-400"
+          >
+            Amount exceeds your wallet balance of {balance} {state.assetCode}.
           </p>
         )}
         {errors.assetCode && (

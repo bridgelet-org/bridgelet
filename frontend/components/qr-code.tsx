@@ -1,6 +1,10 @@
 'use client';
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
+import { create as createQrMatrix } from 'qrcode';
+
+/** Minimum quiet-zone width, in modules, required by the QR Code spec (ISO/IEC 18004). */
+export const QUIET_ZONE_MODULES = 4;
 
 export interface QRCodeProps {
   value: string;
@@ -26,9 +30,17 @@ export function QRCode({
   className = '',
   label,
   showDownload = false,
+  errorCorrectionLevel = 'M',
 }: QRCodeProps) {
-  const grid = generateLocalMatrix(value);
-  const cellSize = size / grid.length;
+  const grid = useMemo(
+    () => generateQrMatrix(value, errorCorrectionLevel),
+    [value, errorCorrectionLevel],
+  );
+  // A quiet (blank) zone of at least 4 modules is part of the QR spec —
+  // without it, real-world scanners frequently fail to lock onto the finder
+  // patterns near the edge of the image.
+  const totalModules = grid.length + QUIET_ZONE_MODULES * 2;
+  const cellSize = size / totalModules;
   const ariaLabel = label ?? `QR Code for ${value}`;
 
   const handleDownload = useCallback(() => {
@@ -55,13 +67,14 @@ export function QRCode({
         role="img"
         data-qr-value={value}
       >
+        <rect x={0} y={0} width={size} height={size} fill="#FFFFFF" />
         {grid.map((row, r) =>
           row.map((cell, c) =>
             cell ? (
               <rect
                 key={`${r}-${c}`}
-                x={c * cellSize}
-                y={r * cellSize}
+                x={(c + QUIET_ZONE_MODULES) * cellSize}
+                y={(r + QUIET_ZONE_MODULES) * cellSize}
                 width={cellSize + 0.1}
                 height={cellSize + 0.1}
                 fill="#0F172A"
@@ -119,64 +132,28 @@ export function QRCodeModalButton({ claimUrl }: { claimUrl: string }) {
 }
 
 /**
- * Generates a deterministic 21x21 matrix pattern locally without external APIs.
+ * Issue #423 — Generates a spec-compliant QR code module matrix locally,
+ * with no network calls.
+ *
+ * Uses the `qrcode` package's synchronous, pure-JS `create()` encoder (Reed–
+ * Solomon error correction, real finder/timing/alignment patterns) so the
+ * output is a genuinely scannable QR code — not just a QR-shaped pattern.
+ * `create()` never touches the network or the DOM, so this is safe to call
+ * during SSR and keeps the "zero external network calls" guarantee.
  */
-function generateLocalMatrix(text: string): boolean[][] {
-  const size = 21;
-  const matrix: boolean[][] = Array.from({ length: size }, () => Array(size).fill(false));
-
-  // Helper to place finder patterns at corners
-  const drawFinder = (row: number, col: number) => {
-    for (let r = 0; r < 7; r++) {
-      for (let c = 0; c < 7; c++) {
-        if (
-          r === 0 || r === 6 || c === 0 || c === 6 ||
-          (r >= 2 && r <= 4 && c >= 2 && c <= 4)
-        ) {
-          const targetRow = matrix[row + r];
-          if (targetRow) {
-            targetRow[col + c] = true;
-          }
-        }
-      }
-    }
-  };
-
-  // 3 Finder patterns
-  drawFinder(0, 0);
-  drawFinder(0, size - 7);
-  drawFinder(size - 7, 0);
-
-  // Timing patterns
-  for (let i = 8; i < size - 8; i++) {
-    const row6 = matrix[6];
-    if (row6) row6[i] = i % 2 === 0;
-    const rowI = matrix[i];
-    if (rowI) rowI[6] = i % 2 === 0;
-  }
-
-  // Deterministic data layout based on text string hash
-  let hash = 0;
-  for (let i = 0; i < text.length; i++) {
-    hash = (hash << 5) - hash + text.charCodeAt(i);
-    hash |= 0;
-  }
-
+export function generateQrMatrix(
+  text: string,
+  errorCorrectionLevel: 'L' | 'M' | 'Q' | 'H' = 'M',
+): boolean[][] {
+  const qr = createQrMatrix(text, { errorCorrectionLevel });
+  const { size } = qr.modules;
+  const matrix: boolean[][] = [];
   for (let r = 0; r < size; r++) {
+    const row: boolean[] = [];
     for (let c = 0; c < size; c++) {
-      // Don't overwrite finder patterns
-      if ((r < 8 && c < 8) || (r < 8 && c >= size - 8) || (r >= size - 8 && c < 8)) {
-        continue;
-      }
-      if (r === 6 || c === 6) continue;
-
-      const bit = ((hash ^ (r * 31 + c * 17)) & 1) === 1;
-      const targetRow = matrix[r];
-      if (targetRow) {
-        targetRow[c] = bit;
-      }
+      row.push(qr.modules.get(r, c) === 1);
     }
+    matrix.push(row);
   }
-
   return matrix;
 }

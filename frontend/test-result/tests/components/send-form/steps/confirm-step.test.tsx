@@ -68,7 +68,7 @@ function mockCreateAccountRejects(err: unknown) {
 }
 
 const STATE = {
-  publicKey: 'GABCDEFGHIJKLMNOPQRSTUVWXYZ23456789012345',
+  publicKey: 'G' + 'A'.repeat(55),
   recipientName: 'Test Recipient',
   recipientEmail: 'test@example.com',
   amountXlm: '10',

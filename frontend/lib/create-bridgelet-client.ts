@@ -30,7 +30,7 @@ export class RateLimitError extends Error {
   constructor(retryAfter: number | null) {
     super(
       retryAfter != null
-        ? \`Please wait \${retryAfter} second\${retryAfter !== 1 ? 's' : ''} before retrying.\`
+        ? `Please wait ${retryAfter} second${retryAfter !== 1 ? 's' : ''} before retrying.`
         : 'Too many requests. Please wait a moment before retrying.',
     );
     this.name = 'RateLimitError';
@@ -49,10 +49,10 @@ export class BridgeletApiError extends Error {
 
     if (parsed.error && typeof parsed.error === 'object') {
       const nested = parsed.error as Record<string, unknown>;
-      message = typeof nested.message === 'string' ? nested.message : \`Request failed with status \${statusCode}.\`;
+      message = typeof nested.message === 'string' ? nested.message : `Request failed with status ${statusCode}.`;
       errorCode = typeof nested.code === 'string' ? nested.code : undefined;
     } else {
-      message = typeof parsed.message === 'string' ? parsed.message : \`Request failed with status \${statusCode}.\`;
+      message = typeof parsed.message === 'string' ? parsed.message : `Request failed with status ${statusCode}.`;
       errorCode = typeof parsed.error === 'string' ? parsed.error : undefined;
     }
 
@@ -105,7 +105,7 @@ export class BridgeletClient {
       init = await this.requestInterceptor(url, init);
     }
 
-    const requestId = \`\${options.method ?? 'GET'}:\${url}\`;
+    const requestId = `${options.method ?? 'GET'}:${url}`;
     const controller = new AbortController();
     this.inflightControllers.set(requestId, controller);
     init.signal = controller.signal;
@@ -163,7 +163,7 @@ export class BridgeletClient {
   }
 
   createAccount(data: CreateAccountRequest): Promise<AccountResponse> {
-    return this.request<AccountResponse>(\`\${this.internalBaseUrl}/api/accounts\`, {
+    return this.request<AccountResponse>(`${this.internalBaseUrl}/api/accounts`, {
       method: 'POST',
       body: JSON.stringify(data),
     });
@@ -171,20 +171,20 @@ export class BridgeletClient {
 
   prepareAccountTransaction(data: CreateAccountRequest): Promise<PreparedAccountTransaction> {
     return this.request<PreparedAccountTransaction>(
-      \`\${this.internalBaseUrl}/api/accounts/prepare\`,
+      `${this.internalBaseUrl}/api/accounts/prepare`,
       { method: 'POST', body: JSON.stringify(data) },
     );
   }
 
   getAccount(accountId: string): Promise<AccountResponse> {
     return this.request<AccountResponse>(
-      \`\${this.internalBaseUrl}/api/accounts/\${encodeURIComponent(accountId)}\`,
+      `${this.internalBaseUrl}/api/accounts/${encodeURIComponent(accountId)}`,
     );
   }
 
   redeemClaim(claimToken: string, destinationAddress: string): Promise<RedeemClaimResponse> {
     const body: RedeemClaimRequest = { claimToken, destinationAddress };
-    return this.request<RedeemClaimResponse>(\`\${this.baseUrl}/claims/redeem\`, {
+    return this.request<RedeemClaimResponse>(`${this.baseUrl}/claims/redeem`, {
       method: 'POST',
       body: JSON.stringify(body),
     });
@@ -192,7 +192,7 @@ export class BridgeletClient {
 
   verifyClaim(claimToken: string): Promise<ClaimView> {
     const body: VerifyClaimRequest = { claimToken };
-    return this.request(\`\${this.baseUrl}/claims/verify\`, {
+    return this.request(`${this.baseUrl}/claims/verify`, {
       method: 'POST',
       body: JSON.stringify(body),
     });
@@ -207,7 +207,7 @@ export class BridgeletClient {
 
   async healthCheck(): Promise<boolean> {
     try {
-      const response = await fetchWithTimeout(\`\${this.baseUrl}/health\`, { method: 'GET' }, 5000);
+      const response = await fetchWithTimeout(`${this.baseUrl}/health`, { method: 'GET' }, 5000);
       return response.ok;
     } catch {
       return false;

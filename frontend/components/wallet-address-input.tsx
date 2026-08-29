@@ -1,8 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-
-const STELLAR_ADDRESS = /^G[A-Z2-7]{55}$/;
+import {
+  STELLAR_ADDRESS_PATTERN as STELLAR_ADDRESS,
+  STELLAR_ADDRESS_ERROR,
+} from '@/lib/validation/stellar-address';
 
 type WalletAddressInputProps = {
   value: string;
@@ -26,9 +28,7 @@ export function WalletAddressInput({
   const [touched, setTouched] = useState(false);
 
   const validationError =
-    touched && value.length > 0 && !STELLAR_ADDRESS.test(value)
-      ? 'Enter a valid Stellar public key (starts with G, 56 characters).'
-      : null;
+    touched && value.length > 0 && !STELLAR_ADDRESS.test(value) ? STELLAR_ADDRESS_ERROR : null;
 
   const displayError = error ?? validationError;
   const inputId = 'wallet-address-input';
