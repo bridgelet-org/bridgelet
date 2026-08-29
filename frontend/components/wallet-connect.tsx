@@ -5,9 +5,15 @@ import { connectFreighter, type ConnectedWallet } from '@/lib/wallet';
 
 type WalletConnectProps = {
   onConnected?: (wallet: ConnectedWallet) => void;
+  /**
+   * #432: Called when the user explicitly declines the Freighter connection
+   * request or when Freighter is not installed. The message explains what
+   * happened so the parent can display it contextually.
+   */
+  onRejected?: (message: string) => void;
 };
 
-export function WalletConnect({ onConnected }: WalletConnectProps) {
+export function WalletConnect({ onConnected, onRejected }: WalletConnectProps) {
   const [wallet, setWallet] = useState<ConnectedWallet | null>(null);
   const [status, setStatus] = useState<'idle' | 'connecting' | 'error'>('idle');
   const [error, setError] = useState<string | null>(null);
@@ -22,7 +28,10 @@ export function WalletConnect({ onConnected }: WalletConnectProps) {
       onConnected?.(connected);
     } catch (err) {
       setStatus('error');
-      setError(err instanceof Error ? err.message : 'Failed to connect wallet.');
+      const message = err instanceof Error ? err.message : 'Failed to connect wallet.';
+      setError(message);
+      // #432: surface rejection to parent so it can show contextual guidance
+      onRejected?.(message);
     }
   }
 
