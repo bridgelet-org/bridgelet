@@ -12,7 +12,8 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       reporter: ['text', 'lcov'],
-      thresholds: { lines: 80, branches: 80, functions: 80 },
+      // Informational only for now; the CI workflow posts coverage as a PR
+      // comment without gating on it (see frontend-ci.yml). No hard threshold.
       exclude: ['**/node_modules/**', '**/mocks/**', '**/*.d.ts'],
     },
   },

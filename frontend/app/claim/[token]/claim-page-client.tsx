@@ -53,7 +53,10 @@ export function ClaimPageClient({ token, supportEmail, initialView }: ClaimPageC
 
   if (loadError) {
     return (
-      <div role="alert" className="rounded-lg border border-red-200 bg-red-50 px-4 py-4">
+      <div
+        role="alert"
+        className="flex min-h-[80px] items-center rounded-lg border border-red-200 bg-red-50 px-4 py-4"
+      >
         <p className="text-sm font-medium text-red-800">
           We couldn&apos;t load this claim right now. Please refresh the page.
         </p>
@@ -63,7 +66,7 @@ export function ClaimPageClient({ token, supportEmail, initialView }: ClaimPageC
 
   if (!view) {
     return (
-      <div className="flex items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 px-4 py-4">
+      <div className="flex min-h-[80px] items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 px-4 py-4">
         <span
           className="h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-slate-400 border-t-transparent"
           aria-hidden="true"
