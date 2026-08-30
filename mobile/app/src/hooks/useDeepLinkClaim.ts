@@ -63,18 +63,32 @@ function extractToken(url: string): string | null {
   return null;
 }
 
-// ─── Token validation (mirrors web claim flow) ────────────────────────────────
+// ─── Token validation (mirrors web claim flow via the SDK) ────────────────────
 
 async function validateToken(token: string): Promise<ClaimTokenStatus> {
   try {
+    // The Bridgelet SDK exposes `POST /claims/verify` (no GET /claims/{token}/validate).
+    // Mapping mirrors the web frontend (lib/claim-view.ts):
+    //   200 -> valid, 409 -> already_claimed, 400 -> pending_payment (not claimable yet),
+    //   401 -> expired/invalid.
     const response = await fetch(
-      `${process.env.EXPO_PUBLIC_API_URL ?? 'https://api.bridgelet.org'}/claims/${encodeURIComponent(token)}/validate`,
-      { method: 'GET', headers: { Accept: 'application/json' } },
+      `${process.env.EXPO_PUBLIC_API_URL ?? 'https://api.bridgelet.io'}/claims/verify`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+          ...(process.env.EXPO_PUBLIC_API_KEY
+            ? { 'X-API-Key': process.env.EXPO_PUBLIC_API_KEY }
+            : {}),
+        },
+        body: JSON.stringify({ claimToken: token }),
+      },
     );
 
-    if (response.status === 404) return 'invalid';
-    if (response.status === 410) return 'expired';
     if (response.status === 409) return 'already_claimed';
+    if (response.status === 400) return 'invalid'; // initialized/no payment yet
+    if (response.status === 401) return 'expired';
     if (response.ok) return 'valid';
 
     return 'invalid';

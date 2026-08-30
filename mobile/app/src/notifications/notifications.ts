@@ -19,13 +19,14 @@
 import * as Notifications from 'expo-notifications';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
+import env from '../config/env';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const PUSH_TOKEN_KEY = '@bridgelet:push-token';
 const PERMISSION_ASKED_KEY = '@bridgelet:notifications-permission-asked';
 
-const API_BASE = process.env.EXPO_PUBLIC_API_URL ?? 'https://api.bridgelet.org';
+const API_BASE = env.apiUrl;
 
 // ─── Notification types ───────────────────────────────────────────────────────
 
