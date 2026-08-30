@@ -1,3 +1,4 @@
+/** Prevent Open Graph pre-fetching by Discord, Slack, etc. */
 import { PageShell } from '@/components/page-shell';
 import { SharePrompt } from '@/components/share-prompt';
 import { ClaimPageClient } from './claim-page-client';
