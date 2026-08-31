@@ -60,6 +60,13 @@ export async function apiClient<T>(
     }
   }
 
+  // The Bridgelet SDK authenticates via an `X-API-Key` header (ApiKeyAuthGuard).
+  // Attach it whenever an integrator key is configured.
+  const apiKey = process.env.EXPO_PUBLIC_API_KEY;
+  if (apiKey) {
+    headers.set('X-API-Key', apiKey);
+  }
+
   let lastError: Error | null = null;
 
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {

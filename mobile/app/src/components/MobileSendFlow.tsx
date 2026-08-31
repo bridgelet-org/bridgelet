@@ -57,21 +57,44 @@ const EXPIRY_OPTIONS = [
 // ─── API call ────────────────────────────────────────────────────────────────
 
 async function createClaimLink(form: SendFormState): Promise<ClaimLinkResult> {
+  // The Bridgelet SDK has no `POST /claims` endpoint. Claim links are created
+  // by provisioning an ephemeral account via `POST /accounts`, which returns a
+  // `claimUrl` containing the claim token. The SDK requires `fundingSource`
+  // and `recovery_address` (Stellar public keys).
   const response = await fetch(
-    `${process.env.EXPO_PUBLIC_API_URL ?? 'https://api.bridgelet.org'}/claims`,
+    `${process.env.EXPO_PUBLIC_API_URL ?? 'https://api.bridgelet.io'}/accounts`,
     {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...(process.env.EXPO_PUBLIC_API_KEY
+          ? { 'X-API-Key': process.env.EXPO_PUBLIC_API_KEY }
+          : {}),
+      },
       body: JSON.stringify({
-        amount: parseFloat(form.amount),
-        asset: form.asset,
-        note: form.recipientNote || undefined,
-        expiresInHours: form.expiresInHours === '0' ? null : parseInt(form.expiresInHours, 10),
+        fundingSource: process.env.EXPO_PUBLIC_FUNDING_ACCOUNT,
+        recovery_address: process.env.EXPO_PUBLIC_FUNDING_ACCOUNT,
+        amount: parseFloat(form.amount).toFixed(7),
+        asset_code: form.asset === 'XLM' ? 'XLM' : form.asset,
+        expiresIn: form.expiresInHours === '0' ? 2592000 : (parseInt(form.expiresInHours, 10) || 24) * 3600,
       }),
     },
   );
+
+  if (response.status === 401) throw new Error('Authentication failed. Check your API key configuration.');
+  if (response.status === 429) {
+    const retryAfter = response.headers.get('Retry-After');
+    throw new Error(
+      retryAfter
+        ? `Too many requests. Please wait ${retryAfter} seconds and try again.`
+        : 'Too many requests. Please try again shortly.',
+    );
+  }
   if (!response.ok) throw new Error(`Failed to create claim: ${response.status}`);
-  return response.json() as Promise<ClaimLinkResult>;
+
+  const data = await response.json();
+  if (!data?.claimUrl) throw new Error('Claim link could not be created.');
+  return { claimUrl: data.claimUrl, claimCode: '' };
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────

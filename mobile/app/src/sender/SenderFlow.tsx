@@ -13,6 +13,7 @@ import {
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { TransferService } from './TransferService';
 import { ShareSheet } from './ShareSheet';
+import { useMobileWallet } from '../hooks/useMobileWallet';
 import { CreateAccountRequest, CreateAccountResponse, SupportedAsset } from '../types/api';
 
 type Step = 'amount' | 'recipient' | 'review' | 'success' | 'error';
@@ -24,6 +25,8 @@ export const SenderFlow: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [response, setResponse] = useState<CreateAccountResponse | null>(null);
   const [showShareSheet, setShowShareSheet] = useState(false);
+  const { session } = useMobileWallet();
+  const connectedPublicKey = session?.publicKey ?? null;
 
   // Form State
   const [amount, setAmount] = useState('');
@@ -48,9 +51,23 @@ export const SenderFlow: React.FC = () => {
     setLoading(true);
     setError(null);
 
+    // `fundingSource` / `recovery_address` are required by the SDK. They must
+    // come from a connected Stellar wallet session; surface a clear error if
+    // no wallet is connected instead of sending a malformed request.
+    if (!connectedPublicKey) {
+      setError('Connect a Stellar wallet to send a payment.');
+      setStep('error');
+      setLoading(false);
+      return;
+    }
+
+    const isNative = selectedAsset.code === 'XLM';
     const request: CreateAccountRequest = {
+      fundingSource: connectedPublicKey,
+      recovery_address: connectedPublicKey,
       amount,
-      asset: `${selectedAsset.code}:${selectedAsset.issuer}`,
+      asset_code: isNative ? 'XLM' : selectedAsset.code,
+      asset_issuer: isNative ? undefined : selectedAsset.issuer,
       expiresIn: 30 * 24 * 60 * 60, // Default 30 days
       metadata: {
         recipientName,
@@ -209,16 +226,18 @@ export const SenderFlow: React.FC = () => {
       
       <View style={styles.linkCard}>
         <Text style={styles.linkText} numberOfLines={1} ellipsizeMode="middle">
-          {response?.claimUrl}
+          {response?.claimUrl ?? 'Claim link unavailable'}
         </Text>
       </View>
 
-      <TouchableOpacity
-        style={styles.shareButton}
-        onPress={() => setShowShareSheet(true)}
-      >
-        <Text style={styles.shareButtonText}>📤 Share Claim Link</Text>
-      </TouchableOpacity>
+      {response?.claimUrl && (
+        <TouchableOpacity
+          style={styles.shareButton}
+          onPress={() => setShowShareSheet(true)}
+        >
+          <Text style={styles.shareButtonText}>📤 Share Claim Link</Text>
+        </TouchableOpacity>
+      )}
 
       <TouchableOpacity
         style={styles.primaryButton}
@@ -232,7 +251,7 @@ export const SenderFlow: React.FC = () => {
         <Text style={styles.buttonText}>Create Another</Text>
       </TouchableOpacity>
 
-      {response && (
+      {response?.claimUrl && (
         <ShareSheet
           visible={showShareSheet}
           claimUrl={response.claimUrl}
