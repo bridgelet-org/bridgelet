@@ -304,13 +304,13 @@ function AvailablePanel({
               Checking on your payment
             </p>
             <p className="text-xs text-amber-600 mt-0.5 dark:text-amber-400">
-              The Stellar network is busy right now. We're verifying whether your transfer went
+              The Stellar network is busy right now. We&apos;re verifying whether your transfer went
               through — this may take a moment.
             </p>
           </div>
         </div>
         <p className="text-xs text-slate-500 dark:text-slate-400">
-          <strong>Don't close this page.</strong> Your funds are safe. We'll show you the result as
+          <strong>Don&apos;t close this page.</strong> Your funds are safe. We&apos;ll show you the result as
           soon as we know.
         </p>
       </div>
@@ -326,7 +326,7 @@ function AvailablePanel({
           className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 dark:border-amber-800 dark:bg-amber-950"
         >
           <p className="text-sm font-semibold text-amber-800 dark:text-amber-200">
-            Something went wrong, but it's safe to try again
+            Something went wrong, but it&apos;s safe to try again
           </p>
           <p className="text-xs text-amber-600 mt-0.5 dark:text-amber-400">
             {claimError}
@@ -347,7 +347,7 @@ function AvailablePanel({
           </button>
         </div>
         <p className="text-xs text-slate-500 dark:text-slate-400">
-          It's completely safe to retry — your payment won't be duplicated.
+          It&apos;s completely safe to retry — your payment won&apos;t be duplicated.
         </p>
       </div>
     );
@@ -369,7 +369,7 @@ function AvailablePanel({
           </p>
         </div>
         <p className="text-xs text-slate-500 dark:text-slate-400">
-          Your funds are safe — they haven't been moved. Please contact our support team so we can
+          Your funds are safe — they haven&apos;t been moved. Please contact our support team so we can
           sort this out for you.
         </p>
         {supportEmail && (
