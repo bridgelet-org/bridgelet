@@ -1,3 +1,4 @@
+// Cache-Control header configuration ensuring /claim/* routes are never cached.
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
