@@ -21,6 +21,7 @@ Thanks for helping improve Bridgelet! Please read this guide before opening an i
 - Include tests or notes on why tests are not required.
 - Update documentation when behavior or APIs change.
 - Link related issues/discussions and describe the approach and rationale.
+- **Adding or modifying a tracked analytics event?** Read [the analytics spec review runbook](./bridgelet-product-audit/runbooks/review-analytics-spec-before-new-event.md) first — the spec must be updated before tracking code is implemented.
 
 ## Development Notes
 
