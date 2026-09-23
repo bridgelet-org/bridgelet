@@ -1,5 +1,11 @@
 // #118 – Privacy-respecting analytics events (Plausible-compatible, no PII)
-type ClaimEvent = 'claim_page_viewed' | 'claim_initiated' | 'claim_success' | 'claim_error';
+type ClaimEvent =
+  | 'claim_page_viewed'
+  | 'claim_initiated'
+  | 'claim_success'
+  | 'claim_error'
+  | 'Payment Confirmed'
+  | 'Payment Created';
 
 type EventProps = Record<string, string | number | boolean>;
 
@@ -24,4 +30,37 @@ export const analytics = {
   claimInitiated: () => track('claim_initiated'),
   claimSuccess: () => track('claim_success'),
   claimError: (reason: string) => track('claim_error', { reason }),
+  paymentConfirmed: ({
+    assetType,
+    expiryDays,
+    walletType,
+  }: {
+    assetType?: string;
+    expiryDays?: number | null;
+    walletType?: string;
+  }) =>
+    track('Payment Confirmed', {
+      journey: 'sender',
+      ...(assetType ? { asset_type: assetType } : {}),
+      ...(expiryDays != null ? { expiry_days: expiryDays } : {}),
+      ...(walletType ? { wallet_type: walletType } : {}),
+    }),
+  paymentCreated: ({
+    claimId,
+    assetType,
+    expiryDays,
+    confirmationTimeMs,
+  }: {
+    claimId: string;
+    assetType?: string;
+    expiryDays?: number | null;
+    confirmationTimeMs: number;
+  }) =>
+    track('Payment Created', {
+      journey: 'sender',
+      claim_id: claimId,
+      ...(assetType ? { asset_type: assetType } : {}),
+      ...(expiryDays != null ? { expiry_days: expiryDays } : {}),
+      confirmation_time_ms: confirmationTimeMs,
+    }),
 };
