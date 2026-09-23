@@ -16,6 +16,7 @@ import {
   type AccountCreationErrorInfo,
 } from '@/lib/account-errors';
 import { publicEnv } from '@/lib/env';
+import { analytics } from '@/lib/analytics';
 
 /**
  * Default claim window for accounts created from the send form.
@@ -116,6 +117,7 @@ export function ConfirmStep({ state, onBack }: ConfirmStepProps) {
 
       setClaimUrl(account.claimUrl);
       setSubmitPhase('success');
+      analytics.paymentDetailsViewed({ claimId: account.accountId, claimStatus: 'unclaimed' });
     } catch (err) {
       const info = classifyError(err);
       setErrorInfo(info);
