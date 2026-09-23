@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { SendFormState } from '../index';
 import { useNfc } from '@/hooks/use-nfc';
 import { BridgeletClient, RateLimitError } from '@/lib/create-bridgelet-client';
@@ -16,6 +16,7 @@ import {
   type AccountCreationErrorInfo,
 } from '@/lib/account-errors';
 import { publicEnv } from '@/lib/env';
+import { analytics } from '@/lib/analytics';
 
 /**
  * Default claim window for accounts created from the send form.
@@ -70,6 +71,13 @@ export function ConfirmStep({ state, onBack }: ConfirmStepProps) {
   const { isSupported, writeUrl, isWriting, error: nfcError } = useNfc();
 
   const submitting = submitPhase !== 'idle' && submitPhase !== 'success';
+
+  useEffect(() => {
+    analytics.paymentConfirmationViewed({
+      assetType: state.assetCode,
+      expiryDays: state.expiresInHours / 24,
+    });
+  }, [state.assetCode, state.expiresInHours]);
 
   function buildCreateAccountPayload() {
     return {
