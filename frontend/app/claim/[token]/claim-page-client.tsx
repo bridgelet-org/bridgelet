@@ -7,6 +7,7 @@ import { BridgeletClient } from '@/lib/api/client';
 import { ClaimView, loadClaimView, markTokenClaimed } from '@/lib/claim-view';
 import { submitClaimWithRetry, pollClaimStatus } from '@/lib/claim-retry';
 import { ClaimError } from '@/lib/claim-errors';
+import { analytics, daysRemainingUntil } from '@/lib/analytics';
 
 interface ClaimPageClientProps {
   token: string;
@@ -24,9 +25,19 @@ export function ClaimPageClient({ token, supportEmail, initialView }: ClaimPageC
 
   useEffect(() => {
     let cancelled = false;
+    const verifiedAt = Date.now();
     loadClaimView(token)
       .then((result) => {
-        if (!cancelled) setView(result);
+        if (cancelled) return;
+        setView(result);
+        if (result.status === AccountStatus.PENDING_CLAIM) {
+          analytics.claimVerified({
+            claimId: token,
+            assetType: result.assetCode,
+            expiryDaysRemaining: result.expiresAt ? daysRemainingUntil(result.expiresAt) : undefined,
+            verificationTimeMs: Date.now() - verifiedAt,
+          });
+        }
       })
       .catch(() => {
         if (!cancelled) setLoadError(true);
@@ -47,6 +58,7 @@ export function ClaimPageClient({ token, supportEmail, initialView }: ClaimPageC
    */
   const handleClaim = useCallback(
     async (destinationAddress: string) => {
+      analytics.claimCtaClicked({ claimId: token, assetType: view?.assetCode });
       if (submissionInFlight.current) {
         // Guard: prevent concurrent submissions for the same token.
         throw new ClaimError("NETWORK_ERROR", "A claim is already being processed. Please wait.");
@@ -127,7 +139,7 @@ export function ClaimPageClient({ token, supportEmail, initialView }: ClaimPageC
         submissionInFlight.current = false;
       }
     },
-    [token],
+    [token, view],
   );
 
   /**
