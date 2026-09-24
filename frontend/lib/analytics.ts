@@ -5,7 +5,11 @@ type ClaimEvent =
   | 'claim_success'
   | 'claim_error'
   | 'Claim Verified'
-  | 'Claim CTA Clicked';
+  | 'Claim CTA Clicked'
+  | 'Wallet Address Validation Failed'
+  | 'Claim Confirmation Viewed'
+  | 'Claim Submitted'
+  | 'Claim Succeeded';
 
 type EventProps = Record<string, string | number | boolean>;
 
@@ -37,6 +41,25 @@ interface ClaimCtaClickedProps {
   assetType?: string;
 }
 
+/** Client-side address-validation failure reasons (`docs/analytics-spec.md` §5.2). */
+export type ValidationError = 'invalid_prefix' | 'invalid_length' | 'invalid_checksum';
+
+interface WalletAddressValidationFailedProps {
+  claimId?: string;
+  validationError: ValidationError;
+  attemptNumber: number;
+}
+
+interface ClaimSucceededProps {
+  claimId: string;
+  assetType?: string;
+  /** Hours between `Payment Created` (sender) and `Claim Succeeded` (recipient). */
+  timeToClaimHours?: number;
+  /** Time in ms from `Claim Submitted` to on-chain confirmation. */
+  sweepDurationMs?: number;
+  entryChannel?: string;
+}
+
 export function daysRemainingUntil(iso: string): number | undefined {
   const expiresAt = Date.parse(iso);
   if (Number.isNaN(expiresAt)) return undefined;
@@ -66,5 +89,43 @@ export const analytics = {
       journey: 'recipient',
       claim_id: claimId,
       ...(assetType ? { asset_type: assetType } : {}),
+    }),
+  walletAddressValidationFailed: ({
+    claimId,
+    validationError,
+    attemptNumber,
+  }: WalletAddressValidationFailedProps) =>
+    track('Wallet Address Validation Failed', {
+      journey: 'recipient',
+      ...(claimId ? { claim_id: claimId } : {}),
+      validation_error: validationError,
+      attempt_number: attemptNumber,
+    }),
+  claimConfirmationViewed: ({ claimId, assetType }: ClaimCtaClickedProps) =>
+    track('Claim Confirmation Viewed', {
+      journey: 'recipient',
+      claim_id: claimId,
+      ...(assetType ? { asset_type: assetType } : {}),
+    }),
+  claimSubmitted: ({ claimId, assetType }: ClaimCtaClickedProps) =>
+    track('Claim Submitted', {
+      journey: 'recipient',
+      claim_id: claimId,
+      ...(assetType ? { asset_type: assetType } : {}),
+    }),
+  claimSucceeded: ({
+    claimId,
+    assetType,
+    timeToClaimHours,
+    sweepDurationMs,
+    entryChannel = 'unknown',
+  }: ClaimSucceededProps) =>
+    track('Claim Succeeded', {
+      journey: 'recipient',
+      claim_id: claimId,
+      ...(assetType ? { asset_type: assetType } : {}),
+      ...(timeToClaimHours !== undefined ? { time_to_claim_hours: timeToClaimHours } : {}),
+      ...(sweepDurationMs !== undefined ? { sweep_duration_ms: sweepDurationMs } : {}),
+      entry_channel: entryChannel,
     }),
 };

@@ -22,6 +22,9 @@ export function ClaimPageClient({ token, supportEmail, initialView }: ClaimPageC
   const [loadError, setLoadError] = useState(false);
   // Track whether a submission is currently in-flight or being polled.
   const submissionInFlight = useRef(false);
+  // Timestamp of the most recent claim-submit intent, used for
+  // `Claim Succeeded.sweep_duration_ms` (§5.3).
+  const submittedAtRef = useRef(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -37,6 +40,8 @@ export function ClaimPageClient({ token, supportEmail, initialView }: ClaimPageC
             expiryDaysRemaining: result.expiresAt ? daysRemainingUntil(result.expiresAt) : undefined,
             verificationTimeMs: Date.now() - verifiedAt,
           });
+          // The review/confirm claim screen is this panel (§5.3).
+          analytics.claimConfirmationViewed({ claimId: token, assetType: result.assetCode });
         }
       })
       .catch(() => {
@@ -64,6 +69,9 @@ export function ClaimPageClient({ token, supportEmail, initialView }: ClaimPageC
         throw new ClaimError("NETWORK_ERROR", "A claim is already being processed. Please wait.");
       }
       submissionInFlight.current = true;
+      submittedAtRef.current = Date.now();
+      // Recipient submitted the claim (intent only, pre-chain-confirmation) (§5.3).
+      analytics.claimSubmitted({ claimId: token, assetType: view?.assetCode });
 
       try {
         const result = await submitClaimWithRetry(client, token, destinationAddress, {
@@ -79,6 +87,12 @@ export function ClaimPageClient({ token, supportEmail, initialView }: ClaimPageC
             // Sweep confirmed -- update view.
             markTokenClaimed(token);
             const resp = result.outcome.response;
+            // Sweep transaction confirmed on-chain (§5.3 primary conversion event).
+            analytics.claimSucceeded({
+              claimId: token,
+              assetType: view?.assetCode,
+              sweepDurationMs: Math.max(0, Date.now() - submittedAtRef.current),
+            });
             setView((prev) => ({
               ...(prev ?? { status: AccountStatus.CLAIMED }),
               status: resp.isPartial ? AccountStatus.PARTIAL_SWEEP : AccountStatus.CLAIMED,
@@ -169,6 +183,12 @@ export function ClaimPageClient({ token, supportEmail, initialView }: ClaimPageC
               pollResult.status === AccountStatus.PARTIAL_SWEEP
             ) {
               markTokenClaimed(token);
+              // Sweep confirmed on-chain via background poll (§5.3).
+              analytics.claimSucceeded({
+                claimId: token,
+                assetType: view?.assetCode,
+                sweepDurationMs: Math.max(0, Date.now() - submittedAtRef.current),
+              });
               setView((prev) => ({
                 ...(prev ?? { status: AccountStatus.CLAIMED }),
                 status: pollResult.status,
