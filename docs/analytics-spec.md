@@ -702,6 +702,10 @@ Claim Succeeded          (Recipient Claim Funnel)
 
 ### 8.1 Core KPIs
 
+> **Query definitions:** executable query shapes for each KPI below,
+> their join keys, and per-KPI readiness status are maintained in
+> `docs/analytics-kpi-definitions.md`.
+
 ---
 
 #### Claim Conversion Rate (CCR)
