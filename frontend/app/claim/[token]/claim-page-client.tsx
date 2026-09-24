@@ -67,6 +67,27 @@ export function ClaimPageClient({ token, supportEmail, initialView }: ClaimPageC
             expiryDaysRemaining: result.expiresAt ? daysRemainingUntil(result.expiresAt) : undefined,
             verificationTimeMs: Date.now() - verifiedAt,
           });
+        } else if (result.status === AccountStatus.EXPIRED) {
+          // Error surface: expired-token landing panel (`docs/analytics-spec.md` §6).
+          analytics.errorDisplayed({
+            journey: 'recipient',
+            claimId: token,
+            errorType: 'expired_token',
+            errorCode: result.loadErrorCode ?? 'TOKEN_EXPIRED',
+            sourceScreen: 'claim_landing',
+          });
+        } else if (
+          result.status === AccountStatus.FAILED &&
+          result.loadErrorCode === 'TOKEN_NOT_FOUND'
+        ) {
+          // Error surface: malformed/unknown claim link (`docs/analytics-spec.md` §6).
+          analytics.errorDisplayed({
+            journey: 'recipient',
+            claimId: token,
+            errorType: 'invalid_token',
+            errorCode: result.loadErrorCode,
+            sourceScreen: 'claim_landing',
+          });
         }
       })
       .catch(() => {
