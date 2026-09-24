@@ -37,6 +37,15 @@ export function ClaimPageClient({ token, supportEmail, initialView }: ClaimPageC
             expiryDaysRemaining: result.expiresAt ? daysRemainingUntil(result.expiresAt) : undefined,
             verificationTimeMs: Date.now() - verifiedAt,
           });
+        } else if (result.status === AccountStatus.FAILED) {
+          // Unclassified claim-load failure (§6 `unknown`).
+          analytics.errorDisplayed({
+            journey: 'recipient',
+            claimId: token,
+            errorType: 'unknown',
+            errorCode: 'CLAIM_LOAD_FAILED',
+            sourceScreen: 'claim_landing',
+          });
         }
       })
       .catch(() => {

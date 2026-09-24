@@ -4,6 +4,7 @@ type ClaimEvent =
   | 'claim_initiated'
   | 'claim_success'
   | 'claim_error'
+  | 'Error Displayed'
   | 'Claim Verified'
   | 'Claim CTA Clicked';
 
@@ -25,6 +26,31 @@ function track(event: ClaimEvent, props?: EventProps): void {
   }
 }
 
+/**
+ * Conditional payload properties (`docs/analytics-spec.md` §3.2) are
+ * included only on the events where they are relevant. Each helper below
+ * returns the exact property key the spec expects.
+ */
+
+/** Standard `error_type` values from `docs/analytics-spec.md` §6. */
+export const ERROR_TYPES = [
+  'invalid_token',
+  'expired_token',
+  'already_claimed',
+  'invalid_wallet_address',
+  'transaction_failed',
+  'network_unavailable',
+  'wallet_connection_failed',
+  'unknown',
+] as const;
+
+export type ErrorType = (typeof ERROR_TYPES)[number];
+
+export const conditional = {
+  errorType: (errorType: ErrorType): EventProps => ({ error_type: errorType }),
+  errorCode: (errorCode: string): EventProps => ({ error_code: errorCode }),
+};
+
 interface ClaimVerifiedProps {
   claimId: string;
   assetType?: string;
@@ -41,6 +67,14 @@ export function daysRemainingUntil(iso: string): number | undefined {
   const expiresAt = Date.parse(iso);
   if (Number.isNaN(expiresAt)) return undefined;
   return Math.max(0, Math.ceil((expiresAt - Date.now()) / 86_400_000));
+}
+
+interface ErrorDisplayedProps {
+  journey: 'sender' | 'recipient';
+  claimId?: string;
+  errorType: ErrorType;
+  errorCode?: string;
+  sourceScreen: string;
 }
 
 export const analytics = {
@@ -66,5 +100,19 @@ export const analytics = {
       journey: 'recipient',
       claim_id: claimId,
       ...(assetType ? { asset_type: assetType } : {}),
+    }),
+  errorDisplayed: ({
+    journey,
+    claimId,
+    errorType,
+    errorCode,
+    sourceScreen,
+  }: ErrorDisplayedProps) =>
+    track('Error Displayed', {
+      journey,
+      ...(claimId ? { claim_id: claimId } : {}),
+      ...conditional.errorType(errorType),
+      ...conditional.errorCode(errorCode ?? 'unknown'),
+      source_screen: sourceScreen,
     }),
 };
