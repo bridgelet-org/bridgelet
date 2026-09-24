@@ -49,6 +49,9 @@ export function ClaimPageClient({ token, supportEmail, initialView }: ClaimPageC
   const [loadError, setLoadError] = useState(false);
   // Track whether a submission is currently in-flight or being polled.
   const submissionInFlight = useRef(false);
+  // Counts how many claim-submit attempts the recipient has made on this session,
+  // used for `Claim Failed.attempt_number` (§5.3).
+  const attemptNumberRef = useRef(0);
   // Timestamp of the most recent claim-submit intent, used for
   // `Claim Succeeded.sweep_duration_ms` (§5.3).
   const submittedAtRef = useRef(0);
@@ -148,6 +151,7 @@ export function ClaimPageClient({ token, supportEmail, initialView }: ClaimPageC
         throw new ClaimError("NETWORK_ERROR", "A claim is already being processed. Please wait.");
       }
       submissionInFlight.current = true;
+      const currentAttempt = ++attemptNumberRef.current;
       submittedAtRef.current = Date.now();
       // Recipient submitted the claim (intent only, pre-chain-confirmation) (§5.3).
       analytics.claimSubmitted({ claimId: token, assetType: view?.assetCode });
@@ -197,6 +201,14 @@ export function ClaimPageClient({ token, supportEmail, initialView }: ClaimPageC
 
           case "safeToRetry": {
             // The request never reached the server. Safe to retry.
+            // §5.3 Claim Failed — network_error, safe-to-retry path.
+            analytics.claimFailed({
+              claimId: token,
+              assetType: view?.assetCode,
+              errorCode: 'SUBMISSION_FAILED_RETRYABLE',
+              errorType: 'network_error',
+              attemptNumber: currentAttempt,
+            });
             analytics.errorDisplayed({
               journey: 'recipient',
               claimId: token,
@@ -228,6 +240,14 @@ export function ClaimPageClient({ token, supportEmail, initialView }: ClaimPageC
           case "terminal": {
             // Explicit rejection -- do not retry.
             const apiErr = result.outcome.error;
+            // §5.3 Claim Failed — transaction_failed, terminal rejection path.
+            analytics.claimFailed({
+              claimId: token,
+              assetType: view?.assetCode,
+              errorCode: apiErr?.message ?? 'unknown',
+              errorType: 'transaction_failed',
+              attemptNumber: currentAttempt,
+            });
             analytics.errorDisplayed({
               journey: 'recipient',
               claimId: token,
@@ -352,6 +372,7 @@ export function ClaimPageClient({ token, supportEmail, initialView }: ClaimPageC
       supportEmail={supportEmail}
       onClaim={handleClaim}
       claimedByMe={view.claimedByMe}
+      claimId={token}
       sweepDestination={view.sweepDestination}
       sweepAmountStroops={view.sweepAmountStroops}
     />

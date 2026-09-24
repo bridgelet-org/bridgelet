@@ -341,7 +341,22 @@ function ProcessingPanel({ status, sweepNote }: { status: ClaimStatus; sweepNote
   );
 }
 
-function ClaimedPanel({ sweepDestination }: { sweepDestination?: string }) {
+function ClaimedPanel({
+  claimId,
+  assetCode,
+  sweepDestination,
+  claimedByMe,
+}: Pick<ClaimStatusCardProps, 'claimId' | 'assetCode' | 'sweepDestination' | 'claimedByMe'>) {
+  // §5.4 Claim Success Viewed — fires once when this session's successful
+  // claim result is displayed. Guarded by claimedByMe to avoid firing when
+  // the panel shows because someone else already claimed.
+  useEffect(() => {
+    if (claimedByMe && claimId) {
+      analytics.claimSuccessViewed({ claimId, assetType: assetCode });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   return (
     <div className="space-y-3">
       <div className="flex items-center gap-3 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 dark:border-blue-800 dark:bg-blue-950">
@@ -360,10 +375,11 @@ function ClaimedPanel({ sweepDestination }: { sweepDestination?: string }) {
           />
         </svg>
         <div>
-          <p className="text-sm font-semibold text-blue-800">Payment already claimed</p>
+          <p className="text-sm font-semibold text-blue-800">{claimedByMe ? 'Payment claimed!' : 'Payment already claimed'}</p>
           <p className="text-xs text-blue-600 mt-0.5">
-            These funds have been transferred to the recipient&apos;s wallet. Each claim link can
-            only be used once.
+            {claimedByMe
+              ? 'The funds have been swept to your wallet.'
+              : 'These funds have been transferred to the recipient\u2019s wallet. Each claim link can only be used once.'}
           </p>
           {sweepDestination && (
             <p className="mt-1 break-all font-mono text-[10px] text-blue-500">
@@ -372,9 +388,42 @@ function ClaimedPanel({ sweepDestination }: { sweepDestination?: string }) {
           )}
         </div>
       </div>
-      <p className="text-xs text-slate-500 dark:text-slate-400">
-        If you believe this is a mistake, contact the sender for a new payment link.
-      </p>
+
+      {claimedByMe && claimId && (
+        <div className="space-y-2">
+          {/* §5.4 Explorer Link Clicked — Stellar block explorer link */}
+          <a
+            href={`https://stellar.expert/explorer/testnet/tx/${claimId}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={() =>
+              analytics.explorerLinkClicked({
+                journey: 'recipient',
+                claimId,
+                sourceScreen: 'claim_success',
+              })
+            }
+            className="block text-center text-xs text-blue-600 underline underline-offset-2 hover:text-blue-800"
+          >
+            View transaction on Stellar Explorer ↗
+          </a>
+
+          {/* §5.4 Sender Signup CTA Clicked — viral growth loop */}
+          <a
+            href="/send"
+            onClick={() => analytics.senderSignupCtaClicked({ claimId })}
+            className="block w-full rounded-lg border border-slate-200 bg-slate-50 px-4 py-2.5 text-center text-xs font-medium text-slate-700 transition hover:bg-slate-100"
+          >
+            Create your own payment link →
+          </a>
+        </div>
+      )}
+
+      {!claimedByMe && (
+        <p className="text-xs text-slate-500 dark:text-slate-400">
+          If you believe this is a mistake, contact the sender for a new payment link.
+        </p>
+      )}
     </div>
   );
 }
@@ -491,6 +540,7 @@ export function ClaimStatusCard({
   onClaim,
   sweepNote,
   supportEmail,
+  claimedByMe,
   sweepDestination,
 }: ClaimStatusCardProps) {
   return (
@@ -525,7 +575,14 @@ export function ClaimStatusCard({
       {(status === AccountStatus.CLAIMING || status === AccountStatus.PARTIAL_SWEEP) && (
         <ProcessingPanel status={status} sweepNote={sweepNote} />
       )}
-      {status === AccountStatus.CLAIMED && <ClaimedPanel sweepDestination={sweepDestination} />}
+      {status === AccountStatus.CLAIMED && (
+        <ClaimedPanel
+          claimId={claimId}
+          assetCode={assetCode}
+          claimedByMe={claimedByMe}
+          sweepDestination={sweepDestination}
+        />
+      )}
       {status === AccountStatus.EXPIRED && (
         <ExpiredPanel expiresAt={expiresAt} supportEmail={supportEmail} />
       )}

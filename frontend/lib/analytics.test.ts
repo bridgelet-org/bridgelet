@@ -3,11 +3,15 @@ import {
   analytics,
   appVersion,
   buildBasePayload,
+  CLAIM_FAILED_ERROR_TYPES,
   conditional,
   daysRemainingUntil,
   detectDeviceType,
   ERROR_TYPES,
   ErrorType,
+  type ClaimFailedErrorType,
+  type ExplorerJourney,
+  type ExplorerSourceScreen,
   VALID_EXPIRY_WINDOWS,
   type ValidationError,
 } from '@/lib/analytics';
@@ -669,6 +673,230 @@ describe('recipient claim pipeline events (Â§5.2â€“Â§5.3)', () => {
       analytics.walletAddressValidationFailed({
         claimId: 'ssr-test',
         validationError: 'invalid_prefix',
+        attemptNumber: 1,
+      }),
+    ).not.toThrow();
+    expect(plausible).not.toHaveBeenCalled();
+  });
+});
+
+describe('ClaimFailedErrorType taxonomy', () => {
+  it('exposes the five §5.3 values', () => {
+    const keys = Object.keys(CLAIM_FAILED_ERROR_TYPES);
+    expect(keys).toContain('network_error');
+    expect(keys).toContain('token_expired');
+    expect(keys).toContain('already_claimed');
+    expect(keys).toContain('transaction_failed');
+    expect(keys).toContain('unknown');
+  });
+
+  it('each key maps to itself (const enum pattern)', () => {
+    for (const [k, v] of Object.entries(CLAIM_FAILED_ERROR_TYPES)) {
+      expect(k).toBe(v);
+    }
+  });
+});
+
+describe('post-claim events (§5.3–§5.4)', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+    delete (window as unknown as { plausible?: unknown }).plausible;
+  });
+
+  const mockPlausible = () =>
+    ((window as unknown as { plausible?: ReturnType<typeof plausibleMock> }).plausible =
+      plausibleMock());
+
+  const latest = () =>
+    (window as unknown as { plausible: ReturnType<typeof plausibleMock> }).plausible.mock
+      .calls[0]!;
+
+  describe('analytics.claimFailed (§5.3)', () => {
+    it('emits Claim Failed with all required fields', () => {
+      mockPlausible();
+      analytics.claimFailed({
+        claimId: 'claim-001',
+        assetType: 'XLM',
+        errorCode: 'SUBMISSION_FAILED_FINAL',
+        errorType: 'transaction_failed',
+        attemptNumber: 1,
+      });
+
+      const call = latest();
+      expect(call[0]).toBe('Claim Failed');
+      expect(call[1].props).toEqual(
+        expect.objectContaining({
+          journey: 'recipient',
+          claim_id: 'claim-001',
+          asset_type: 'XLM',
+          error_code: 'SUBMISSION_FAILED_FINAL',
+          error_type: 'transaction_failed',
+          attempt_number: 1,
+        }),
+      );
+    });
+
+    it('defaults error_code to "unknown" when omitted', () => {
+      mockPlausible();
+      analytics.claimFailed({
+        claimId: 'claim-002',
+        errorType: 'network_error',
+        attemptNumber: 1,
+      });
+
+      const props = latest()[1].props as { error_code: string };
+      expect(props.error_code).toBe('unknown');
+    });
+
+    it('omits asset_type when not provided', () => {
+      mockPlausible();
+      analytics.claimFailed({
+        claimId: 'claim-003',
+        errorType: 'unknown',
+        attemptNumber: 1,
+      });
+
+      const props = latest()[1].props as { asset_type?: string };
+      expect(props).not.toHaveProperty('asset_type');
+    });
+
+    it.each([
+      'network_error',
+      'token_expired',
+      'already_claimed',
+      'transaction_failed',
+      'unknown',
+    ] as ClaimFailedErrorType[])('emits correct error_type for %s', (errorType) => {
+      mockPlausible();
+      analytics.claimFailed({ claimId: 'claim-004', errorType, attemptNumber: 1 });
+
+      const props = latest()[1].props as { error_type: ClaimFailedErrorType };
+      expect(props.error_type).toBe(errorType);
+    });
+
+    it('increments attempt_number across successive failures', () => {
+      mockPlausible();
+      for (let i = 1; i <= 3; i++) {
+        analytics.claimFailed({
+          claimId: 'claim-seq',
+          errorType: 'network_error',
+          attemptNumber: i,
+        });
+      }
+      const attempts = (
+        window as unknown as { plausible: ReturnType<typeof plausibleMock> }
+      ).plausible.mock.calls.map((c) => c[1].props.attempt_number);
+      expect(attempts).toEqual([1, 2, 3]);
+    });
+  });
+
+  describe('analytics.claimSuccessViewed (§5.4)', () => {
+    it('emits Claim Success Viewed with claim_id and asset_type', () => {
+      mockPlausible();
+      analytics.claimSuccessViewed({ claimId: 'claim-005', assetType: 'USDC' });
+
+      const call = latest();
+      expect(call[0]).toBe('Claim Success Viewed');
+      expect(call[1].props).toEqual(
+        expect.objectContaining({
+          journey: 'recipient',
+          claim_id: 'claim-005',
+          asset_type: 'USDC',
+        }),
+      );
+    });
+
+    it('omits asset_type when not provided', () => {
+      mockPlausible();
+      analytics.claimSuccessViewed({ claimId: 'claim-006' });
+
+      const props = latest()[1].props as { asset_type?: string };
+      expect(props).not.toHaveProperty('asset_type');
+    });
+  });
+
+  describe('analytics.senderSignupCtaClicked (§5.4)', () => {
+    it('emits Sender Signup CTA Clicked with fixed source value', () => {
+      mockPlausible();
+      analytics.senderSignupCtaClicked({ claimId: 'claim-007' });
+
+      const call = latest();
+      expect(call[0]).toBe('Sender Signup CTA Clicked');
+      expect(call[1].props).toEqual(
+        expect.objectContaining({
+          journey: 'recipient',
+          claim_id: 'claim-007',
+          source: 'claim_success_screen',
+        }),
+      );
+    });
+  });
+
+  describe('analytics.explorerLinkClicked (§5.4/§6)', () => {
+    it('emits Explorer Link Clicked with recipient journey and claim_success source', () => {
+      mockPlausible();
+      analytics.explorerLinkClicked({
+        journey: 'recipient',
+        claimId: 'claim-008',
+        sourceScreen: 'claim_success',
+      });
+
+      const call = latest();
+      expect(call[0]).toBe('Explorer Link Clicked');
+      expect(call[1].props).toEqual(
+        expect.objectContaining({
+          journey: 'recipient',
+          claim_id: 'claim-008',
+          source_screen: 'claim_success',
+        }),
+      );
+    });
+
+    it('emits Explorer Link Clicked with sender journey and payment_details source', () => {
+      mockPlausible();
+      analytics.explorerLinkClicked({
+        journey: 'sender',
+        claimId: 'claim-009',
+        sourceScreen: 'payment_details',
+      });
+
+      const props = latest()[1].props as {
+        journey: ExplorerJourney;
+        source_screen: ExplorerSourceScreen;
+      };
+      expect(props.journey).toBe('sender');
+      expect(props.source_screen).toBe('payment_details');
+    });
+
+    it.each([
+      ['recipient', 'claim_success'],
+      ['sender', 'payment_details'],
+    ] as [ExplorerJourney, ExplorerSourceScreen][])(
+      'accepts journey=%s, sourceScreen=%s',
+      (journey, sourceScreen) => {
+        mockPlausible();
+        analytics.explorerLinkClicked({ journey, claimId: 'claim-010', sourceScreen });
+
+        const props = latest()[1].props as {
+          journey: ExplorerJourney;
+          source_screen: ExplorerSourceScreen;
+        };
+        expect(props.journey).toBe(journey);
+        expect(props.source_screen).toBe(sourceScreen);
+      },
+    );
+  });
+
+  it('no-ops when the window object is unavailable', () => {
+    const plausible = plausibleMock();
+    (window as unknown as { plausible?: ReturnType<typeof plausibleMock> }).plausible = plausible;
+    vi.stubGlobal('window', undefined);
+
+    expect(() =>
+      analytics.claimFailed({
+        claimId: 'ssr-test',
+        errorType: 'unknown',
         attemptNumber: 1,
       }),
     ).not.toThrow();
