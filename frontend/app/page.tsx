@@ -3,6 +3,7 @@ import { PageShell } from '@/components/page-shell';
 import { HowItWorks } from '@/components/how-it-works';
 import { CTABanner } from '@/components/cta-banner';
 import { FAQAccordion } from '@/components/faq-accordion';
+import { PageViewTracker } from '@/components/page-view-tracker';
 
 export default function HomePage() {
   return (
@@ -11,6 +12,7 @@ export default function HomePage() {
       description="Reference placeholder UI for sender and recipient claim experiences."
       footer={<CTABanner />}
     >
+      <PageViewTracker page="homepage" />
       <div className="space-y-8">
         <HowItWorks intervalMs={3500} />
         <div className="space-y-4">

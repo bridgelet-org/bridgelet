@@ -5,31 +5,48 @@ type ClaimEvent =
   | 'claim_success'
   | 'claim_error'
   | 'Claim Page Opened'
-  | 'Payment Details Viewed';
+  | 'Payment Details Viewed'
+  | 'Page Viewed'
+  | 'Send Form Viewed'
   | 'Claim Verified'
   | 'Claim CTA Clicked';
 
 type EventProps = Record<string, string | number | boolean>;
 
+/**
+ * Base payload fields (`docs/analytics-spec.md` §3.1) shared by every
+ * event. The frontend always runs in a browser, so `platform` is the fixed
+ * value "web". Additional base fields can be appended here as they land.
+ */
+export function buildBasePayload(): EventProps {
+  return { platform: 'web' };
+}
+
 function track(event: ClaimEvent, props?: EventProps): void {
   if (typeof window === 'undefined') return;
+
+  // Base payload is merged in first so event-specific props can override.
+  const payload: EventProps = { ...buildBasePayload(), ...props };
 
   // Plausible custom event API
   const plausible = (window as unknown as { plausible?: Function }).plausible;
   if (typeof plausible === 'function') {
-    plausible(event, { props });
+    plausible(event, { props: payload });
     return;
   }
 
   // Fallback: console in development
   if (process.env.NODE_ENV !== 'production') {
-    console.debug('[analytics]', event, props);
+    console.debug('[analytics]', event, payload);
   }
 }
+
+export type EntrySource = 'direct' | 'referral' | 'shared_link' | 'unknown';
 
 export type ClaimEntryChannel = 'sms' | 'email' | 'whatsapp' | 'direct' | 'unknown';
 
 export type PaymentClaimStatus = 'unclaimed' | 'claimed' | 'expired';
+
 interface ClaimVerifiedProps {
   claimId: string;
   assetType?: string;
@@ -76,6 +93,14 @@ export const analytics = {
       journey: 'sender',
       claim_id: claimId,
       claim_status: claimStatus,
+    }),
+  pageViewed: ({ page, entrySource }: { page: string; entrySource?: EntrySource }) =>
+    track('Page Viewed', {
+      journey: 'sender',
+      page,
+      ...(entrySource ? { entry_source: entrySource } : {}),
+    }),
+  sendFormViewed: () => track('Send Form Viewed', { journey: 'sender' }),
   claimVerified: ({
     claimId,
     assetType,
