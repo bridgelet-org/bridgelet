@@ -7,7 +7,7 @@ import { BridgeletClient } from '@/lib/api/client';
 import { ClaimView, loadClaimView, markTokenClaimed } from '@/lib/claim-view';
 import { submitClaimWithRetry, pollClaimStatus } from '@/lib/claim-retry';
 import { ClaimError } from '@/lib/claim-errors';
-import { analytics, daysRemainingUntil } from '@/lib/analytics';
+import { analytics, daysRemainingUntil, type ClaimEntryChannel } from '@/lib/analytics';
 
 interface ClaimPageClientProps {
   token: string;
@@ -17,6 +17,33 @@ interface ClaimPageClientProps {
 
 const client = new BridgeletClient();
 
+/**
+ * Best-guess referral channel for a claim link, derived from URL campaign
+ * parameters or the document referrer. Mirrors the `entry_channel` values
+ * documented in `docs/analytics-spec.md` §5.1.
+ */
+function claimEntryChannel(): ClaimEntryChannel {
+  try {
+    if (typeof window === 'undefined' || typeof document === 'undefined') return 'unknown';
+    const params = new URLSearchParams(window.location.search);
+    const flagged = (params.get('channel') ?? params.get('src') ?? params.get('utm_source') ?? '')
+      .toLowerCase();
+    if (flagged.includes('whatsapp') || flagged.includes('wa')) return 'whatsapp';
+    if (flagged.includes('mail') || flagged.includes('email')) return 'email';
+    if (flagged.includes('sms') || flagged.includes('text')) return 'sms';
+    const referrer = document.referrer;
+    if (referrer) {
+      const host = new URL(referrer).hostname.toLowerCase();
+      if (host.includes('whatsapp') || host.includes('wa.me')) return 'whatsapp';
+      if (host.includes('mail') || host.includes('gmail') || host.includes('yahoo')) return 'email';
+      if (host.includes('sms') || host.includes('text')) return 'sms';
+    }
+    return 'direct';
+  } catch {
+    return 'unknown';
+  }
+}
+
 export function ClaimPageClient({ token, supportEmail, initialView }: ClaimPageClientProps) {
   const [view, setView] = useState<ClaimView | null>(initialView ?? null);
   const [loadError, setLoadError] = useState(false);
@@ -25,8 +52,17 @@ export function ClaimPageClient({ token, supportEmail, initialView }: ClaimPageC
   // Whether the Error Displayed event has already been fired for the load-error
   // surface to avoid re-firing on re-renders.
   const loadErrorFiredRef = useRef(false);
+  // Counts how many claim-submit attempts the recipient has made on this session,
+  // used for `Claim Failed.attempt_number` (§5.3).
+  const attemptNumberRef = useRef(0);
+  // Timestamp of the most recent claim-submit intent, used for
+  // `Claim Succeeded.sweep_duration_ms` (§5.3).
+  const submittedAtRef = useRef(0);
 
   useEffect(() => {
+    // Funnel start: fire immediately on open, before token verification.
+    analytics.claimPageOpened({ claimId: token, entryChannel: claimEntryChannel() });
+
     let cancelled = false;
     const verifiedAt = Date.now();
     loadClaimView(token)
@@ -40,10 +76,61 @@ export function ClaimPageClient({ token, supportEmail, initialView }: ClaimPageC
             expiryDaysRemaining: result.expiresAt ? daysRemainingUntil(result.expiresAt) : undefined,
             verificationTimeMs: Date.now() - verifiedAt,
           });
+// The review/confirm claim screen is this panel (§5.3).
+          analytics.claimConfirmationViewed({ claimId: token, assetType: result.assetCode });
+        } else if (result.status === AccountStatus.CLAIMED) {
+          // Token is valid but the funds were already swept (§6 `already_claimed`).
+          analytics.errorDisplayed({
+            journey: 'recipient',
+            claimId: token,
+            errorType: 'already_claimed',
+            errorCode: 'ALREADY_CLAIMED',
+            sourceScreen: 'claim_landing',
+          });
+        } else if (result.status === AccountStatus.EXPIRED) {
+          // Error surface: expired-token landing panel (`docs/analytics-spec.md` §6).
+          analytics.errorDisplayed({
+            journey: 'recipient',
+            claimId: token,
+            errorType: 'expired_token',
+            errorCode: result.loadErrorCode ?? 'TOKEN_EXPIRED',
+            sourceScreen: 'claim_landing',
+          });
+        } else if (
+          result.status === AccountStatus.FAILED &&
+          result.loadErrorCode === 'TOKEN_NOT_FOUND'
+        ) {
+          // Error surface: malformed/unknown claim link (`docs/analytics-spec.md` §6).
+          analytics.errorDisplayed({
+            journey: 'recipient',
+            claimId: token,
+            errorType: 'invalid_token',
+            errorCode: result.loadErrorCode,
+            sourceScreen: 'claim_landing',
+          });
+        } else if (result.status === AccountStatus.FAILED) {
+          // Unclassified claim-load failure (§6 `unknown`).
+          analytics.errorDisplayed({
+            journey: 'recipient',
+            claimId: token,
+            errorType: 'unknown',
+            errorCode: 'CLAIM_LOAD_FAILED',
+            sourceScreen: 'claim_landing',
+          });
         }
       })
       .catch(() => {
-        if (!cancelled) setLoadError(true);
+        if (!cancelled) {
+          setLoadError(true);
+          // Cannot reach the Bridgelet API or Stellar network (§6 `network_unavailable`).
+          analytics.errorDisplayed({
+            journey: 'recipient',
+            claimId: token,
+            errorType: 'network_unavailable',
+            errorCode: 'API_UNREACHABLE',
+            sourceScreen: 'claim_landing',
+          });
+        }
       });
     return () => {
       cancelled = true;
@@ -81,6 +168,10 @@ export function ClaimPageClient({ token, supportEmail, initialView }: ClaimPageC
         throw new ClaimError("NETWORK_ERROR", "A claim is already being processed. Please wait.");
       }
       submissionInFlight.current = true;
+      const currentAttempt = ++attemptNumberRef.current;
+      submittedAtRef.current = Date.now();
+      // Recipient submitted the claim (intent only, pre-chain-confirmation) (§5.3).
+      analytics.claimSubmitted({ claimId: token, assetType: view?.assetCode });
 
       try {
         const result = await submitClaimWithRetry(client, token, destinationAddress, {
@@ -96,6 +187,12 @@ export function ClaimPageClient({ token, supportEmail, initialView }: ClaimPageC
             // Sweep confirmed -- update view.
             markTokenClaimed(token);
             const resp = result.outcome.response;
+            // Sweep transaction confirmed on-chain (§5.3 primary conversion event).
+            analytics.claimSucceeded({
+              claimId: token,
+              assetType: view?.assetCode,
+              sweepDurationMs: Math.max(0, Date.now() - submittedAtRef.current),
+            });
             setView((prev) => ({
               ...(prev ?? { status: AccountStatus.CLAIMED }),
               status: resp.isPartial ? AccountStatus.PARTIAL_SWEEP : AccountStatus.CLAIMED,
@@ -121,6 +218,21 @@ export function ClaimPageClient({ token, supportEmail, initialView }: ClaimPageC
 
           case "safeToRetry": {
             // The request never reached the server. Safe to retry.
+            // §5.3 Claim Failed — network_error, safe-to-retry path.
+            analytics.claimFailed({
+              claimId: token,
+              assetType: view?.assetCode,
+              errorCode: 'SUBMISSION_FAILED_RETRYABLE',
+              errorType: 'network_error',
+              attemptNumber: currentAttempt,
+            });
+            analytics.errorDisplayed({
+              journey: 'recipient',
+              claimId: token,
+              errorType: 'network_unavailable',
+              errorCode: 'SUBMISSION_FAILED_RETRYABLE',
+              sourceScreen: 'claim_landing',
+            });
             throw new ClaimError(
               "SUBMISSION_FAILED_RETRYABLE",
               "Your claim could not be sent right now. Please try again -- this is safe and will not cause any problems.",
@@ -145,6 +257,21 @@ export function ClaimPageClient({ token, supportEmail, initialView }: ClaimPageC
           case "terminal": {
             // Explicit rejection -- do not retry.
             const apiErr = result.outcome.error;
+            // §5.3 Claim Failed — transaction_failed, terminal rejection path.
+            analytics.claimFailed({
+              claimId: token,
+              assetType: view?.assetCode,
+              errorCode: apiErr?.message ?? 'unknown',
+              errorType: 'transaction_failed',
+              attemptNumber: currentAttempt,
+            });
+            analytics.errorDisplayed({
+              journey: 'recipient',
+              claimId: token,
+              errorType: 'transaction_failed',
+              errorCode: apiErr?.statusCode != null ? String(apiErr.statusCode) : 'unknown',
+              sourceScreen: 'claim_landing',
+            });
             throw new ClaimError(
               "SUBMISSION_FAILED_FINAL",
               apiErr?.message ?? "Something went wrong after several attempts. Your funds are safe, but we need our team to look into this.",
@@ -186,6 +313,12 @@ export function ClaimPageClient({ token, supportEmail, initialView }: ClaimPageC
               pollResult.status === AccountStatus.PARTIAL_SWEEP
             ) {
               markTokenClaimed(token);
+              // Sweep confirmed on-chain via background poll (§5.3).
+              analytics.claimSucceeded({
+                claimId: token,
+                assetType: view?.assetCode,
+                sweepDurationMs: Math.max(0, Date.now() - submittedAtRef.current),
+              });
               setView((prev) => ({
                 ...(prev ?? { status: AccountStatus.CLAIMED }),
                 status: pollResult.status,

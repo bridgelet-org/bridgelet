@@ -23,6 +23,12 @@ export interface ClaimView {
   sweepDestination?: string;
   /** Amount swept during this session, in stroops. */
   sweepAmountStroops?: string;
+  /**
+   * Machine-readable reason a claim could not be loaded, when status is
+   * not PENDING_CLAIM; drives `Error Displayed` (`docs/analytics-spec.md`
+   * §6) instrumentation.
+   */
+  loadErrorCode?: string;
 }
 
 /**
@@ -54,6 +60,7 @@ export function assetCodeFromAsset(asset: string): string {
  * the right panel:
  * - 200 → PENDING_CLAIM (verified, claimable)
  * - 401 → EXPIRED (token past its expiry timestamp)
+ * - 404 → FAILED (no matching claim record)
  * - 409 → CLAIMED (already redeemed)
  * - 400 → PENDING_PAYMENT (malformed or not yet claimable)
  * - anything else → FAILED
@@ -71,13 +78,15 @@ export async function loadClaimView(token: string): Promise<ClaimView> {
     if (err instanceof BridgeletApiError) {
       switch (err.statusCode) {
         case 401:
-          return { status: AccountStatus.EXPIRED };
+          return { status: AccountStatus.EXPIRED, loadErrorCode: 'TOKEN_EXPIRED' };
+        case 404:
+          return { status: AccountStatus.FAILED, loadErrorCode: 'TOKEN_NOT_FOUND' };
         case 409:
-          return { status: AccountStatus.CLAIMED };
+          return { status: AccountStatus.CLAIMED, loadErrorCode: 'ALREADY_CLAIMED' };
         case 400:
-          return { status: AccountStatus.PENDING_PAYMENT };
+          return { status: AccountStatus.PENDING_PAYMENT, loadErrorCode: 'TOKEN_INVALID' };
         default:
-          return { status: AccountStatus.FAILED };
+          return { status: AccountStatus.FAILED, loadErrorCode: 'FAILED' };
       }
     }
     throw err;

@@ -4,12 +4,73 @@ type ClaimEvent =
   | 'claim_initiated'
   | 'claim_success'
   | 'claim_error'
+  | 'Error Displayed'
+  | 'Send Form Completed'
+  | 'Payment Confirmation Viewed'
+  | 'Payment Confirmed'
+  | 'Payment Created'
+  | 'Claim Link Copied'
+  | 'Claim Link Shared'
+  | 'Claim Page Opened'
+  | 'Payment Details Viewed'
+  | 'Page Viewed'
+  | 'Send Form Viewed'
   | 'Claim Verified'
   | 'Claim CTA Clicked'
-  | 'Error Displayed'
-  | 'Retry Clicked';
+  | 'Retry Clicked'
+  | 'Claim Failed'
+  | 'Claim Success Viewed'
+  | 'Sender Signup CTA Clicked'
+  | 'Explorer Link Clicked'
+  | 'Wallet Address Validation Failed'
+  | 'Claim Confirmation Viewed'
+  | 'Claim Submitted'
+  | 'Claim Succeeded';
 
 type EventProps = Record<string, string | number | boolean | null>;
+
+export type DeviceType = 'mobile' | 'tablet' | 'desktop';
+
+/**
+ * App version correlated to a deploy (`docs/analytics-spec.md` §3.1
+ * `app_version`). Inlined at build time from NEXT_PUBLIC_APP_VERSION so
+ * dashboards can attribute event volume to a release. Falls back to
+ * "unknown" rather than emitting an empty string.
+ */
+export function appVersion(): string {
+  const version = process.env.NEXT_PUBLIC_APP_VERSION;
+  return version && version.trim().length > 0 ? version : 'unknown';
+}
+
+/**
+ * Classifies `mobile | tablet | desktop` from a user agent
+ * (`docs/analytics-spec.md` §3.1 `device_type`). Accepts an explicit UA
+ * string for testability; defaults to the runtime navigator user agent.
+ * Desktop is the conservative default when no signal matches.
+ */
+export function detectDeviceType(userAgent?: string): DeviceType {
+  const ua = userAgent ?? (typeof navigator !== 'undefined' ? navigator.userAgent : '');
+  if (/(tablet|ipad)/i.test(ua)) return 'tablet';
+  if (/(mobile|iphone|ipod|android)/i.test(ua)) return 'mobile';
+  return 'desktop';
+}
+
+/**
+ * Base payload fields (`docs/analytics-spec.md` §3.1) shared by every
+ * event: `app_version`, `user_agent`, `device_type`, `referrer`, and the
+ * fixed frontend `platform` value "web". Each field degrades gracefully
+ * when the browser API it depends on is unavailable (SSR, unit tests
+ * without a DOM).
+ */
+export function buildBasePayload(): EventProps {
+  return {
+    app_version: appVersion(),
+    user_agent: typeof navigator !== 'undefined' ? navigator.userAgent : '',
+    device_type: detectDeviceType(),
+    referrer: typeof document !== 'undefined' && document.referrer ? document.referrer : null,
+    platform: 'web',
+  };
+}
 
 // ─── §3.1 Base Payload Identity fields ───────────────────────────────────────
 
@@ -103,27 +164,57 @@ export type ErrorType = keyof typeof ERROR_TYPES;
 function track(event: ClaimEvent, props?: EventProps): void {
   if (typeof window === 'undefined') return;
 
-  const baseIdentity: EventProps = {
+// Base payload is merged in first so event-specific props can override.
+  const payload: EventProps = {
+    ...buildBasePayload(),
     anonymous_id: getAnonymousId(),
     session_id: getSessionId(),
+    ...props,
   };
-
-  const mergedProps: EventProps = { ...baseIdentity, ...(props ?? {}) };
 
   // Plausible custom event API
   const plausible = (window as unknown as { plausible?: Function }).plausible;
   if (typeof plausible === 'function') {
-    plausible(event, { props: mergedProps });
+    plausible(event, { props: payload });
     return;
   }
 
   // Fallback: console in development
   if (process.env.NODE_ENV !== 'production') {
-    console.debug('[analytics]', event, mergedProps);
+    console.debug('[analytics]', event, payload);
   }
 }
 
-// ─── Event prop interfaces ────────────────────────────────────────────────────
+export type ShareMethod = 'sms' | 'email' | 'whatsapp' | 'qr_code';
+
+export type EntrySource = 'direct' | 'referral' | 'shared_link' | 'unknown';
+
+export type ClaimEntryChannel = 'sms' | 'email' | 'whatsapp' | 'direct' | 'unknown';
+
+export type PaymentClaimStatus = 'unclaimed' | 'claimed' | 'expired';
+
+/**
+ * Conditional payload properties (`docs/analytics-spec.md` §3.2) are
+ * included only on the events where they are relevant. Each helper below
+ * returns the exact property key the spec expects, so event handlers can
+ * spread the fields they need without re-typing the snake_case names.
+ */
+
+/** Allowed `expiry_days` windows: `1`, `7`, `30`, `90`, or `null` (never). */
+export const VALID_EXPIRY_WINDOWS = [1, 7, 30, 90] as const;
+
+export type ExpiryDays = (typeof VALID_EXPIRY_WINDOWS)[number] | null;
+
+export const conditional = {
+  claimId: (claimId: string): EventProps => ({ claim_id: claimId }),
+  assetType: (assetType: string): EventProps => ({ asset_type: assetType }),
+  amountUsdEquiv: (amountUsdEquiv: number): EventProps => ({
+    amount_usd_equiv: amountUsdEquiv,
+  }),
+  expiryDays: (expiryDays: ExpiryDays): EventProps => ({ expiry_days: expiryDays }),
+  errorType: (errorType: ErrorType): EventProps => ({ error_type: errorType }),
+  errorCode: (errorCode: string): EventProps => ({ error_code: errorCode }),
+};
 
 interface ClaimVerifiedProps {
   claimId: string;
@@ -158,7 +249,76 @@ interface RetryClickedProps {
   attemptNumber: number;
 }
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
+/**
+ * §5.3 `Claim Failed` error type taxonomy.
+ * Matches the spec-defined values exactly.
+ */
+export type ClaimFailedErrorType =
+  | 'network_error'
+  | 'token_expired'
+  | 'already_claimed'
+  | 'transaction_failed'
+  | 'unknown';
+
+/** All valid §5.3 Claim Failed error_type values. */
+export const CLAIM_FAILED_ERROR_TYPES: Record<ClaimFailedErrorType, ClaimFailedErrorType> = {
+  network_error: 'network_error',
+  token_expired: 'token_expired',
+  already_claimed: 'already_claimed',
+  transaction_failed: 'transaction_failed',
+  unknown: 'unknown',
+} as const;
+
+interface ClaimFailedProps {
+  claimId: string;
+  assetType?: string;
+  /** Stellar error code or 'unknown'. */
+  errorCode?: string;
+  /** §5.3 error_type taxonomy value. */
+  errorType: ClaimFailedErrorType;
+  /** How many times the recipient has tried on this claim. */
+  attemptNumber: number;
+}
+
+interface ClaimSuccessViewedProps {
+  claimId: string;
+  assetType?: string;
+}
+
+interface SenderSignupCtaClickedProps {
+  claimId: string;
+}
+
+/** §5.4/§6 source_screen values for Explorer Link Clicked. */
+export type ExplorerSourceScreen = 'claim_success' | 'payment_details';
+
+/** §2.3 journey values for Explorer Link Clicked. */
+export type ExplorerJourney = 'sender' | 'recipient';
+
+interface ExplorerLinkClickedProps {
+  journey: ExplorerJourney;
+  claimId: string;
+  sourceScreen: ExplorerSourceScreen;
+}
+
+/** Client-side address-validation failure reasons (`docs/analytics-spec.md` §5.2). */
+export type ValidationError = 'invalid_prefix' | 'invalid_length' | 'invalid_checksum';
+
+interface WalletAddressValidationFailedProps {
+  claimId?: string;
+  validationError: ValidationError;
+  attemptNumber: number;
+}
+
+interface ClaimSucceededProps {
+  claimId: string;
+  assetType?: string;
+  /** Hours between `Payment Created` (sender) and `Claim Succeeded` (recipient). */
+  timeToClaimHours?: number;
+  /** Time in ms from `Claim Submitted` to on-chain confirmation. */
+  sweepDurationMs?: number;
+  entryChannel?: string;
+}
 
 export function daysRemainingUntil(iso: string): number | undefined {
   const expiresAt = Date.parse(iso);
@@ -173,6 +333,118 @@ export const analytics = {
   claimInitiated: () => track('claim_initiated'),
   claimSuccess: () => track('claim_success'),
   claimError: (reason: string) => track('claim_error', { reason }),
+  sendFormCompleted: ({
+    assetType,
+    expiryDays,
+    hasRecipientName,
+    hasMessage,
+  }: {
+    assetType?: string;
+    expiryDays?: number | null;
+    hasRecipientName: boolean;
+    hasMessage: boolean;
+  }) =>
+    track('Send Form Completed', {
+      journey: 'sender',
+      ...(assetType ? { asset_type: assetType } : {}),
+      ...(expiryDays != null ? { expiry_days: expiryDays } : {}),
+      has_recipient_name: hasRecipientName,
+      has_message: hasMessage,
+    }),
+  paymentConfirmationViewed: ({
+    assetType,
+    expiryDays,
+  }: {
+    assetType?: string;
+    expiryDays?: number | null;
+  }) =>
+    track('Payment Confirmation Viewed', {
+      journey: 'sender',
+      ...(assetType ? { asset_type: assetType } : {}),
+      ...(expiryDays != null ? { expiry_days: expiryDays } : {}),
+    }),
+  paymentConfirmed: ({
+    assetType,
+    expiryDays,
+    walletType,
+  }: {
+    assetType?: string;
+    expiryDays?: number | null;
+    walletType?: string;
+  }) =>
+    track('Payment Confirmed', {
+      journey: 'sender',
+      ...(assetType ? { asset_type: assetType } : {}),
+      ...(expiryDays != null ? { expiry_days: expiryDays } : {}),
+      ...(walletType ? { wallet_type: walletType } : {}),
+    }),
+  paymentCreated: ({
+    claimId,
+    assetType,
+    expiryDays,
+    confirmationTimeMs,
+  }: {
+    claimId: string;
+    assetType?: string;
+    expiryDays?: number | null;
+    confirmationTimeMs: number;
+  }) =>
+    track('Payment Created', {
+      journey: 'sender',
+      claim_id: claimId,
+      ...(assetType ? { asset_type: assetType } : {}),
+      ...(expiryDays != null ? { expiry_days: expiryDays } : {}),
+      confirmation_time_ms: confirmationTimeMs,
+    }),
+  claimLinkCopied: ({
+    claimId,
+    copyLocation,
+  }: {
+    claimId: string;
+    copyLocation: 'success_screen' | 'dashboard_detail';
+  }) =>
+    track('Claim Link Copied', {
+      journey: 'sender',
+      claim_id: claimId,
+      copy_location: copyLocation,
+    }),
+  claimLinkShared: ({ claimId, shareMethod }: { claimId: string; shareMethod: ShareMethod }) =>
+    track('Claim Link Shared', {
+      journey: 'sender',
+      claim_id: claimId,
+      share_method: shareMethod,
+    }),
+  claimPageOpened: ({
+    claimId,
+    entryChannel,
+  }: {
+    claimId: string;
+    entryChannel: ClaimEntryChannel;
+  }) =>
+    track('Claim Page Opened', {
+      journey: 'recipient',
+      claim_id: claimId,
+      entry_channel: entryChannel,
+    }),
+  paymentDetailsViewed: ({
+    claimId,
+    claimStatus,
+  }: {
+    claimId: string;
+    claimStatus: PaymentClaimStatus;
+  }) =>
+    track('Payment Details Viewed', {
+      journey: 'sender',
+      claim_id: claimId,
+      claim_status: claimStatus,
+    }),
+  pageViewed: ({ page, entrySource }: { page: string; entrySource?: EntrySource }) =>
+    track('Page Viewed', {
+      journey: 'sender',
+      page,
+      ...(entrySource ? { entry_source: entrySource } : {}),
+    }),
+  sendFormViewed: () => track('Send Form Viewed', { journey: 'sender' }),
   claimVerified: ({
     claimId,
     assetType,
@@ -181,35 +453,47 @@ export const analytics = {
   }: ClaimVerifiedProps) =>
     track('Claim Verified', {
       journey: 'recipient',
-      claim_id: claimId,
-      ...(assetType ? { asset_type: assetType } : {}),
+      ...conditional.claimId(claimId),
+      ...(assetType ? conditional.assetType(assetType) : {}),
       ...(expiryDaysRemaining != null ? { expiry_days_remaining: expiryDaysRemaining } : {}),
       verification_time_ms: verificationTimeMs,
     }),
   claimCtaClicked: ({ claimId, assetType }: ClaimCtaClickedProps) =>
     track('Claim CTA Clicked', {
       journey: 'recipient',
-      claim_id: claimId,
-      ...(assetType ? { asset_type: assetType } : {}),
+      ...conditional.claimId(claimId),
+      ...(assetType ? conditional.assetType(assetType) : {}),
     }),
-
-  /**
-   * §6 Error Displayed — fires whenever an error state screen or inline error
-   * is shown. Uses the exported ERROR_TYPES taxonomy for error_type.
-   */
   errorDisplayed: ({
     journey,
     claimId,
     errorType,
-    errorCode = 'unknown',
+    errorCode,
     sourceScreen,
   }: ErrorDisplayedProps) =>
     track('Error Displayed', {
       journey,
-      ...(claimId != null ? { claim_id: claimId } : {}),
-      error_type: errorType,
-      error_code: errorCode,
+      ...(claimId ? { claim_id: claimId } : {}),
+      ...conditional.errorType(errorType),
+      ...conditional.errorCode(errorCode ?? 'unknown'),
       source_screen: sourceScreen,
+    }),
+  walletAddressValidationFailed: ({
+    claimId,
+    validationError,
+    attemptNumber,
+  }: WalletAddressValidationFailedProps) =>
+    track('Wallet Address Validation Failed', {
+      journey: 'recipient',
+      ...(claimId ? { claim_id: claimId } : {}),
+      validation_error: validationError,
+      attempt_number: attemptNumber,
+    }),
+  claimConfirmationViewed: ({ claimId, assetType }: ClaimCtaClickedProps) =>
+    track('Claim Confirmation Viewed', {
+      journey: 'recipient',
+      claim_id: claimId,
+      ...(assetType ? { asset_type: assetType } : {}),
     }),
 
   /**
@@ -228,5 +512,78 @@ export const analytics = {
       ...(claimId != null ? { claim_id: claimId } : {}),
       error_type: errorType,
       attempt_number: attemptNumber,
+    }),
+
+  /**
+   * §5.3 Claim Failed — fires when the sweep fails after the recipient confirmed.
+   * `error_type` must be one of the five §5.3 taxonomy values.
+   */
+  claimFailed: ({
+    claimId,
+    assetType,
+    errorCode = 'unknown',
+    errorType,
+    attemptNumber,
+  }: ClaimFailedProps) =>
+    track('Claim Failed', {
+      journey: 'recipient',
+      claim_id: claimId,
+      ...(assetType ? { asset_type: assetType } : {}),
+      error_code: errorCode,
+      error_type: errorType,
+      attempt_number: attemptNumber,
+    }),
+
+  /**
+   * §5.4 Claim Success Viewed — fires when the post-claim success screen is displayed.
+   */
+  claimSuccessViewed: ({ claimId, assetType }: ClaimSuccessViewedProps) =>
+    track('Claim Success Viewed', {
+      journey: 'recipient',
+      claim_id: claimId,
+      ...(assetType ? { asset_type: assetType } : {}),
+    }),
+
+  /**
+   * §5.4 Sender Signup CTA Clicked — fires when a recipient clicks "Create your account →"
+   * on the success screen, measuring viral growth potential.
+   */
+  senderSignupCtaClicked: ({ claimId }: SenderSignupCtaClickedProps) =>
+    track('Sender Signup CTA Clicked', {
+      journey: 'recipient',
+      claim_id: claimId,
+      source: 'claim_success_screen',
+    }),
+
+  /**
+   * §5.4/§6 Explorer Link Clicked — fires when a user (sender or recipient) clicks a
+   * Stellar Explorer transaction link.
+   */
+  explorerLinkClicked: ({ journey, claimId, sourceScreen }: ExplorerLinkClickedProps) =>
+    track('Explorer Link Clicked', {
+      journey,
+      claim_id: claimId,
+      source_screen: sourceScreen,
+    }),
+  claimSubmitted: ({ claimId, assetType }: ClaimCtaClickedProps) =>
+    track('Claim Submitted', {
+      journey: 'recipient',
+      claim_id: claimId,
+      ...(assetType ? { asset_type: assetType } : {}),
+    }),
+  claimSucceeded: ({
+    claimId,
+    assetType,
+    timeToClaimHours,
+    sweepDurationMs,
+    entryChannel = 'unknown',
+  }: ClaimSucceededProps) =>
+    track('Claim Succeeded', {
+      journey: 'recipient',
+      claim_id: claimId,
+      ...(assetType ? { asset_type: assetType } : {}),
+      ...(timeToClaimHours !== undefined ? { time_to_claim_hours: timeToClaimHours } : {}),
+      ...(sweepDurationMs !== undefined ? { sweep_duration_ms: sweepDurationMs } : {}),
+      entry_channel: entryChannel,
     }),
 };
