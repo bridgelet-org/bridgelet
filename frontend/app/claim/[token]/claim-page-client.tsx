@@ -7,7 +7,7 @@ import { BridgeletClient } from '@/lib/api/client';
 import { ClaimView, loadClaimView, markTokenClaimed } from '@/lib/claim-view';
 import { submitClaimWithRetry, pollClaimStatus } from '@/lib/claim-retry';
 import { ClaimError } from '@/lib/claim-errors';
-import { analytics, daysRemainingUntil } from '@/lib/analytics';
+import { analytics, daysRemainingUntil, type ClaimEntryChannel } from '@/lib/analytics';
 
 interface ClaimPageClientProps {
   token: string;
@@ -17,6 +17,33 @@ interface ClaimPageClientProps {
 
 const client = new BridgeletClient();
 
+/**
+ * Best-guess referral channel for a claim link, derived from URL campaign
+ * parameters or the document referrer. Mirrors the `entry_channel` values
+ * documented in `docs/analytics-spec.md` §5.1.
+ */
+function claimEntryChannel(): ClaimEntryChannel {
+  try {
+    if (typeof window === 'undefined' || typeof document === 'undefined') return 'unknown';
+    const params = new URLSearchParams(window.location.search);
+    const flagged = (params.get('channel') ?? params.get('src') ?? params.get('utm_source') ?? '')
+      .toLowerCase();
+    if (flagged.includes('whatsapp') || flagged.includes('wa')) return 'whatsapp';
+    if (flagged.includes('mail') || flagged.includes('email')) return 'email';
+    if (flagged.includes('sms') || flagged.includes('text')) return 'sms';
+    const referrer = document.referrer;
+    if (referrer) {
+      const host = new URL(referrer).hostname.toLowerCase();
+      if (host.includes('whatsapp') || host.includes('wa.me')) return 'whatsapp';
+      if (host.includes('mail') || host.includes('gmail') || host.includes('yahoo')) return 'email';
+      if (host.includes('sms') || host.includes('text')) return 'sms';
+    }
+    return 'direct';
+  } catch {
+    return 'unknown';
+  }
+}
+
 export function ClaimPageClient({ token, supportEmail, initialView }: ClaimPageClientProps) {
   const [view, setView] = useState<ClaimView | null>(initialView ?? null);
   const [loadError, setLoadError] = useState(false);
@@ -24,6 +51,9 @@ export function ClaimPageClient({ token, supportEmail, initialView }: ClaimPageC
   const submissionInFlight = useRef(false);
 
   useEffect(() => {
+    // Funnel start: fire immediately on open, before token verification.
+    analytics.claimPageOpened({ claimId: token, entryChannel: claimEntryChannel() });
+
     let cancelled = false;
     const verifiedAt = Date.now();
     loadClaimView(token)
@@ -37,6 +67,36 @@ export function ClaimPageClient({ token, supportEmail, initialView }: ClaimPageC
             expiryDaysRemaining: result.expiresAt ? daysRemainingUntil(result.expiresAt) : undefined,
             verificationTimeMs: Date.now() - verifiedAt,
           });
+} else if (result.status === AccountStatus.CLAIMED) {
+          // Token is valid but the funds were already swept (§6 `already_claimed`).
+          analytics.errorDisplayed({
+            journey: 'recipient',
+            claimId: token,
+            errorType: 'already_claimed',
+            errorCode: 'ALREADY_CLAIMED',
+            sourceScreen: 'claim_landing',
+          });
+        } else if (result.status === AccountStatus.EXPIRED) {
+          // Error surface: expired-token landing panel (`docs/analytics-spec.md` §6).
+          analytics.errorDisplayed({
+            journey: 'recipient',
+            claimId: token,
+            errorType: 'expired_token',
+            errorCode: result.loadErrorCode ?? 'TOKEN_EXPIRED',
+            sourceScreen: 'claim_landing',
+          });
+        } else if (
+          result.status === AccountStatus.FAILED &&
+          result.loadErrorCode === 'TOKEN_NOT_FOUND'
+        ) {
+          // Error surface: malformed/unknown claim link (`docs/analytics-spec.md` §6).
+          analytics.errorDisplayed({
+            journey: 'recipient',
+            claimId: token,
+            errorType: 'invalid_token',
+            errorCode: result.loadErrorCode,
+            sourceScreen: 'claim_landing',
+          });
         } else if (result.status === AccountStatus.FAILED) {
           // Unclassified claim-load failure (§6 `unknown`).
           analytics.errorDisplayed({
@@ -49,7 +109,17 @@ export function ClaimPageClient({ token, supportEmail, initialView }: ClaimPageC
         }
       })
       .catch(() => {
-        if (!cancelled) setLoadError(true);
+        if (!cancelled) {
+          setLoadError(true);
+          // Cannot reach the Bridgelet API or Stellar network (§6 `network_unavailable`).
+          analytics.errorDisplayed({
+            journey: 'recipient',
+            claimId: token,
+            errorType: 'network_unavailable',
+            errorCode: 'API_UNREACHABLE',
+            sourceScreen: 'claim_landing',
+          });
+        }
       });
     return () => {
       cancelled = true;
@@ -113,6 +183,13 @@ export function ClaimPageClient({ token, supportEmail, initialView }: ClaimPageC
 
           case "safeToRetry": {
             // The request never reached the server. Safe to retry.
+            analytics.errorDisplayed({
+              journey: 'recipient',
+              claimId: token,
+              errorType: 'network_unavailable',
+              errorCode: 'SUBMISSION_FAILED_RETRYABLE',
+              sourceScreen: 'claim_landing',
+            });
             throw new ClaimError(
               "SUBMISSION_FAILED_RETRYABLE",
               "Your claim could not be sent right now. Please try again -- this is safe and will not cause any problems.",
@@ -137,6 +214,13 @@ export function ClaimPageClient({ token, supportEmail, initialView }: ClaimPageC
           case "terminal": {
             // Explicit rejection -- do not retry.
             const apiErr = result.outcome.error;
+            analytics.errorDisplayed({
+              journey: 'recipient',
+              claimId: token,
+              errorType: 'transaction_failed',
+              errorCode: apiErr?.statusCode != null ? String(apiErr.statusCode) : 'unknown',
+              sourceScreen: 'claim_landing',
+            });
             throw new ClaimError(
               "SUBMISSION_FAILED_FINAL",
               apiErr?.message ?? "Something went wrong after several attempts. Your funds are safe, but we need our team to look into this.",
