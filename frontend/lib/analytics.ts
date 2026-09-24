@@ -9,19 +9,31 @@ type ClaimEvent =
 
 type EventProps = Record<string, string | number | boolean>;
 
+/**
+ * Base payload fields (`docs/analytics-spec.md` §3.1) shared by every
+ * event. The frontend always runs in a browser, so `platform` is the fixed
+ * value "web". Additional base fields can be appended here as they land.
+ */
+export function buildBasePayload(): EventProps {
+  return { platform: 'web' };
+}
+
 function track(event: ClaimEvent, props?: EventProps): void {
   if (typeof window === 'undefined') return;
+
+  // Base payload is merged in first so event-specific props can override.
+  const payload: EventProps = { ...buildBasePayload(), ...props };
 
   // Plausible custom event API
   const plausible = (window as unknown as { plausible?: Function }).plausible;
   if (typeof plausible === 'function') {
-    plausible(event, { props });
+    plausible(event, { props: payload });
     return;
   }
 
   // Fallback: console in development
   if (process.env.NODE_ENV !== 'production') {
-    console.debug('[analytics]', event, props);
+    console.debug('[analytics]', event, payload);
   }
 }
 
