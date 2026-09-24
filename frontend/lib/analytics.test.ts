@@ -6,6 +6,7 @@ import {
   conditional,
   detectDeviceType,
   ERROR_TYPES,
+  ErrorType,
   VALID_EXPIRY_WINDOWS,
 } from '@/lib/analytics';
 
@@ -327,5 +328,68 @@ describe('track base payload merge', () => {
 
     expect(() => analytics.claimPageViewed()).not.toThrow();
     expect(plausible).not.toHaveBeenCalled();
+  });
+});
+
+describe('analytics.errorDisplayed (cluster-owned error types)', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+    delete (window as unknown as { plausible?: unknown }).plausible;
+  });
+
+  const clusterTypes: ErrorType[] = [
+    'already_claimed',
+    'invalid_wallet_address',
+    'transaction_failed',
+    'network_unavailable',
+  ];
+
+  it.each(clusterTypes)('emits Error Displayed with error_type %s', (errorType) => {
+    (window as unknown as { plausible?: ReturnType<typeof plausibleMock> }).plausible =
+      plausibleMock();
+
+    analytics.errorDisplayed({
+      journey: 'recipient',
+      claimId: 'tok_123',
+      errorType,
+      errorCode: 'TEST_CODE',
+      sourceScreen: 'claim_landing',
+    });
+
+    const call = (window as unknown as { plausible: ReturnType<typeof plausibleMock> }).plausible
+      .mock.calls[0]!;
+    expect(call[0]).toBe('Error Displayed');
+    expect(call[1].props).toEqual(
+      expect.objectContaining({
+        journey: 'recipient',
+        claim_id: 'tok_123',
+        error_type: errorType,
+        error_code: 'TEST_CODE',
+        source_screen: 'claim_landing',
+      }),
+    );
+  });
+
+  it('defaults error_code to "unknown" when no machine-readable code is available', () => {
+    (window as unknown as { plausible?: ReturnType<typeof plausibleMock> }).plausible =
+      plausibleMock();
+
+    analytics.errorDisplayed({
+      journey: 'recipient',
+      errorType: 'network_unavailable',
+      sourceScreen: 'claim_landing',
+    });
+
+    const call = (window as unknown as { plausible: ReturnType<typeof plausibleMock> }).plausible
+      .mock.calls[0]!;
+    expect(call[1].props).toEqual(
+      expect.objectContaining({
+        journey: 'recipient',
+        error_type: 'network_unavailable',
+        error_code: 'unknown',
+        source_screen: 'claim_landing',
+      }),
+    );
   });
 });

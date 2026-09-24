@@ -67,6 +67,15 @@ export function ClaimPageClient({ token, supportEmail, initialView }: ClaimPageC
             expiryDaysRemaining: result.expiresAt ? daysRemainingUntil(result.expiresAt) : undefined,
             verificationTimeMs: Date.now() - verifiedAt,
           });
+} else if (result.status === AccountStatus.CLAIMED) {
+          // Token is valid but the funds were already swept (§6 `already_claimed`).
+          analytics.errorDisplayed({
+            journey: 'recipient',
+            claimId: token,
+            errorType: 'already_claimed',
+            errorCode: 'ALREADY_CLAIMED',
+            sourceScreen: 'claim_landing',
+          });
         } else if (result.status === AccountStatus.EXPIRED) {
           // Error surface: expired-token landing panel (`docs/analytics-spec.md` §6).
           analytics.errorDisplayed({
@@ -91,7 +100,17 @@ export function ClaimPageClient({ token, supportEmail, initialView }: ClaimPageC
         }
       })
       .catch(() => {
-        if (!cancelled) setLoadError(true);
+        if (!cancelled) {
+          setLoadError(true);
+          // Cannot reach the Bridgelet API or Stellar network (§6 `network_unavailable`).
+          analytics.errorDisplayed({
+            journey: 'recipient',
+            claimId: token,
+            errorType: 'network_unavailable',
+            errorCode: 'API_UNREACHABLE',
+            sourceScreen: 'claim_landing',
+          });
+        }
       });
     return () => {
       cancelled = true;
@@ -155,6 +174,13 @@ export function ClaimPageClient({ token, supportEmail, initialView }: ClaimPageC
 
           case "safeToRetry": {
             // The request never reached the server. Safe to retry.
+            analytics.errorDisplayed({
+              journey: 'recipient',
+              claimId: token,
+              errorType: 'network_unavailable',
+              errorCode: 'SUBMISSION_FAILED_RETRYABLE',
+              sourceScreen: 'claim_landing',
+            });
             throw new ClaimError(
               "SUBMISSION_FAILED_RETRYABLE",
               "Your claim could not be sent right now. Please try again -- this is safe and will not cause any problems.",
@@ -179,6 +205,13 @@ export function ClaimPageClient({ token, supportEmail, initialView }: ClaimPageC
           case "terminal": {
             // Explicit rejection -- do not retry.
             const apiErr = result.outcome.error;
+            analytics.errorDisplayed({
+              journey: 'recipient',
+              claimId: token,
+              errorType: 'transaction_failed',
+              errorCode: apiErr?.statusCode != null ? String(apiErr.statusCode) : 'unknown',
+              sourceScreen: 'claim_landing',
+            });
             throw new ClaimError(
               "SUBMISSION_FAILED_FINAL",
               apiErr?.message ?? "Something went wrong after several attempts. Your funds are safe, but we need our team to look into this.",
