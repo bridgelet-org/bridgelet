@@ -17,6 +17,7 @@ type ClaimEvent =
   | 'Send Form Viewed'
   | 'Claim Verified'
   | 'Claim CTA Clicked'
+  | 'Retry Clicked'
   | 'Claim Failed'
   | 'Claim Success Viewed'
   | 'Sender Signup CTA Clicked'
@@ -71,11 +72,105 @@ export function buildBasePayload(): EventProps {
   };
 }
 
+// ─── §3.1 Base Payload Identity fields ───────────────────────────────────────
+
+const ANONYMOUS_ID_KEY = 'bridgelet_anonymous_id';
+const SESSION_ID_KEY = 'bridgelet_session_id';
+
+/**
+ * Generates a cryptographically-random UUID v4.
+ * Falls back to a Math.random-based UUID when `crypto.randomUUID` is
+ * unavailable (very old browsers, some SSR contexts).
+ */
+function generateUUID(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  // RFC-4122 §4.4 v4 UUID, fallback.
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
+
+/**
+ * Returns the persistent `anonymous_id` for this browser.
+ * Generated once and stored in `localStorage`; survives browser restarts.
+ * Returns an empty string in SSR or when storage is unavailable.
+ */
+export function getAnonymousId(): string {
+  if (typeof window === 'undefined') return '';
+  try {
+    let id = localStorage.getItem(ANONYMOUS_ID_KEY);
+    if (!id) {
+      id = generateUUID();
+      localStorage.setItem(ANONYMOUS_ID_KEY, id);
+    }
+    return id;
+  } catch {
+    // localStorage blocked (private mode strict setting, quota exceeded, etc.)
+    return '';
+  }
+}
+
+/**
+ * Returns the session-scoped `session_id` for this browser tab/visit.
+ * Generated once per session and stored in `sessionStorage`; reset when
+ * the tab or browser session ends.
+ * Returns an empty string in SSR or when storage is unavailable.
+ */
+export function getSessionId(): string {
+  if (typeof window === 'undefined') return '';
+  try {
+    let id = sessionStorage.getItem(SESSION_ID_KEY);
+    if (!id) {
+      id = generateUUID();
+      sessionStorage.setItem(SESSION_ID_KEY, id);
+    }
+    return id;
+  } catch {
+    // sessionStorage unavailable.
+    return '';
+  }
+}
+
+// ─── §6 Error taxonomy ────────────────────────────────────────────────────────
+
+/**
+ * All eight §6 `error_type` values, exported so every `Error Displayed`
+ * emitter uses the exact spec string rather than an ad-hoc literal.
+ */
+export const ERROR_TYPES = {
+  invalid_token: 'invalid_token',
+  expired_token: 'expired_token',
+  already_claimed: 'already_claimed',
+  invalid_wallet_address: 'invalid_wallet_address',
+  transaction_failed: 'transaction_failed',
+  network_unavailable: 'network_unavailable',
+  wallet_connection_failed: 'wallet_connection_failed',
+  unknown: 'unknown',
+} as const;
+
+export type ErrorType = keyof typeof ERROR_TYPES;
+
+// ─── track() ──────────────────────────────────────────────────────────────────
+
+/**
+ * Core dispatch function. Merges the §3.1 identity fields (`anonymous_id`,
+ * `session_id`) into every event payload so every downstream event carries
+ * them without any per-call plumbing.
+ */
 function track(event: ClaimEvent, props?: EventProps): void {
   if (typeof window === 'undefined') return;
 
-  // Base payload is merged in first so event-specific props can override.
-  const payload: EventProps = { ...buildBasePayload(), ...props };
+// Base payload is merged in first so event-specific props can override.
+  const payload: EventProps = {
+    ...buildBasePayload(),
+    anonymous_id: getAnonymousId(),
+    session_id: getSessionId(),
+    ...props,
+  };
 
   // Plausible custom event API
   const plausible = (window as unknown as { plausible?: Function }).plausible;
@@ -97,20 +192,6 @@ export type EntrySource = 'direct' | 'referral' | 'shared_link' | 'unknown';
 export type ClaimEntryChannel = 'sms' | 'email' | 'whatsapp' | 'direct' | 'unknown';
 
 export type PaymentClaimStatus = 'unclaimed' | 'claimed' | 'expired';
-
-/** Standard `error_type` values from `docs/analytics-spec.md` §6. */
-export const ERROR_TYPES = [
-  'invalid_token',
-  'expired_token',
-  'already_claimed',
-  'invalid_wallet_address',
-  'transaction_failed',
-  'network_unavailable',
-  'wallet_connection_failed',
-  'unknown',
-] as const;
-
-export type ErrorType = (typeof ERROR_TYPES)[number];
 
 /**
  * Conditional payload properties (`docs/analytics-spec.md` §3.2) are
@@ -145,6 +226,27 @@ interface ClaimVerifiedProps {
 interface ClaimCtaClickedProps {
   claimId: string;
   assetType?: string;
+}
+
+interface ErrorDisplayedProps {
+  journey: 'sender' | 'recipient' | 'shared';
+  /** Claim ID if available; omitted otherwise. */
+  claimId?: string | null;
+  errorType: ErrorType;
+  /** Machine-readable error identifier; defaults to 'unknown'. */
+  errorCode?: string;
+  /** Screen where the error appeared. */
+  sourceScreen: string;
+}
+
+interface RetryClickedProps {
+  journey: 'sender' | 'recipient' | 'shared';
+  /** Claim ID if available; omitted otherwise. */
+  claimId?: string | null;
+  /** Error type that triggered the retry prompt. */
+  errorType: ErrorType;
+  /** Which retry attempt this is (1-based). */
+  attemptNumber: number;
 }
 
 /**
@@ -224,13 +326,7 @@ export function daysRemainingUntil(iso: string): number | undefined {
   return Math.max(0, Math.ceil((expiresAt - Date.now()) / 86_400_000));
 }
 
-interface ErrorDisplayedProps {
-  journey: 'sender' | 'recipient';
-  claimId?: string;
-  errorType: ErrorType;
-  errorCode?: string;
-  sourceScreen: string;
-}
+// ─── Public analytics surface ─────────────────────────────────────────────────
 
 export const analytics = {
   claimPageViewed: () => track('claim_page_viewed'),
@@ -398,6 +494,24 @@ export const analytics = {
       journey: 'recipient',
       claim_id: claimId,
       ...(assetType ? { asset_type: assetType } : {}),
+    }),
+
+  /**
+   * §6 Retry Clicked — fires when a user clicks Try Again/Retry on an error
+   * screen, recording which error prompted the retry and how many attempts
+   * have been made.
+   */
+  retryClicked: ({
+    journey,
+    claimId,
+    errorType,
+    attemptNumber,
+  }: RetryClickedProps) =>
+    track('Retry Clicked', {
+      journey,
+      ...(claimId != null ? { claim_id: claimId } : {}),
+      error_type: errorType,
+      attempt_number: attemptNumber,
     }),
 
   /**

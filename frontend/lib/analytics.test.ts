@@ -9,6 +9,8 @@ import {
   detectDeviceType,
   ERROR_TYPES,
   ErrorType,
+  getAnonymousId,
+  getSessionId,
   type ClaimFailedErrorType,
   type ExplorerJourney,
   type ExplorerSourceScreen,
@@ -82,7 +84,7 @@ describe('buildBasePayload', () => {
 
 describe('error taxonomy (Â§6)', () => {
   it('lists exactly the eight standard error_type values from the spec', () => {
-    expect(ERROR_TYPES).toEqual([
+    expect(Object.keys(ERROR_TYPES)).toEqual([
       'invalid_token',
       'expired_token',
       'already_claimed',
@@ -901,5 +903,272 @@ describe('post-claim events (§5.3–§5.4)', () => {
       }),
     ).not.toThrow();
     expect(plausible).not.toHaveBeenCalled();
+  });
+});
+
+describe('getAnonymousId (§3.1)', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    sessionStorage.clear();
+  });
+
+  it('generates a UUID v4 on first call', () => {
+    const id = getAnonymousId();
+    expect(id).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+    );
+  });
+
+  it('persists the same id across multiple calls within the same session', () => {
+    const first = getAnonymousId();
+    const second = getAnonymousId();
+    expect(first).toBe(second);
+  });
+
+  it('restores the id from localStorage on re-load', () => {
+    const id = getAnonymousId();
+    const restored = getAnonymousId();
+    expect(restored).toBe(id);
+  });
+
+  it('stores the id in localStorage under the expected key', () => {
+    getAnonymousId();
+    expect(localStorage.getItem('bridgelet_anonymous_id')).not.toBeNull();
+  });
+});
+
+describe('getSessionId (§3.1)', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    sessionStorage.clear();
+  });
+
+  it('generates a UUID v4 on first call', () => {
+    const id = getSessionId();
+    expect(id).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+    );
+  });
+
+  it('returns the same id within the same session', () => {
+    const first = getSessionId();
+    const second = getSessionId();
+    expect(first).toBe(second);
+  });
+
+  it('produces a different id after sessionStorage is cleared (new session)', () => {
+    const first = getSessionId();
+    sessionStorage.clear();
+    const second = getSessionId();
+    expect(first).not.toBe(second);
+  });
+
+  it('stores the id in sessionStorage under the expected key', () => {
+    getSessionId();
+    expect(sessionStorage.getItem('bridgelet_session_id')).not.toBeNull();
+  });
+});
+
+describe('track() base-payload identity merge', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+    delete (window as unknown as { plausible?: unknown }).plausible;
+  });
+
+  const mockPlausible = () =>
+    ((window as unknown as { plausible?: ReturnType<typeof plausibleMock> }).plausible =
+      plausibleMock());
+
+  const latest = () =>
+    (window as unknown as { plausible: ReturnType<typeof plausibleMock> }).plausible.mock
+      .calls[0]!;
+
+  it('attaches anonymous_id and session_id to every emitted event', () => {
+    mockPlausible();
+    const anonId = getAnonymousId();
+    const sessId = getSessionId();
+
+    analytics.claimVerified({ claimId: 'claim-base', verificationTimeMs: 100 });
+
+    const props = latest()[1].props as { anonymous_id: string; session_id: string };
+    expect(props.anonymous_id).toBe(anonId);
+    expect(props.session_id).toBe(sessId);
+  });
+
+  it('attaches identity fields to Claim CTA Clicked as well', () => {
+    mockPlausible();
+    analytics.claimCtaClicked({ claimId: 'claim-cta' });
+
+    const props = latest()[1].props as { anonymous_id?: string; session_id?: string };
+    expect(props).toHaveProperty('anonymous_id');
+    expect(props).toHaveProperty('session_id');
+  });
+
+  it('event-specific props override base fields when keys collide', () => {
+    mockPlausible();
+    analytics.errorDisplayed({
+      journey: 'recipient',
+      errorType: 'unknown',
+      sourceScreen: 'claim_page',
+    });
+
+    const props = latest()[1].props as { anonymous_id?: string; session_id?: string };
+    expect(props).toHaveProperty('anonymous_id');
+    expect(props).toHaveProperty('session_id');
+  });
+});
+
+describe('analytics.errorDisplayed shared journey & taxonomy (§6)', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+    delete (window as unknown as { plausible?: unknown }).plausible;
+  });
+
+  const mockPlausible = () =>
+    ((window as unknown as { plausible?: ReturnType<typeof plausibleMock> }).plausible =
+      plausibleMock());
+
+  const latest = () =>
+    (window as unknown as { plausible: ReturnType<typeof plausibleMock> }).plausible.mock
+      .calls[0]!;
+
+  it('emits Error Displayed with all required fields', () => {
+    mockPlausible();
+    analytics.errorDisplayed({
+      journey: 'recipient',
+      claimId: 'claim-err-001',
+      errorType: 'network_unavailable',
+      errorCode: 'API_UNREACHABLE',
+      sourceScreen: 'claim_page',
+    });
+
+    const props = latest()[1].props as {
+      journey: string;
+      claim_id: string;
+      error_type: string;
+      error_code: string;
+      source_screen: string;
+    };
+    expect(props.journey).toBe('recipient');
+    expect(props.claim_id).toBe('claim-err-001');
+    expect(props.error_type).toBe('network_unavailable');
+    expect(props.error_code).toBe('API_UNREACHABLE');
+    expect(props.source_screen).toBe('claim_page');
+  });
+
+  it('defaults error_code to "unknown" when omitted', () => {
+    mockPlausible();
+    analytics.errorDisplayed({
+      journey: 'recipient',
+      errorType: 'unknown',
+      sourceScreen: 'claim_page',
+    });
+
+    const props = latest()[1].props as { error_code: string };
+    expect(props.error_code).toBe('unknown');
+  });
+
+  it('omits claim_id when null', () => {
+    mockPlausible();
+    analytics.errorDisplayed({
+      journey: 'recipient',
+      claimId: null,
+      errorType: 'unknown',
+      sourceScreen: 'claim_page',
+    });
+
+    const props = latest()[1].props as { claim_id?: string };
+    expect(props).not.toHaveProperty('claim_id');
+  });
+
+  it.each(Object.keys(ERROR_TYPES) as ErrorType[])(
+    'accepts error_type=%s from the taxonomy',
+    (errorType) => {
+      mockPlausible();
+      analytics.errorDisplayed({ journey: 'shared', errorType, sourceScreen: 'test' });
+
+      const props = latest()[1].props as { error_type: ErrorType };
+      expect(props.error_type).toBe(errorType);
+    },
+  );
+
+  it('accepts sender journey', () => {
+    mockPlausible();
+    analytics.errorDisplayed({
+      journey: 'sender',
+      errorType: 'wallet_connection_failed',
+      sourceScreen: 'send_form',
+    });
+
+    const props = latest()[1].props as { journey: string };
+    expect(props.journey).toBe('sender');
+  });
+});
+
+describe('analytics.retryClicked (§6)', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+    delete (window as unknown as { plausible?: unknown }).plausible;
+  });
+
+  const mockPlausible = () =>
+    ((window as unknown as { plausible?: ReturnType<typeof plausibleMock> }).plausible =
+      plausibleMock());
+
+  const latest = () =>
+    (window as unknown as { plausible: ReturnType<typeof plausibleMock> }).plausible.mock
+      .calls[0]!;
+
+  it('emits Retry Clicked with all required fields', () => {
+    mockPlausible();
+    analytics.retryClicked({
+      journey: 'recipient',
+      claimId: 'claim-retry-001',
+      errorType: 'network_unavailable',
+      attemptNumber: 2,
+    });
+
+    const call = latest();
+    expect(call[0]).toBe('Retry Clicked');
+    expect(call[1].props).toEqual(
+      expect.objectContaining({
+        journey: 'recipient',
+        claim_id: 'claim-retry-001',
+        error_type: 'network_unavailable',
+        attempt_number: 2,
+      }),
+    );
+  });
+
+  it('omits claim_id when null', () => {
+    mockPlausible();
+    analytics.retryClicked({
+      journey: 'recipient',
+      claimId: null,
+      errorType: 'unknown',
+      attemptNumber: 1,
+    });
+
+    const props = latest()[1].props as { claim_id?: string };
+    expect(props).not.toHaveProperty('claim_id');
+  });
+
+  it('increments attempt_number correctly across multiple retries', () => {
+    mockPlausible();
+    for (let i = 1; i <= 3; i++) {
+      analytics.retryClicked({
+        journey: 'recipient',
+        claimId: 'claim-seq',
+        errorType: 'network_unavailable',
+        attemptNumber: i,
+      });
+    }
+    const attempts = (
+      window as unknown as { plausible: ReturnType<typeof plausibleMock> }
+    ).plausible.mock.calls.map((c) => c[1].props.attempt_number);
+    expect(attempts).toEqual([1, 2, 3]);
   });
 });

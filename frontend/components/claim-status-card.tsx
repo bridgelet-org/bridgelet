@@ -151,11 +151,33 @@ function AvailablePanel({
   const [rateLimit, setRateLimit] = useState<number | null | undefined>(undefined);
   const [claimError, setClaimError] = useState<string | null>(null);
   const [destinationAddress, setDestinationAddress] = useState('');
+  // Counts claim attempts so Retry Clicked can report attempt_number.
+  const attemptNumberRef = useRef(0);
+  // Prevents Error Displayed from firing again if the user edits the address
+  // while an error is still showing.
+  const errorDisplayedRef = useRef(false);
   const [attemptNumber, setAttemptNumber] = useState(0);
   const wasInvalid = useRef(false);
 
   // Matches the backend's Stellar public key validation (StrKey ed25519 public keys).
   const isValidAddress = /^G[A-Z2-7]{55}$/.test(destinationAddress);
+
+  // §6 Error Displayed — fires once when claimError first appears.
+  useEffect(() => {
+    if (claimError && !errorDisplayedRef.current) {
+      errorDisplayedRef.current = true;
+      analytics.errorDisplayed({
+        journey: 'recipient',
+        claimId,
+        errorType: 'unknown',
+        errorCode: 'CLAIM_SUBMISSION_ERROR',
+        sourceScreen: 'claim_page',
+      });
+    }
+    if (!claimError) {
+      errorDisplayedRef.current = false;
+    }
+  }, [claimError, claimId]);
 
   useEffect(() => {
     const invalid = destinationAddress.length > 0 && !isValidAddress;
@@ -185,7 +207,20 @@ function AvailablePanel({
     }
     setClaiming(true);
     setRateLimit(undefined);
+
+    // §6 Retry Clicked — fires when the user re-submits after seeing an error.
+    if (claimError) {
+      analytics.retryClicked({
+        journey: 'recipient',
+        claimId,
+        errorType: 'unknown',
+        attemptNumber: attemptNumberRef.current,
+      });
+    }
+
     setClaimError(null);
+    attemptNumberRef.current += 1;
+
     try {
       await onClaim?.(destinationAddress);
       setDone(true);
