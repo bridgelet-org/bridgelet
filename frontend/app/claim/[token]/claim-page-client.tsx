@@ -97,6 +97,15 @@ export function ClaimPageClient({ token, supportEmail, initialView }: ClaimPageC
             errorCode: result.loadErrorCode,
             sourceScreen: 'claim_landing',
           });
+        } else if (result.status === AccountStatus.FAILED) {
+          // Unclassified claim-load failure (§6 `unknown`).
+          analytics.errorDisplayed({
+            journey: 'recipient',
+            claimId: token,
+            errorType: 'unknown',
+            errorCode: 'CLAIM_LOAD_FAILED',
+            sourceScreen: 'claim_landing',
+          });
         }
       })
       .catch(() => {

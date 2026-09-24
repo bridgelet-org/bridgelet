@@ -393,3 +393,59 @@ describe('analytics.errorDisplayed (cluster-owned error types)', () => {
     );
   });
 });
+
+describe('analytics.errorDisplayed (wallet connection & catch-all)', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+    delete (window as unknown as { plausible?: unknown }).plausible;
+  });
+
+  it('emits Error Displayed with wallet_connection_failed on the sender journey', () => {
+    (window as unknown as { plausible?: ReturnType<typeof plausibleMock> }).plausible =
+      plausibleMock();
+
+    analytics.errorDisplayed({
+      journey: 'sender',
+      errorType: 'wallet_connection_failed',
+      errorCode: 'CONNECTION_DENIED',
+      sourceScreen: 'send_form_connect',
+    });
+
+    const call = (window as unknown as { plausible: ReturnType<typeof plausibleMock> }).plausible
+      .mock.calls[0]!;
+    expect(call[1].props).toEqual(
+      expect.objectContaining({
+        journey: 'sender',
+        error_type: 'wallet_connection_failed',
+        error_code: 'CONNECTION_DENIED',
+        source_screen: 'send_form_connect',
+      }),
+    );
+  });
+
+  it('emits Error Displayed with the catch-all unknown type on the recipient journey', () => {
+    (window as unknown as { plausible?: ReturnType<typeof plausibleMock> }).plausible =
+      plausibleMock();
+
+    analytics.errorDisplayed({
+      journey: 'recipient',
+      claimId: 'tok_abc',
+      errorType: 'unknown',
+      errorCode: 'CLAIM_LOAD_FAILED',
+      sourceScreen: 'claim_landing',
+    });
+
+    const call = (window as unknown as { plausible: ReturnType<typeof plausibleMock> }).plausible
+      .mock.calls[0]!;
+    expect(call[1].props).toEqual(
+      expect.objectContaining({
+        journey: 'recipient',
+        claim_id: 'tok_abc',
+        error_type: 'unknown',
+        error_code: 'CLAIM_LOAD_FAILED',
+        source_screen: 'claim_landing',
+      }),
+    );
+  });
+});
