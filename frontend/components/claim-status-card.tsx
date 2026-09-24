@@ -1,10 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { RateLimitBanner } from '@/components/rate-limit-banner';
 import { RateLimitError } from '@/lib/api/client';
 import { ChainSelector } from '@/components/chain-selector';
 import { AccountStatus } from '@/lib/api/types';
+import { analytics } from '@/lib/analytics';
 
 /**
  * ClaimStatus mirrors the backend's real AccountStatus enum instead of a
@@ -15,6 +16,8 @@ import { AccountStatus } from '@/lib/api/types';
 export type ClaimStatus = AccountStatus;
 
 export interface ClaimStatusCardProps {
+  /** Claim token, surfaced as `claim_id` in analytics events. */
+  claimId?: string;
   /** Current lifecycle status of the account, as returned by the backend. */
   status: ClaimStatus;
   /** Payment amount in stroops (1 XLM = 10_000_000). Required for `pending_claim`. */
@@ -121,6 +124,7 @@ function StatusBadge({ status }: { status: ClaimStatus }) {
 // ─── State panels ─────────────────────────────────────────────────────────────
 
 function AvailablePanel({
+  claimId,
   amountStroops,
   assetCode,
   expiresAt,
@@ -129,22 +133,57 @@ function AvailablePanel({
   sweepNote,
 }: Pick<
   ClaimStatusCardProps,
-  'amountStroops' | 'assetCode' | 'expiresAt' | 'memo' | 'onClaim' | 'sweepNote'
+  'claimId' | 'amountStroops' | 'assetCode' | 'expiresAt' | 'memo' | 'onClaim' | 'sweepNote'
 >) {
   const [claiming, setClaiming] = useState(false);
   const [done, setDone] = useState(false);
   const [rateLimit, setRateLimit] = useState<number | null | undefined>(undefined);
   const [claimError, setClaimError] = useState<string | null>(null);
   const [destinationAddress, setDestinationAddress] = useState('');
+  // Counts claim attempts so Retry Clicked can report attempt_number.
+  const attemptNumberRef = useRef(0);
+  // Prevents Error Displayed from firing again if the user edits the address
+  // while an error is still showing.
+  const errorDisplayedRef = useRef(false);
 
   // Matches the backend's Stellar public key validation (StrKey ed25519 public keys).
   const isValidAddress = /^G[A-Z2-7]{55}$/.test(destinationAddress);
+
+  // §6 Error Displayed — fires once when claimError first appears.
+  useEffect(() => {
+    if (claimError && !errorDisplayedRef.current) {
+      errorDisplayedRef.current = true;
+      analytics.errorDisplayed({
+        journey: 'recipient',
+        claimId,
+        errorType: 'unknown',
+        errorCode: 'CLAIM_SUBMISSION_ERROR',
+        sourceScreen: 'claim_page',
+      });
+    }
+    if (!claimError) {
+      errorDisplayedRef.current = false;
+    }
+  }, [claimError, claimId]);
 
   async function handleClaim() {
     if (!isValidAddress) return;
     setClaiming(true);
     setRateLimit(undefined);
+
+    // §6 Retry Clicked — fires when the user re-submits after seeing an error.
+    if (claimError) {
+      analytics.retryClicked({
+        journey: 'recipient',
+        claimId,
+        errorType: 'unknown',
+        attemptNumber: attemptNumberRef.current,
+      });
+    }
+
     setClaimError(null);
+    attemptNumberRef.current += 1;
+
     try {
       await onClaim?.(destinationAddress);
       setDone(true);
@@ -441,6 +480,7 @@ function FailedPanel({ supportEmail }: Pick<ClaimStatusCardProps, 'supportEmail'
  * silent "unknown status" fallback.
  */
 export function ClaimStatusCard({
+  claimId,
   status,
   amountStroops,
   assetCode = 'XLM',
@@ -471,6 +511,7 @@ export function ClaimStatusCard({
       )}
       {status === AccountStatus.PENDING_CLAIM && (
         <AvailablePanel
+          claimId={claimId}
           amountStroops={amountStroops}
           assetCode={assetCode}
           expiresAt={expiresAt}

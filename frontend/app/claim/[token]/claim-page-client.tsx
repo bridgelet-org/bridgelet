@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { ClaimStatusCard } from '@/components/claim-status-card';
 import { AccountStatus } from '@/lib/api/types';
 import { BridgeletClient } from '@/lib/api/client';
@@ -22,6 +22,9 @@ export function ClaimPageClient({ token, supportEmail, initialView }: ClaimPageC
   const [loadError, setLoadError] = useState(false);
   // Track whether a submission is currently in-flight or being polled.
   const submissionInFlight = useRef(false);
+  // Whether the Error Displayed event has already been fired for the load-error
+  // surface to avoid re-firing on re-renders.
+  const loadErrorFiredRef = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -46,6 +49,20 @@ export function ClaimPageClient({ token, supportEmail, initialView }: ClaimPageC
       cancelled = true;
     };
   }, [token]);
+
+  // §6 Error Displayed — fires once when the load-error panel becomes visible.
+  useEffect(() => {
+    if (loadError && !loadErrorFiredRef.current) {
+      loadErrorFiredRef.current = true;
+      analytics.errorDisplayed({
+        journey: 'recipient',
+        claimId: token,
+        errorType: 'unknown',
+        errorCode: 'CLAIM_LOAD_FAILED',
+        sourceScreen: 'claim_page',
+      });
+    }
+  }, [loadError, token]);
 
   /**
    * Submit the claim with bounded retry and double-submit prevention.
@@ -231,6 +248,7 @@ export function ClaimPageClient({ token, supportEmail, initialView }: ClaimPageC
 
   return (
     <ClaimStatusCard
+      claimId={token}
       status={view.status}
       amountStroops={view.amountStroops}
       assetCode={view.assetCode}
