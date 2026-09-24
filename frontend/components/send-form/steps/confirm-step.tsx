@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { SendFormState } from '../index';
 import { useNfc } from '@/hooks/use-nfc';
 import { BridgeletClient, RateLimitError } from '@/lib/create-bridgelet-client';
@@ -16,6 +16,7 @@ import {
   type AccountCreationErrorInfo,
 } from '@/lib/account-errors';
 import { publicEnv } from '@/lib/env';
+import { analytics } from '@/lib/analytics';
 
 /**
  * Default claim window for accounts created from the send form.
@@ -67,9 +68,20 @@ export function ConfirmStep({ state, onBack }: ConfirmStepProps) {
   const [retryCount, setRetryCount] = useState(0);
   const [retryAfter, setRetryAfter] = useState<number | null>(null);
   const [claimUrl, setClaimUrl] = useState<string | null>(null);
+  const [createdAccountId, setCreatedAccountId] = useState<string | null>(null);
   const { isSupported, writeUrl, isWriting, error: nfcError } = useNfc();
+  // Timestamp of the sender's "Confirm & Send" intent, used to measure
+  // Payment Confirmed → Payment Created latency.
+  const confirmedAt = useRef<number | null>(null);
 
   const submitting = submitPhase !== 'idle' && submitPhase !== 'success';
+
+  useEffect(() => {
+    analytics.paymentConfirmationViewed({
+      assetType: state.assetCode,
+      expiryDays: state.expiresInHours / 24,
+    });
+  }, [state.assetCode, state.expiresInHours]);
 
   function buildCreateAccountPayload() {
     return {
@@ -115,7 +127,15 @@ export function ConfirmStep({ state, onBack }: ConfirmStepProps) {
       }
 
       setClaimUrl(account.claimUrl);
+      setCreatedAccountId(account.accountId);
       setSubmitPhase('success');
+      analytics.paymentCreated({
+        claimId: account.accountId,
+        assetType: state.assetCode,
+        expiryDays: state.expiresInHours / 24,
+        confirmationTimeMs: confirmedAt.current != null ? Date.now() - confirmedAt.current : 0,
+      });
+      analytics.paymentDetailsViewed({ claimId: account.accountId, claimStatus: 'unclaimed' });
     } catch (err) {
       const info = classifyError(err);
       setErrorInfo(info);
@@ -130,6 +150,12 @@ export function ConfirmStep({ state, onBack }: ConfirmStepProps) {
   }
 
   function handleConfirm() {
+    confirmedAt.current = Date.now();
+    analytics.paymentConfirmed({
+      assetType: state.assetCode,
+      expiryDays: state.expiresInHours / 24,
+      walletType: 'Freighter',
+    });
     executeCreateAccount(1);
   }
 
@@ -137,6 +163,21 @@ export function ConfirmStep({ state, onBack }: ConfirmStepProps) {
     const nextAttempt = retryCount + 1;
     if (nextAttempt > MAX_RETRIES) return;
     executeCreateAccount(nextAttempt);
+  }
+
+  async function handleCopy() {
+    if (!claimUrl || !createdAccountId) return;
+    try {
+      await navigator.clipboard.writeText(claimUrl);
+      analytics.claimLinkCopied({ claimId: createdAccountId, copyLocation: 'success_screen' });
+    } catch {
+      // Clipboard API unavailable — no-op.
+    }
+  }
+
+  function handleWhatsAppShare() {
+    if (!createdAccountId) return;
+    analytics.claimLinkShared({ claimId: createdAccountId, shareMethod: 'whatsapp' });
   }
 
   function submittingLabel(): string {
@@ -162,16 +203,36 @@ export function ConfirmStep({ state, onBack }: ConfirmStepProps) {
         </p>
 
         {claimUrl && (
-          <p className="mt-2 text-sm text-green-700">
-            Send the recipient this link:{' '}
-            <a
-              href={claimUrl}
-              data-testid="claim-link"
-              className="font-medium underline underline-offset-2 hover:text-green-900"
-            >
-              {claimUrl}
-            </a>
-          </p>
+          <div className="mt-2 flex flex-col gap-2">
+            <p className="text-sm text-green-700">
+              Send the recipient this link:{' '}
+              <a
+                href={claimUrl}
+                data-testid="claim-link"
+                className="font-medium underline underline-offset-2 hover:text-green-900"
+              >
+                {claimUrl}
+              </a>
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={handleCopy}
+                className="inline-flex items-center rounded-lg bg-green-700 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-green-800 dark:bg-green-600 dark:hover:bg-green-500"
+              >
+                Copy link
+              </button>
+              <a
+                href={whatsappUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={handleWhatsAppShare}
+                className="inline-flex items-center rounded-lg border border-green-700 px-3 py-1.5 text-xs font-medium text-green-800 transition hover:bg-green-100 dark:border-green-600 dark:text-green-300 dark:hover:bg-green-950"
+              >
+                Share on WhatsApp
+              </a>
+            </div>
+          </div>
         )}
         
         {isSupported && claimUrl && (
