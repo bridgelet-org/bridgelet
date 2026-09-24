@@ -1,11 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { RateLimitBanner } from '@/components/rate-limit-banner';
 import { RateLimitError } from '@/lib/api/client';
 import { ChainSelector } from '@/components/chain-selector';
 import { AccountStatus } from '@/lib/api/types';
-import { analytics } from '@/lib/analytics';
+import { analytics, type ValidationError } from '@/lib/analytics';
 
 /**
  * ClaimStatus mirrors the backend's real AccountStatus enum instead of a
@@ -16,6 +16,8 @@ import { analytics } from '@/lib/analytics';
 export type ClaimStatus = AccountStatus;
 
 export interface ClaimStatusCardProps {
+  /** Claim token, surfaced as `claim_id` in analytics events. */
+  claimId?: string;
   /** Current lifecycle status of the account, as returned by the backend. */
   status: ClaimStatus;
   /** Payment amount in stroops (1 XLM = 10_000_000). Required for `pending_claim`. */
@@ -121,7 +123,19 @@ function StatusBadge({ status }: { status: ClaimStatus }) {
 
 // ─── State panels ─────────────────────────────────────────────────────────────
 
+/**
+ * Maps a failing address to the §5.2 `validation_error` reason. The live
+ * `isValidAddress` regex is the authority; the reason is derived from which
+ * aspect of it failed.
+ */
+function deriveValidationError(address: string): ValidationError {
+  if (address.charAt(0) !== 'G') return 'invalid_prefix';
+  if (address.length !== 56) return 'invalid_length';
+  return 'invalid_checksum';
+}
+
 function AvailablePanel({
+  claimId,
   amountStroops,
   assetCode,
   expiresAt,
@@ -130,16 +144,33 @@ function AvailablePanel({
   sweepNote,
 }: Pick<
   ClaimStatusCardProps,
-  'amountStroops' | 'assetCode' | 'expiresAt' | 'memo' | 'onClaim' | 'sweepNote'
+  'claimId' | 'amountStroops' | 'assetCode' | 'expiresAt' | 'memo' | 'onClaim' | 'sweepNote'
 >) {
   const [claiming, setClaiming] = useState(false);
   const [done, setDone] = useState(false);
   const [rateLimit, setRateLimit] = useState<number | null | undefined>(undefined);
   const [claimError, setClaimError] = useState<string | null>(null);
   const [destinationAddress, setDestinationAddress] = useState('');
+  const [attemptNumber, setAttemptNumber] = useState(0);
+  const wasInvalid = useRef(false);
 
   // Matches the backend's Stellar public key validation (StrKey ed25519 public keys).
   const isValidAddress = /^G[A-Z2-7]{55}$/.test(destinationAddress);
+
+  useEffect(() => {
+    const invalid = destinationAddress.length > 0 && !isValidAddress;
+    if (invalid && !wasInvalid.current) {
+      const next = attemptNumber + 1;
+      setAttemptNumber(next);
+      // Recipient submitted an address that failed client-side validation (§5.2).
+      analytics.walletAddressValidationFailed({
+        claimId,
+        validationError: deriveValidationError(destinationAddress),
+        attemptNumber: next,
+      });
+    }
+    wasInvalid.current = invalid;
+  }, [destinationAddress, isValidAddress, claimId, attemptNumber]);
 
   async function handleClaim() {
     if (!isValidAddress) {
@@ -451,6 +482,7 @@ function FailedPanel({ supportEmail }: Pick<ClaimStatusCardProps, 'supportEmail'
  * silent "unknown status" fallback.
  */
 export function ClaimStatusCard({
+  claimId,
   status,
   amountStroops,
   assetCode = 'XLM',
@@ -481,6 +513,7 @@ export function ClaimStatusCard({
       )}
       {status === AccountStatus.PENDING_CLAIM && (
         <AvailablePanel
+          claimId={claimId}
           amountStroops={amountStroops}
           assetCode={assetCode}
           expiresAt={expiresAt}

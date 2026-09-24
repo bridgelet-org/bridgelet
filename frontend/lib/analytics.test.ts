@@ -1,13 +1,15 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+﻿import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   analytics,
   appVersion,
   buildBasePayload,
   conditional,
+  daysRemainingUntil,
   detectDeviceType,
   ERROR_TYPES,
   ErrorType,
   VALID_EXPIRY_WINDOWS,
+  type ValidationError,
 } from '@/lib/analytics';
 
 function plausibleMock() {
@@ -49,7 +51,7 @@ describe('detectDeviceType', () => {
 });
 
 describe('buildBasePayload', () => {
-  it('carries the §3.1 base fields', () => {
+  it('carries the Â§3.1 base fields', () => {
     const payload = buildBasePayload();
     expect(payload).toEqual(
       expect.objectContaining({
@@ -74,7 +76,7 @@ describe('buildBasePayload', () => {
   });
 });
 
-describe('error taxonomy (§6)', () => {
+describe('error taxonomy (Â§6)', () => {
   it('lists exactly the eight standard error_type values from the spec', () => {
     expect(ERROR_TYPES).toEqual([
       'invalid_token',
@@ -89,7 +91,7 @@ describe('error taxonomy (§6)', () => {
   });
 });
 
-describe('conditional payload property helpers (§3.2)', () => {
+describe('conditional payload property helpers (Â§3.2)', () => {
   it('builds the claim_id property', () => {
     expect(conditional.claimId('tok_abc')).toEqual({ claim_id: 'tok_abc' });
   });
@@ -447,5 +449,229 @@ describe('analytics.errorDisplayed (wallet connection & catch-all)', () => {
         source_screen: 'claim_landing',
       }),
     );
+  });
+});
+
+describe('ValidationError type taxonomy', () => {
+  it('accepts all three Â§5.2 validation_error values at compile time', () => {
+    const values: ValidationError[] = ['invalid_prefix', 'invalid_length', 'invalid_checksum'];
+    expect(values).toHaveLength(3);
+  });
+});
+
+describe('daysRemainingUntil', () => {
+  it('returns approximately 1 for a timestamp 24 h in the future', () => {
+    const future = new Date(Date.now() + 86_400_000).toISOString();
+    expect(daysRemainingUntil(future)).toBe(1);
+  });
+
+  it('returns 0 for a timestamp in the past', () => {
+    const past = new Date(Date.now() - 60_000).toISOString();
+    expect(daysRemainingUntil(past)).toBe(0);
+  });
+
+  it('returns undefined for an invalid ISO string', () => {
+    expect(daysRemainingUntil('not-a-date')).toBeUndefined();
+  });
+});
+
+describe('recipient claim pipeline events (Â§5.2â€“Â§5.3)', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+    delete (window as unknown as { plausible?: unknown }).plausible;
+  });
+
+  const mockPlausible = () =>
+    ((window as unknown as { plausible?: ReturnType<typeof plausibleMock> }).plausible =
+      plausibleMock());
+
+  const latest = () =>
+    (window as unknown as { plausible: ReturnType<typeof plausibleMock> }).plausible.mock
+      .calls[0]!;
+
+  describe('analytics.walletAddressValidationFailed (Â§5.2)', () => {
+    it('emits Wallet Address Validation Failed with required fields', () => {
+      mockPlausible();
+      analytics.walletAddressValidationFailed({
+        claimId: 'claim-abc',
+        validationError: 'invalid_prefix',
+        attemptNumber: 1,
+      });
+
+      const call = latest();
+      expect(call[0]).toBe('Wallet Address Validation Failed');
+      expect(call[1].props).toEqual(
+        expect.objectContaining({
+          journey: 'recipient',
+          claim_id: 'claim-abc',
+          validation_error: 'invalid_prefix',
+          attempt_number: 1,
+        }),
+      );
+    });
+
+    it('omits claim_id when not provided', () => {
+      mockPlausible();
+      analytics.walletAddressValidationFailed({
+        validationError: 'invalid_length',
+        attemptNumber: 2,
+      });
+
+      const props = latest()[1].props as {
+        claim_id?: string;
+        validation_error: string;
+        attempt_number: number;
+      };
+      expect(props).not.toHaveProperty('claim_id');
+      expect(props.validation_error).toBe('invalid_length');
+      expect(props.attempt_number).toBe(2);
+    });
+
+    it('passes invalid_checksum variant', () => {
+      mockPlausible();
+      analytics.walletAddressValidationFailed({
+        claimId: 'claim-xyz',
+        validationError: 'invalid_checksum',
+        attemptNumber: 3,
+      });
+
+      const props = latest()[1].props as { validation_error: string };
+      expect(props.validation_error).toBe('invalid_checksum');
+    });
+
+    it('increments attempt_number on successive failures', () => {
+      mockPlausible();
+      for (let i = 1; i <= 3; i++) {
+        analytics.walletAddressValidationFailed({
+          claimId: 'claim-seq',
+          validationError: 'invalid_prefix',
+          attemptNumber: i,
+        });
+      }
+      const attempts = (
+        window as unknown as { plausible: ReturnType<typeof plausibleMock> }
+      ).plausible.mock.calls.map((c) => c[1].props.attempt_number);
+      expect(attempts).toEqual([1, 2, 3]);
+    });
+  });
+
+  describe('analytics.claimConfirmationViewed (Â§5.3)', () => {
+    it('emits Claim Confirmation Viewed with claim_id and asset_type', () => {
+      mockPlausible();
+      analytics.claimConfirmationViewed({ claimId: 'claim-def', assetType: 'XLM' });
+
+      const call = latest();
+      expect(call[0]).toBe('Claim Confirmation Viewed');
+      expect(call[1].props).toEqual(
+        expect.objectContaining({
+          journey: 'recipient',
+          claim_id: 'claim-def',
+          asset_type: 'XLM',
+        }),
+      );
+    });
+
+    it('omits asset_type when not provided', () => {
+      mockPlausible();
+      analytics.claimConfirmationViewed({ claimId: 'claim-def' });
+
+      const props = latest()[1].props as { asset_type?: string };
+      expect(props).not.toHaveProperty('asset_type');
+    });
+  });
+
+  describe('analytics.claimSubmitted (Â§5.3)', () => {
+    it('emits Claim Submitted with claim_id and asset_type', () => {
+      mockPlausible();
+      analytics.claimSubmitted({ claimId: 'claim-ghi', assetType: 'USDC' });
+
+      const call = latest();
+      expect(call[0]).toBe('Claim Submitted');
+      expect(call[1].props).toEqual(
+        expect.objectContaining({
+          journey: 'recipient',
+          claim_id: 'claim-ghi',
+          asset_type: 'USDC',
+        }),
+      );
+    });
+
+    it('omits asset_type when not provided', () => {
+      mockPlausible();
+      analytics.claimSubmitted({ claimId: 'claim-ghi' });
+
+      const props = latest()[1].props as { asset_type?: string };
+      expect(props).not.toHaveProperty('asset_type');
+    });
+  });
+
+  describe('analytics.claimSucceeded (Â§5.3)', () => {
+    it('emits Claim Succeeded with all optional fields present', () => {
+      mockPlausible();
+      analytics.claimSucceeded({
+        claimId: 'claim-jkl',
+        assetType: 'XLM',
+        timeToClaimHours: 3,
+        sweepDurationMs: 4200,
+        entryChannel: 'whatsapp',
+      });
+
+      const call = latest();
+      expect(call[0]).toBe('Claim Succeeded');
+      expect(call[1].props).toEqual(
+        expect.objectContaining({
+          journey: 'recipient',
+          claim_id: 'claim-jkl',
+          asset_type: 'XLM',
+          time_to_claim_hours: 3,
+          sweep_duration_ms: 4200,
+          entry_channel: 'whatsapp',
+        }),
+      );
+    });
+
+    it('defaults entry_channel to "unknown" when omitted', () => {
+      mockPlausible();
+      analytics.claimSucceeded({ claimId: 'claim-mno' });
+
+      const props = latest()[1].props as { entry_channel: string };
+      expect(props.entry_channel).toBe('unknown');
+    });
+
+    it('omits time_to_claim_hours and sweep_duration_ms when undefined', () => {
+      mockPlausible();
+      analytics.claimSucceeded({ claimId: 'claim-pqr' });
+
+      const props = latest()[1].props as {
+        time_to_claim_hours?: number;
+        sweep_duration_ms?: number;
+      };
+      expect(props).not.toHaveProperty('time_to_claim_hours');
+      expect(props).not.toHaveProperty('sweep_duration_ms');
+    });
+
+    it('omits asset_type when not provided', () => {
+      mockPlausible();
+      analytics.claimSucceeded({ claimId: 'claim-stu' });
+
+      const props = latest()[1].props as { asset_type?: string };
+      expect(props).not.toHaveProperty('asset_type');
+    });
+  });
+
+  it('no-ops when the window object is unavailable', () => {
+    const plausible = plausibleMock();
+    (window as unknown as { plausible?: ReturnType<typeof plausibleMock> }).plausible = plausible;
+    vi.stubGlobal('window', undefined);
+
+    expect(() =>
+      analytics.walletAddressValidationFailed({
+        claimId: 'ssr-test',
+        validationError: 'invalid_prefix',
+        attemptNumber: 1,
+      }),
+    ).not.toThrow();
+    expect(plausible).not.toHaveBeenCalled();
   });
 });
