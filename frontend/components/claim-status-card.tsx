@@ -173,7 +173,16 @@ function AvailablePanel({
   }, [destinationAddress, isValidAddress, claimId, attemptNumber]);
 
   async function handleClaim() {
-    if (!isValidAddress) return;
+    if (!isValidAddress) {
+      // Wallet address fails client-side validation (§6 `invalid_wallet_address`).
+      analytics.errorDisplayed({
+        journey: 'recipient',
+        errorType: 'invalid_wallet_address',
+        errorCode: 'INVALID_ADDRESS',
+        sourceScreen: 'claim_landing',
+      });
+      return;
+    }
     setClaiming(true);
     setRateLimit(undefined);
     setClaimError(null);

@@ -5,6 +5,7 @@ import { ConnectStep } from './steps/connect-step';
 import { ExpiryStep } from './steps/expiry-step';
 import { DetailsStep } from './steps/details-step';
 import { ConfirmStep } from './steps/confirm-step';
+import { analytics } from '@/lib/analytics';
 
 export type SendFormStep = 'connect' | 'expiry' | 'details' | 'confirm';
 
@@ -51,6 +52,11 @@ export function SendForm() {
   const [formState, setFormState] = useState<SendFormState>(INITIAL_STATE);
   const headingRef = useRef<HTMLHeadingElement>(null);
 
+  // Fire on first render of the create-claim form (§4.2 of the analytics spec).
+  useEffect(() => {
+    analytics.sendFormViewed();
+  }, []);
+
   // Move focus to the step heading every time the step changes.
   useEffect(() => {
     headingRef.current?.focus();
@@ -59,7 +65,16 @@ export function SendForm() {
   function goNext() {
     const idx = STEP_ORDER.indexOf(step);
     const next = STEP_ORDER[idx + 1];
-    if (next) setStep(next);
+    if (!next) return;
+    if (step === 'details') {
+      analytics.sendFormCompleted({
+        assetType: formState.assetCode,
+        expiryDays: formState.expiresInHours / 24,
+        hasRecipientName: Boolean(formState.recipientName),
+        hasMessage: Boolean(formState.memo),
+      });
+    }
+    setStep(next);
   }
 
   function goBack() {
