@@ -22,6 +22,9 @@ export function ClaimPageClient({ token, supportEmail, initialView }: ClaimPageC
   const [loadError, setLoadError] = useState(false);
   // Track whether a submission is currently in-flight or being polled.
   const submissionInFlight = useRef(false);
+  // Counts how many claim-submit attempts the recipient has made on this session,
+  // used for `Claim Failed.attempt_number` (§5.3).
+  const attemptNumberRef = useRef(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -64,6 +67,7 @@ export function ClaimPageClient({ token, supportEmail, initialView }: ClaimPageC
         throw new ClaimError("NETWORK_ERROR", "A claim is already being processed. Please wait.");
       }
       submissionInFlight.current = true;
+      const currentAttempt = ++attemptNumberRef.current;
 
       try {
         const result = await submitClaimWithRetry(client, token, destinationAddress, {
@@ -104,6 +108,14 @@ export function ClaimPageClient({ token, supportEmail, initialView }: ClaimPageC
 
           case "safeToRetry": {
             // The request never reached the server. Safe to retry.
+            // §5.3 Claim Failed — network_error, safe-to-retry path.
+            analytics.claimFailed({
+              claimId: token,
+              assetType: view?.assetCode,
+              errorCode: 'SUBMISSION_FAILED_RETRYABLE',
+              errorType: 'network_error',
+              attemptNumber: currentAttempt,
+            });
             throw new ClaimError(
               "SUBMISSION_FAILED_RETRYABLE",
               "Your claim could not be sent right now. Please try again -- this is safe and will not cause any problems.",
@@ -128,6 +140,14 @@ export function ClaimPageClient({ token, supportEmail, initialView }: ClaimPageC
           case "terminal": {
             // Explicit rejection -- do not retry.
             const apiErr = result.outcome.error;
+            // §5.3 Claim Failed — transaction_failed, terminal rejection path.
+            analytics.claimFailed({
+              claimId: token,
+              assetType: view?.assetCode,
+              errorCode: apiErr?.message ?? 'unknown',
+              errorType: 'transaction_failed',
+              attemptNumber: currentAttempt,
+            });
             throw new ClaimError(
               "SUBMISSION_FAILED_FINAL",
               apiErr?.message ?? "Something went wrong after several attempts. Your funds are safe, but we need our team to look into this.",
@@ -239,6 +259,7 @@ export function ClaimPageClient({ token, supportEmail, initialView }: ClaimPageC
       supportEmail={supportEmail}
       onClaim={handleClaim}
       claimedByMe={view.claimedByMe}
+      claimId={token}
       sweepDestination={view.sweepDestination}
       sweepAmountStroops={view.sweepAmountStroops}
     />
