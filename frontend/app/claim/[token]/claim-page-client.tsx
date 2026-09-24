@@ -7,6 +7,7 @@ import { BridgeletClient } from '@/lib/api/client';
 import { ClaimView, loadClaimView, markTokenClaimed } from '@/lib/claim-view';
 import { submitClaimWithRetry, pollClaimStatus } from '@/lib/claim-retry';
 import { ClaimError } from '@/lib/claim-errors';
+import { analytics, daysRemainingUntil, type ClaimEntryChannel } from '@/lib/analytics';
 
 interface ClaimPageClientProps {
   token: string;
@@ -16,6 +17,33 @@ interface ClaimPageClientProps {
 
 const client = new BridgeletClient();
 
+/**
+ * Best-guess referral channel for a claim link, derived from URL campaign
+ * parameters or the document referrer. Mirrors the `entry_channel` values
+ * documented in `docs/analytics-spec.md` §5.1.
+ */
+function claimEntryChannel(): ClaimEntryChannel {
+  try {
+    if (typeof window === 'undefined' || typeof document === 'undefined') return 'unknown';
+    const params = new URLSearchParams(window.location.search);
+    const flagged = (params.get('channel') ?? params.get('src') ?? params.get('utm_source') ?? '')
+      .toLowerCase();
+    if (flagged.includes('whatsapp') || flagged.includes('wa')) return 'whatsapp';
+    if (flagged.includes('mail') || flagged.includes('email')) return 'email';
+    if (flagged.includes('sms') || flagged.includes('text')) return 'sms';
+    const referrer = document.referrer;
+    if (referrer) {
+      const host = new URL(referrer).hostname.toLowerCase();
+      if (host.includes('whatsapp') || host.includes('wa.me')) return 'whatsapp';
+      if (host.includes('mail') || host.includes('gmail') || host.includes('yahoo')) return 'email';
+      if (host.includes('sms') || host.includes('text')) return 'sms';
+    }
+    return 'direct';
+  } catch {
+    return 'unknown';
+  }
+}
+
 export function ClaimPageClient({ token, supportEmail, initialView }: ClaimPageClientProps) {
   const [view, setView] = useState<ClaimView | null>(initialView ?? null);
   const [loadError, setLoadError] = useState(false);
@@ -23,10 +51,23 @@ export function ClaimPageClient({ token, supportEmail, initialView }: ClaimPageC
   const submissionInFlight = useRef(false);
 
   useEffect(() => {
+    // Funnel start: fire immediately on open, before token verification.
+    analytics.claimPageOpened({ claimId: token, entryChannel: claimEntryChannel() });
+
     let cancelled = false;
+    const verifiedAt = Date.now();
     loadClaimView(token)
       .then((result) => {
-        if (!cancelled) setView(result);
+        if (cancelled) return;
+        setView(result);
+        if (result.status === AccountStatus.PENDING_CLAIM) {
+          analytics.claimVerified({
+            claimId: token,
+            assetType: result.assetCode,
+            expiryDaysRemaining: result.expiresAt ? daysRemainingUntil(result.expiresAt) : undefined,
+            verificationTimeMs: Date.now() - verifiedAt,
+          });
+        }
       })
       .catch(() => {
         if (!cancelled) setLoadError(true);
@@ -47,6 +88,7 @@ export function ClaimPageClient({ token, supportEmail, initialView }: ClaimPageC
    */
   const handleClaim = useCallback(
     async (destinationAddress: string) => {
+      analytics.claimCtaClicked({ claimId: token, assetType: view?.assetCode });
       if (submissionInFlight.current) {
         // Guard: prevent concurrent submissions for the same token.
         throw new ClaimError("NETWORK_ERROR", "A claim is already being processed. Please wait.");
@@ -127,7 +169,7 @@ export function ClaimPageClient({ token, supportEmail, initialView }: ClaimPageC
         submissionInFlight.current = false;
       }
     },
-    [token],
+    [token, view],
   );
 
   /**
