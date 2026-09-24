@@ -5,6 +5,7 @@ import { RateLimitBanner } from '@/components/rate-limit-banner';
 import { RateLimitError } from '@/lib/api/client';
 import { ChainSelector } from '@/components/chain-selector';
 import { AccountStatus } from '@/lib/api/types';
+import { analytics } from '@/lib/analytics';
 
 /**
  * ClaimStatus mirrors the backend's real AccountStatus enum instead of a
@@ -141,7 +142,16 @@ function AvailablePanel({
   const isValidAddress = /^G[A-Z2-7]{55}$/.test(destinationAddress);
 
   async function handleClaim() {
-    if (!isValidAddress) return;
+    if (!isValidAddress) {
+      // Wallet address fails client-side validation (§6 `invalid_wallet_address`).
+      analytics.errorDisplayed({
+        journey: 'recipient',
+        errorType: 'invalid_wallet_address',
+        errorCode: 'INVALID_ADDRESS',
+        sourceScreen: 'claim_landing',
+      });
+      return;
+    }
     setClaiming(true);
     setRateLimit(undefined);
     setClaimError(null);
