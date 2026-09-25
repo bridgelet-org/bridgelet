@@ -8,6 +8,9 @@ on:
     branches:
       - main
 
+permissions:
+  contents: read
+
 jobs:
   build-and-test:
     name: Lint, type-check, test, and build
@@ -102,12 +105,25 @@ jobs:
             const body = fs.existsSync('coverage-comment.md')
               ? fs.readFileSync('coverage-comment.md', 'utf-8')
               : '## Coverage Report\n\nNo coverage data generated.';
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body,
-            });
+            // Step summary needs no write permissions, so it always works,
+            // including fork PRs where the token is read-only.
+            core.summary.addRaw(body).write();
+            // PR comments require issues/pull-requests write. Fork PRs and
+            // read-only org workflow policy get 403 here; warn instead of
+            // failing CI — the step summary above carries the same report.
+            try {
+              await github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body,
+              });
+            } catch (err) {
+              core.warning(
+                `Could not post PR comment (token lacks issues/pull-requests write; ` +
+                `common for fork PRs or read-only org workflow policy): ${err.message}`
+              );
+            }
 
       - name: Build app
         run: npm run build
