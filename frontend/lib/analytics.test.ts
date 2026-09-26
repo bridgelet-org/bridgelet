@@ -1,4 +1,4 @@
-﻿import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   analytics,
   appVersion,
@@ -1190,7 +1190,6 @@ describe('analytics.retryClicked (§6)', () => {
   });
 });
 
-<<<<<<< HEAD
 describe('isDoNotTrackEnabled (§9.5)', () => {
   afterEach(() => {
     vi.restoreAllMocks();
@@ -1553,50 +1552,16 @@ describe('createDeduplicationStore (§9.4)', () => {
   it('exposes the documented bound and TTL defaults', () => {
     expect(DEDUP_MAX_ENTRIES).toBe(200);
     expect(DEDUP_TTL_MS).toBe(60 * 60 * 1000);
-=======
-describe('dispatch targets and Do Not Track', () => {
+  });
+});
+
+describe('dispatch targets and PostHog fallback', () => {
   afterEach(() => {
     vi.unstubAllEnvs();
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
     delete (window as unknown as { plausible?: unknown }).plausible;
     delete (window as unknown as { posthog?: unknown }).posthog;
-  });
-
-  it('suppresses all events when navigator.doNotTrack is "1" (§9.5)', () => {
-    const plausible = plausibleMock();
-    (window as unknown as { plausible?: ReturnType<typeof plausibleMock> }).plausible =
-      plausible;
-    Object.defineProperty(navigator, 'doNotTrack', {
-      configurable: true,
-      value: '1',
-    });
-
-    analytics.claimPageViewed();
-
-    expect(plausible).not.toHaveBeenCalled();
-    Object.defineProperty(navigator, 'doNotTrack', {
-      configurable: true,
-      value: undefined,
-    });
-  });
-
-  it('sends events when DNT is disabled', () => {
-    const plausible = plausibleMock();
-    (window as unknown as { plausible?: ReturnType<typeof plausibleMock> }).plausible =
-      plausible;
-    Object.defineProperty(navigator, 'doNotTrack', {
-      configurable: true,
-      value: '0',
-    });
-
-    analytics.claimPageViewed();
-
-    expect(plausible).toHaveBeenCalledTimes(1);
-    Object.defineProperty(navigator, 'doNotTrack', {
-      configurable: true,
-      value: undefined,
-    });
   });
 
   it('falls back to posthog.capture when Plausible is not loaded', () => {
@@ -1630,4 +1595,4 @@ describe('dispatch targets and Do Not Track', () => {
     expect(plausible).toHaveBeenCalledTimes(1);
     expect(capture).not.toHaveBeenCalled();
   });
-});
+})
