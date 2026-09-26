@@ -160,9 +160,20 @@ export type ErrorType = keyof typeof ERROR_TYPES;
  * Core dispatch function. Merges the §3.1 identity fields (`anonymous_id`,
  * `session_id`) into every event payload so every downstream event carries
  * them without any per-call plumbing.
+ *
+ * Dispatch targets, in priority order:
+ * 1. `window.plausible` — populated by the Plausible script loaded in the
+ *    root layout when NEXT_PUBLIC_PLAUSIBLE_DOMAIN is configured (§9.1).
+ * 2. `window.posthog` — capture fallback when PostHog is wired up instead.
+ * 3. Console debug output in development builds.
  */
 function track(event: ClaimEvent, props?: EventProps): void {
   if (typeof window === 'undefined') return;
+
+  // §9.5 Do Not Track — suppress all events when the user has DNT enabled.
+  // Especially important for the recipient flow, where the user may not have
+  // any prior relationship with Bridgelet.
+  if (isDntEnabled()) return;
 
 // Base payload is merged in first so event-specific props can override.
   const payload: EventProps = {
@@ -179,10 +190,31 @@ function track(event: ClaimEvent, props?: EventProps): void {
     return;
   }
 
+  // PostHog capture fallback (§9.1 self-hosted option).
+  const posthog = (window as unknown as { posthog?: { capture?: Function } }).posthog;
+  if (typeof posthog?.capture === 'function') {
+    posthog.capture(event, payload);
+    return;
+  }
+
   // Fallback: console in development
   if (process.env.NODE_ENV !== 'production') {
     console.debug('[analytics]', event, payload);
   }
+}
+
+/**
+ * Reads the `Do Not Track` browser preference (§9.5). Accepts an explicit
+ * header value for testability; checks `navigator.doNotTrack`,
+ * `window.doNotTrack`, and the legacy `msDoNotTrack` prefixes.
+ */
+export function isDntEnabled(header?: string): boolean {
+  if (header === '1') return true;
+  if (typeof navigator === 'undefined') return false;
+  const nav = navigator as Navigator & { msDoNotTrack?: string };
+  const win = typeof window !== 'undefined' ? (window as unknown as { doNotTrack?: string }) : {};
+  const raw = nav.doNotTrack ?? win.doNotTrack ?? nav.msDoNotTrack ?? '0';
+  return raw === '1' || raw === 'yes';
 }
 
 export type ShareMethod = 'sms' | 'email' | 'whatsapp' | 'qr_code';
