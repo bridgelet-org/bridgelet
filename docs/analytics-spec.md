@@ -798,6 +798,14 @@ For each share_method in {sms, email, whatsapp, qr_code, copy_only}:
 
 Breakdown of channels through which recipients open claim links.
 
+> **Readiness: blocked.** The web client emits `Claim Page Opened` with the
+> documented `entry_channel` values, but this repository contains no query or
+> dashboard that computes the distribution below. The event payload tests only
+> verify emission; they do not verify the KPI against an event export. Do not
+> report this KPI until an aggregation query or dashboard is implemented and
+> its result has been checked against the event data. See
+> `bridgelet-product-audit/postmortems/analytics-spec-vs-implementation-unverified.md`.
+
 ```
 For each entry_channel in {sms, email, whatsapp, direct, unknown}:
   % = (Claim Page Opened events with entry_channel)

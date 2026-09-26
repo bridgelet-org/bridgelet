@@ -103,36 +103,51 @@ jobs:
 
             _Budgets: \`/send\` and \`/claim/[token]\` → 200 kB · \`/\` → 250 kB · other routes → 300 kB_`;
 
-            // Find and update existing comment or create new one
-            const { data: comments } = await github.rest.issues.listComments({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-            });
+            // Always write results to the step summary — it needs no extra
+            // token permissions, so it works even on fork PRs where the
+            // GITHUB_TOKEN is read-only.
+            core.summary.addRaw(body).write();
 
-            const existing = comments.find(c =>
-              c.user?.login === 'github-actions[bot]' &&
-              c.body?.includes('Bundle Size')
-            );
-
-            if (existing) {
-              await github.rest.issues.updateComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                comment_id: existing.id,
-                body,
-              });
-            } else {
-              await github.rest.issues.createComment({
+            // Post/update the PR comment only when the token is allowed to.
+            // Fork PRs and orgs enforcing read-only workflow tokens get 403
+            // ("Resource not accessible by integration") here; that must not
+            // fail CI — the step summary above carries the same table.
+            try {
+              const { data: comments } = await github.rest.issues.listComments({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 issue_number: context.issue.number,
-                body,
               });
+
+              const existing = comments.find(c =>
+                c.user?.login === 'github-actions[bot]' &&
+                c.body?.includes('Bundle Size')
+              );
+
+              if (existing) {
+                await github.rest.issues.updateComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  comment_id: existing.id,
+                  body,
+                });
+              } else {
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: context.issue.number,
+                  body,
+                });
+              }
+            } catch (err) {
+              core.warning(
+                `Could not post PR comment (token lacks issues/pull-requests write; ` +
+                `common for fork PRs or read-only org workflow policy): ${err.message}`
+              );
             }
 
       - name: Fail if over budget
         if: steps.budget.outputs.exit_code != '0'
         run: |
-          echo "Bundle size budget exceeded. See PR comment for details."
+          echo "Bundle size budget exceeded. See the PR comment or the run summary for details."
           exit 1
