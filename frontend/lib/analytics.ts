@@ -154,15 +154,218 @@ export const ERROR_TYPES = {
 
 export type ErrorType = keyof typeof ERROR_TYPES;
 
+// ─── §9.5 Do Not Track ─────────────────────────────────────────────────────────
+
+/**
+ * Interprets a single Do Not Track signal. §9.5 names `1` as the opt-in
+ * value; browsers report `navigator.doNotTrack` and legacy IE's
+ * `navigator.msDoNotTrack` as the strings `"1"` / `"0"`, or `null` when the
+ * user expressed no preference. A numeric `1` is also accepted because a
+ * few privacy extensions assign a number rather than a string. Everything
+ * else — `"0"`, `"unspecified"`, `""`, `null`, non-string junk — means the
+ * user did not opt out, so the event is allowed.
+ */
+function isDntSignalEnabled(value: unknown): boolean {
+  if (typeof value === 'number') return value === 1;
+  if (typeof value === 'string') return value.trim() === '1';
+  return false;
+}
+
+/**
+ * Browser-level Do Not Track opt-out (`docs/analytics-spec.md` §9.5).
+ *
+ * When the browser reports `DNT: 1` the event is suppressed entirely — not
+ * reduced, not anonymised further, just dropped. This matters most in the
+ * recipient flow, where someone opening a claim link may have no prior
+ * relationship with Bridgelet and never asked to be measured.
+ *
+ * Sources are checked in order: `navigator.doNotTrack` (the standard),
+ * `navigator.msDoNotTrack` (legacy IE), and `window.doNotTrack` (a handful
+ * of extensions set it there rather than on `navigator`). Every read is
+ * feature-detected and wrapped in try/catch: these are vendor-prefixed
+ * properties on objects that can be frozen, proxied or simply absent, and a
+ * throw here must never break the page. A throw is reported as "not opted
+ * out", which is the layer's pre-#635 behaviour.
+ *
+ * This function deliberately touches no storage. `track()` calls it *before*
+ * `getAnonymousId()` / `getSessionId()` so that a visitor who opted out
+ * never has a UUID minted and persisted on their behalf — writing an
+ * identifier to `localStorage` is itself a durable tracking artefact, so
+ * checking later would be too late.
+ *
+ * @returns `true` when the browser asks not to be tracked; `false` during
+ * SSR, where there is no browser to ask.
+ */
+export function isDoNotTrackEnabled(): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    const nav: (Navigator & { msDoNotTrack?: unknown }) | undefined =
+      typeof navigator === 'undefined' ? undefined : navigator;
+    return (
+      isDntSignalEnabled(nav?.doNotTrack) ||
+      isDntSignalEnabled(nav?.msDoNotTrack) ||
+      isDntSignalEnabled((window as unknown as { doNotTrack?: unknown }).doNotTrack)
+    );
+  } catch {
+    // Vendor-prefixed property access threw (frozen/proxied navigator).
+    return false;
+  }
+}
+
+// ─── §9.4 Event deduplication ──────────────────────────────────────────────────
+
+/**
+ * The only two events §9.4 requires to be idempotent on `claim_id`:
+ * `Payment Created` (sender) and `Claim Succeeded` (recipient). Every other
+ * event is deliberately left un-deduplicated — a second `Page Viewed` in the
+ * same tick, or a recipient copying the claim link twice, are distinct real
+ * interactions that must all be counted.
+ *
+ * **The double-click case is not covered here.** The originating issue also
+ * asks about `Payment Confirmed` firing twice when a sender double-clicks
+ * "Confirm & Send". That event carries no `claim_id`: it fires *before* the
+ * ephemeral account exists, so there is nothing stable to key on, and a
+ * generic "same event twice within N ms" rule would silently swallow
+ * legitimate repeats (two `Page Viewed` events in one tick, a user
+ * retrying a copy). That guard belongs in the UI — `ConfirmStep` already
+ * disables its button via `submitting` — so this layer leaves
+ * `Payment Confirmed` un-deduplicated and the gap is recorded as a UI one.
+ */
+export const DEDUPLICATED_EVENTS = ['Payment Created', 'Claim Succeeded'] as const;
+
+export type DeduplicatedEvent = (typeof DEDUPLICATED_EVENTS)[number];
+
+/** Narrows an event name to the two §9.4 deduplication candidates. */
+function isDeduplicatedEvent(event: ClaimEvent): event is DeduplicatedEvent {
+  return (DEDUPLICATED_EVENTS as readonly ClaimEvent[]).includes(event);
+}
+
+/**
+ * Upper bound on retained dedup keys. The store is a per-tab in-memory Map
+ * in a long-lived SPA, so an unbounded Set would leak for the life of the
+ * tab. 200 keys is several orders of magnitude more than any realistic
+ * burst (a sender session creates a handful of claims) and costs a few tens
+ * of kilobytes in the worst case, so the cap should never be the thing that
+ * lets a duplicate through in practice.
+ */
+export const DEDUP_MAX_ENTRIES = 200;
+
+/**
+ * How long a `claim_id` counts as "already sent" for a §9.4 event. A
+ * duplicate always arrives within a render cycle or a network retry — both
+ * are seconds — so one hour is generous, while short enough that the Map
+ * reclaims its entries during normal use. The TTL is a safety valve against
+ * over-suppression (a genuinely distinct second `Claim Succeeded` for a
+ * partially-swept claim), not the primary mechanism.
+ */
+export const DEDUP_TTL_MS = 60 * 60 * 1000;
+
+/**
+ * Bounded, self-expiring key store. Expiry is evaluated lazily on access
+ * rather than on a timer, so an analytics helper never schedules background
+ * work in the page.
+ */
+export interface DeduplicationStore {
+  /** `true` when `key` was already recorded within the TTL window. */
+  isDuplicate(key: string, now?: number): boolean;
+  /** Keys currently retained. Exposed for diagnostics and tests. */
+  size(): number;
+}
+
+/**
+ * Creates a bounded LRU + TTL store for deduplicating analytics events.
+ *
+ * Eviction policy: entries expire after `ttlMs`; survivors beyond
+ * `maxEntries` are evicted least-recently-used (a hit refreshes recency).
+ * The Map is the bound — there is no persistent backing store.
+ */
+export function createDeduplicationStore(
+  maxEntries: number = DEDUP_MAX_ENTRIES,
+  ttlMs: number = DEDUP_TTL_MS,
+): DeduplicationStore {
+  const seen = new Map<string, number>();
+
+  function prune(now: number): void {
+    for (const [key, recordedAt] of seen) {
+      if (now - recordedAt >= ttlMs) seen.delete(key);
+    }
+  }
+
+  return {
+    isDuplicate(key, now = Date.now()) {
+      prune(now);
+      if (seen.has(key)) {
+        // Refresh recency so a hot claim is not evicted by the cap while
+        // older idle claims are.
+        seen.delete(key);
+        seen.set(key, now);
+        return true;
+      }
+      seen.set(key, now);
+      while (seen.size > maxEntries) {
+        const oldest = seen.keys().next();
+        if (oldest.done) break;
+        seen.delete(oldest.value);
+      }
+      return false;
+    },
+    size() {
+      return seen.size;
+    },
+  };
+}
+
+/**
+ * The single §9.4 store used by `track()`.
+ *
+ * **Honest limitations.** This reduces double-counting; it does not
+ * eliminate it. Being in-memory and per-tab, it cannot see a retry that
+ * arrives from a different process, in a second tab, or after a page
+ * reload — the real guarantee has to come from the pipeline deduplicating on
+ * the `message_id` / `claim_id` this module now attaches to every payload.
+ * The store is deliberately not persisted to `localStorage`:
+ * `claim_id` values identify a payment, and writing them durably would
+ * create cross-session state in a layer whose contract is "no PII".
+ */
+const claimEventDedupStore = createDeduplicationStore();
+
+/**
+ * `true` when this §9.4 event for this `claim_id` was already dispatched
+ * inside the TTL window and must therefore be dropped. Returns `false` for
+ * every other event, and for a §9.4 event with no usable `claim_id` — an
+ * event without a key is never deduped, because guessing would risk
+ * suppressing a distinct event.
+ */
+function isDuplicateClaimEvent(event: ClaimEvent, claimId: unknown): boolean {
+  if (!isDeduplicatedEvent(event)) return false;
+  if (typeof claimId !== 'string' || claimId === '') return false;
+  return claimEventDedupStore.isDuplicate(`${event}::${claimId}`);
+}
+
 // ─── track() ──────────────────────────────────────────────────────────────────
 
 /**
  * Core dispatch function. Merges the §3.1 identity fields (`anonymous_id`,
  * `session_id`) into every event payload so every downstream event carries
  * them without any per-call plumbing.
+ *
+ * This is the only place an event reaches the provider, so both opt-out
+ * (§9.5) and deduplication (§9.4) are enforced here rather than at call
+ * sites — no emitter can forget them.
  */
 function track(event: ClaimEvent, props?: EventProps): void {
   if (typeof window === 'undefined') return;
+
+  // #635 (§9.5) — first, before any payload is built. `getAnonymousId()`
+  // and `getSessionId()` below *persist* a UUID to localStorage/
+  // sessionStorage; minting one for a visitor who asked not to be tracked
+  // would itself be a privacy violation, so suppression has to happen
+  // before identifier generation, not just before the provider call.
+  if (isDoNotTrackEnabled()) return;
+
+  // #634 (§9.4) — second, so a suppressed duplicate also avoids burning a
+  // `message_id`.
+  if (isDuplicateClaimEvent(event, props?.claim_id)) return;
 
 // Base payload is merged in first so event-specific props can override.
   const payload: EventProps = {
@@ -170,6 +373,9 @@ function track(event: ClaimEvent, props?: EventProps): void {
     anonymous_id: getAnonymousId(),
     session_id: getSessionId(),
     ...props,
+    // §9.4: a per-event UUID for the analytics pipeline to deduplicate on.
+    // Applied after `...props` so no call site can override or blank it.
+    message_id: generateUUID(),
   };
 
   // Plausible custom event API

@@ -5,12 +5,17 @@ import {
   buildBasePayload,
   CLAIM_FAILED_ERROR_TYPES,
   conditional,
+  createDeduplicationStore,
   daysRemainingUntil,
+  DEDUP_MAX_ENTRIES,
+  DEDUP_TTL_MS,
+  DEDUPLICATED_EVENTS,
   detectDeviceType,
   ERROR_TYPES,
   ErrorType,
   getAnonymousId,
   getSessionId,
+  isDoNotTrackEnabled,
   type ClaimFailedErrorType,
   type ExplorerJourney,
   type ExplorerSourceScreen,
@@ -20,6 +25,18 @@ import {
 
 function plausibleMock() {
   return vi.fn();
+}
+
+/**
+ * Replaces the global navigator with a stub carrying the given Do Not Track
+ * properties. A real `userAgent` is always supplied so `buildBasePayload()`
+ * keeps degrading exactly as it does in a browser.
+ */
+function stubNavigatorWith(dntProperties: Record<string, unknown>): void {
+  vi.stubGlobal('navigator', {
+    userAgent: 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36',
+    ...dntProperties,
+  });
 }
 
 describe('appVersion', () => {
@@ -1170,5 +1187,370 @@ describe('analytics.retryClicked (§6)', () => {
       window as unknown as { plausible: ReturnType<typeof plausibleMock> }
     ).plausible.mock.calls.map((c) => c[1].props.attempt_number);
     expect(attempts).toEqual([1, 2, 3]);
+  });
+});
+
+describe('isDoNotTrackEnabled (§9.5)', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+    delete (window as unknown as { doNotTrack?: unknown }).doNotTrack;
+  });
+
+  it('returns true for the canonical navigator.doNotTrack = "1"', () => {
+    stubNavigatorWith({ doNotTrack: '1' });
+    expect(isDoNotTrackEnabled()).toBe(true);
+  });
+
+  it('returns true for a numeric navigator.doNotTrack = 1', () => {
+    stubNavigatorWith({ doNotTrack: 1 });
+    expect(isDoNotTrackEnabled()).toBe(true);
+  });
+
+  it('tolerates surrounding whitespace on the signal value', () => {
+    stubNavigatorWith({ doNotTrack: ' 1 ' });
+    expect(isDoNotTrackEnabled()).toBe(true);
+  });
+
+  it('returns true for the legacy IE navigator.msDoNotTrack = "1"', () => {
+    stubNavigatorWith({ msDoNotTrack: '1' });
+    expect(isDoNotTrackEnabled()).toBe(true);
+  });
+
+  it('returns true for a window-level doNotTrack = "1" set by an extension', () => {
+    stubNavigatorWith({});
+    (window as unknown as { doNotTrack?: unknown }).doNotTrack = '1';
+    expect(isDoNotTrackEnabled()).toBe(true);
+  });
+
+  it.each([
+    ['the string "0"', '0'],
+    ['the number 0', 0],
+    ['the string "unspecified"', 'unspecified'],
+    ['the string "yes"', 'yes'],
+    ['an empty string', ''],
+    ['null', null],
+    ['undefined', undefined],
+    ['a boolean', true],
+    ['an object', {}],
+  ] as [string, unknown][])(
+    'returns false for a value that is not an opt-in (%s)',
+    (_label, value) => {
+      stubNavigatorWith({ doNotTrack: value });
+      expect(isDoNotTrackEnabled()).toBe(false);
+    },
+  );
+
+  it('returns false when the navigator exposes no DNT property at all', () => {
+    stubNavigatorWith({});
+    expect(isDoNotTrackEnabled()).toBe(false);
+  });
+
+  it('returns false when the navigator object is missing entirely', () => {
+    vi.stubGlobal('navigator', undefined);
+    expect(isDoNotTrackEnabled()).toBe(false);
+  });
+
+  it('returns false instead of throwing when the property access is hostile', () => {
+    vi.stubGlobal('navigator', {
+      userAgent: 'Mozilla/5.0 (X11; Linux x86_64)',
+      get doNotTrack(): string {
+        throw new Error('blocked by a privacy extension');
+      },
+    });
+    expect(() => isDoNotTrackEnabled()).not.toThrow();
+    expect(isDoNotTrackEnabled()).toBe(false);
+  });
+
+  it('is SSR-safe: returns false when there is no window', () => {
+    vi.stubGlobal('window', undefined);
+    expect(() => isDoNotTrackEnabled()).not.toThrow();
+    expect(isDoNotTrackEnabled()).toBe(false);
+  });
+});
+
+describe('track() honours Do Not Track (§9.5)', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    sessionStorage.clear();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+    delete (window as unknown as { plausible?: unknown }).plausible;
+  });
+
+  it('suppresses the event entirely when the browser opts out', () => {
+    stubNavigatorWith({ doNotTrack: '1' });
+    const plausible = plausibleMock();
+    (window as unknown as { plausible?: ReturnType<typeof plausibleMock> }).plausible = plausible;
+
+    analytics.claimVerified({ claimId: 'dnt-001', verificationTimeMs: 12 });
+    analytics.claimSubmitted({ claimId: 'dnt-001', assetType: 'XLM' });
+    analytics.claimSucceeded({ claimId: 'dnt-001' });
+    analytics.paymentCreated({ claimId: 'dnt-001', confirmationTimeMs: 30 });
+
+    expect(plausible).not.toHaveBeenCalled();
+  });
+
+  it('delivers the event when the browser reports DNT: 0', () => {
+    stubNavigatorWith({ doNotTrack: '0' });
+    const plausible = plausibleMock();
+    (window as unknown as { plausible?: ReturnType<typeof plausibleMock> }).plausible = plausible;
+
+    analytics.claimVerified({ claimId: 'dnt-002', verificationTimeMs: 12 });
+
+    expect(plausible).toHaveBeenCalledTimes(1);
+    expect(plausible.mock.calls[0]![0]).toBe('Claim Verified');
+  });
+
+  it('delivers the event when the browser expresses no DNT preference', () => {
+    stubNavigatorWith({ doNotTrack: null });
+    const plausible = plausibleMock();
+    (window as unknown as { plausible?: ReturnType<typeof plausibleMock> }).plausible = plausible;
+
+    analytics.claimSubmitted({ claimId: 'dnt-003' });
+
+    expect(plausible).toHaveBeenCalledTimes(1);
+  });
+
+  it('mints and persists no identifier for an opted-out visitor', () => {
+    stubNavigatorWith({ doNotTrack: '1' });
+    const plausible = plausibleMock();
+    (window as unknown as { plausible?: ReturnType<typeof plausibleMock> }).plausible = plausible;
+
+    analytics.claimVerified({ claimId: 'dnt-004', verificationTimeMs: 12 });
+
+    expect(plausible).not.toHaveBeenCalled();
+    // The gate must run before getAnonymousId()/getSessionId(), which write to
+    // localStorage/sessionStorage as a side effect of being called.
+    expect(localStorage.getItem('bridgelet_anonymous_id')).toBeNull();
+    expect(sessionStorage.getItem('bridgelet_session_id')).toBeNull();
+  });
+
+  it('still mints identifiers when tracking is allowed', () => {
+    stubNavigatorWith({ doNotTrack: '0' });
+    (window as unknown as { plausible?: ReturnType<typeof plausibleMock> }).plausible =
+      plausibleMock();
+
+    analytics.claimVerified({ claimId: 'dnt-005', verificationTimeMs: 12 });
+
+    expect(localStorage.getItem('bridgelet_anonymous_id')).not.toBeNull();
+    expect(sessionStorage.getItem('bridgelet_session_id')).not.toBeNull();
+  });
+});
+
+describe('message_id payload field (§9.4)', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+    delete (window as unknown as { plausible?: unknown }).plausible;
+  });
+
+  const mockPlausible = () =>
+    ((window as unknown as { plausible?: ReturnType<typeof plausibleMock> }).plausible =
+      plausibleMock());
+
+  const messageIds = () =>
+    (window as unknown as { plausible: ReturnType<typeof plausibleMock> }).plausible.mock.calls.map(
+      (c) => c[1].props.message_id as string,
+    );
+
+  it('attaches a UUID v4 message_id to every emitted event', () => {
+    mockPlausible();
+    analytics.sendFormViewed();
+    analytics.claimSubmitted({ claimId: 'msg-001' });
+
+    for (const id of messageIds()) {
+      expect(id).toMatch(
+        /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+      );
+    }
+  });
+
+  it('mints a fresh message_id per event', () => {
+    mockPlausible();
+    analytics.sendFormViewed();
+    analytics.sendFormViewed();
+
+    const [first, second] = messageIds();
+    expect(first).not.toBe(second);
+  });
+
+  it('does not reuse the anonymous_id or session_id as the message_id', () => {
+    mockPlausible();
+    analytics.claimSubmitted({ claimId: 'msg-002' });
+
+    const props = (window as unknown as { plausible: ReturnType<typeof plausibleMock> }).plausible
+      .mock.calls[0]![1].props as {
+      message_id: string;
+      anonymous_id: string;
+      session_id: string;
+    };
+    expect(props.message_id).not.toBe(props.anonymous_id);
+    expect(props.message_id).not.toBe(props.session_id);
+  });
+});
+
+describe('event deduplication (§9.4)', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+    delete (window as unknown as { plausible?: unknown }).plausible;
+  });
+
+  const mockPlausible = () =>
+    ((window as unknown as { plausible?: ReturnType<typeof plausibleMock> }).plausible =
+      plausibleMock());
+
+  const dispatched = () =>
+    (window as unknown as { plausible: ReturnType<typeof plausibleMock> }).plausible;
+
+  it('deduplicates exactly the two events the spec names', () => {
+    expect(DEDUPLICATED_EVENTS).toEqual(['Payment Created', 'Claim Succeeded']);
+  });
+
+  it('suppresses a repeated Payment Created for the same claim_id', () => {
+    mockPlausible();
+    analytics.paymentCreated({ claimId: 'dedup-pc-1', confirmationTimeMs: 40 });
+    analytics.paymentCreated({ claimId: 'dedup-pc-1', confirmationTimeMs: 40 });
+
+    expect(dispatched()).toHaveBeenCalledTimes(1);
+  });
+
+  it('suppresses a repeated Claim Succeeded for the same claim_id', () => {
+    mockPlausible();
+    analytics.claimSucceeded({ claimId: 'dedup-cs-1', sweepDurationMs: 900 });
+    analytics.claimSucceeded({ claimId: 'dedup-cs-1', sweepDurationMs: 900 });
+
+    expect(dispatched()).toHaveBeenCalledTimes(1);
+  });
+
+  it('delivers both Payment Created events for distinct claim_ids', () => {
+    mockPlausible();
+    analytics.paymentCreated({ claimId: 'dedup-pc-a', confirmationTimeMs: 40 });
+    analytics.paymentCreated({ claimId: 'dedup-pc-b', confirmationTimeMs: 40 });
+
+    const calls = dispatched().mock.calls;
+    expect(calls).toHaveLength(2);
+    expect(calls.map((c) => c[1].props.claim_id)).toEqual(['dedup-pc-a', 'dedup-pc-b']);
+  });
+
+  it('delivers both Claim Succeeded events for distinct claim_ids', () => {
+    mockPlausible();
+    analytics.claimSucceeded({ claimId: 'dedup-cs-a' });
+    analytics.claimSucceeded({ claimId: 'dedup-cs-b' });
+
+    expect(dispatched()).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not collapse Payment Created and Claim Succeeded for the same claim_id', () => {
+    mockPlausible();
+    analytics.paymentCreated({ claimId: 'dedup-both-1', confirmationTimeMs: 40 });
+    analytics.claimSucceeded({ claimId: 'dedup-both-1' });
+
+    const calls = dispatched().mock.calls;
+    expect(calls).toHaveLength(2);
+    expect(calls.map((c) => c[0])).toEqual(['Payment Created', 'Claim Succeeded']);
+  });
+
+  it('leaves events outside §9.4 un-deduplicated', () => {
+    mockPlausible();
+    analytics.claimSubmitted({ claimId: 'dedup-other-1' });
+    analytics.claimSubmitted({ claimId: 'dedup-other-1' });
+    analytics.claimFailed({
+      claimId: 'dedup-other-1',
+      errorType: 'network_error',
+      attemptNumber: 1,
+    });
+    analytics.claimFailed({
+      claimId: 'dedup-other-1',
+      errorType: 'network_error',
+      attemptNumber: 2,
+    });
+    analytics.paymentConfirmed({ walletType: 'Freighter' });
+    analytics.paymentConfirmed({ walletType: 'Freighter' });
+
+    expect(dispatched()).toHaveBeenCalledTimes(6);
+  });
+
+  it('never dedups a §9.4 event that carries no usable claim_id', () => {
+    mockPlausible();
+    analytics.claimSucceeded({ claimId: '' });
+    analytics.claimSucceeded({ claimId: '' });
+    analytics.paymentCreated({ claimId: '', confirmationTimeMs: 10 });
+    analytics.paymentCreated({ claimId: '', confirmationTimeMs: 10 });
+
+    expect(dispatched()).toHaveBeenCalledTimes(4);
+  });
+
+  it('stays suppressed across consecutive duplicates', () => {
+    mockPlausible();
+    analytics.claimSucceeded({ claimId: 'dedup-repeat-1' });
+    analytics.claimSucceeded({ claimId: 'dedup-repeat-1' });
+    analytics.claimSucceeded({ claimId: 'dedup-repeat-1' });
+
+    expect(dispatched()).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('createDeduplicationStore (§9.4)', () => {
+  it('reports the first sighting of a key as new', () => {
+    const store = createDeduplicationStore(10, 1_000);
+    expect(store.isDuplicate('claim-1', 0)).toBe(false);
+    expect(store.size()).toBe(1);
+  });
+
+  it('reports a repeat sighting of a key as a duplicate', () => {
+    const store = createDeduplicationStore(10, 1_000);
+    store.isDuplicate('claim-1', 0);
+    expect(store.isDuplicate('claim-1', 500)).toBe(true);
+    expect(store.size()).toBe(1);
+  });
+
+  it('keeps a key alive for the whole TTL window and expires it afterwards', () => {
+    const store = createDeduplicationStore(10, 1_000);
+    store.isDuplicate('claim-1', 0);
+
+    expect(store.isDuplicate('claim-1', 999)).toBe(true);
+    expect(store.isDuplicate('claim-1', 1_000)).toBe(false);
+  });
+
+  it('never grows past maxEntries, evicting the least recently used key', () => {
+    const store = createDeduplicationStore(2, 10_000);
+    store.isDuplicate('a', 0);
+    store.isDuplicate('b', 1);
+    expect(store.size()).toBe(2);
+
+    // Touching 'a' makes 'b' the least recently used entry.
+    expect(store.isDuplicate('a', 2)).toBe(true);
+    store.isDuplicate('c', 3);
+
+    expect(store.size()).toBe(2);
+    // 'b' was the least recently used, so 'b' is what got evicted.
+    expect(store.isDuplicate('b', 4)).toBe(false);
+    // 'c' survived the cap and is still deduplicated.
+    expect(store.isDuplicate('c', 4)).toBe(true);
+  });
+
+  it('prunes expired entries as it goes, without a background timer', () => {
+    const store = createDeduplicationStore(10, 1_000);
+    store.isDuplicate('a', 0);
+    store.isDuplicate('b', 5_000);
+    expect(store.size()).toBe(1);
+  });
+
+  it('stays bounded under a flood of distinct keys', () => {
+    const store = createDeduplicationStore();
+    for (let i = 0; i < DEDUP_MAX_ENTRIES * 3; i++) {
+      store.isDuplicate(`claim-${i}`, i);
+    }
+    expect(store.size()).toBe(DEDUP_MAX_ENTRIES);
+  });
+
+  it('exposes the documented bound and TTL defaults', () => {
+    expect(DEDUP_MAX_ENTRIES).toBe(200);
+    expect(DEDUP_TTL_MS).toBe(60 * 60 * 1000);
   });
 });
