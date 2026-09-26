@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { connectFreighter } from '@/lib/wallet';
 import { ChainSelector } from '@/components/chain-selector';
+import { analytics } from '@/lib/analytics';
 
 type ConnectStepProps = {
   publicKey: string;
@@ -23,6 +24,13 @@ export function ConnectStep({ publicKey, onConnected }: ConnectStepProps) {
     } catch (err) {
       setStatus('error');
       setError(err instanceof Error ? err.message : 'Failed to connect wallet.');
+      // Sender's wallet refused connection (§6 `wallet_connection_failed`).
+      analytics.errorDisplayed({
+        journey: 'sender',
+        errorType: 'wallet_connection_failed',
+        errorCode: err instanceof Error ? 'CONNECTION_DENIED' : 'unknown',
+        sourceScreen: 'send_form_connect',
+      });
     }
   }
 
