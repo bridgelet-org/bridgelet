@@ -101,7 +101,7 @@ Every event includes a **base payload** of common properties. Event-specific pro
   // Context
   "journey": "sender | recipient | shared",
   "timestamp": "ISO 8601 string",   // e.g. "2026-03-15T10:23:45.123Z"
-  "platform": "web",
+  "platform": "web | ios | android",
   "network": "testnet | mainnet",
 
   // Device & Environment
@@ -115,6 +115,8 @@ Every event includes a **base payload** of common properties. Event-specific pro
 ```
 
 > **Privacy note:** No PII (name, email, phone) should ever appear in an analytics payload. Wallet addresses are pseudonymous — include them only where explicitly specified below. Recipient wallet addresses must never be logged in sender-journey events.
+
+> **Native clients:** web and mobile share the same event naming conventions and payload shape. The only schema difference is the `platform` field: native app events must set `platform` to `"ios"` or `"android"`, while web analytics remains `"web"`.
 
 ### 3.2 Conditional Properties
 

@@ -121,4 +121,46 @@ test.describe('Send → Claim → Sweep (happy path)', () => {
       page.getByRole('heading', { name: 'Payment already claimed' }),
     ).toBeVisible({ timeout: 10_000 });
   });
+
+  test('fires the expected funnel analytics events during send and claim', async ({
+    sendPage,
+    page,
+  }) => {
+    await page.addInitScript(() => {
+      (window as unknown as { __analyticsCalls?: string[] }).__analyticsCalls = [];
+      (window as unknown as { plausible?: (...args: unknown[]) => void }).plausible = (...args) => {
+        const calls = (window as unknown as { __analyticsCalls?: string[] }).__analyticsCalls;
+        if (calls) {
+          calls.push(String(args[0]));
+        }
+      };
+    });
+
+    await sendPage.goto();
+    await sendPage.connectWallet();
+    await sendPage.fillDetails({ email: 'analytics@e2e-test.bridgelet.app', amount: '12' });
+    await sendPage.confirmAndSend();
+    await sendPage.waitForSuccess();
+
+    await expect.poll(async () => {
+      return (await page.evaluate(() => {
+        return (window as unknown as { __analyticsCalls?: string[] }).__analyticsCalls ?? [];
+      }));
+    }).toEqual(expect.arrayContaining(['Payment Confirmed', 'Payment Created']));
+
+    const token = 'e2e-mock-claim-token-abc123';
+    await page.goto(`/claim/${token}`);
+    await expect(
+      page.getByRole('heading', { name: /claim your payment/i }),
+    ).toBeVisible({ timeout: 10_000 });
+
+    await page.getByLabel(/your stellar wallet address/i).fill(DESTINATION_ADDRESS);
+    await press(page, page.getByRole('button', { name: /claim now/i }));
+
+    await expect.poll(async () => {
+      return (await page.evaluate(() => {
+        return (window as unknown as { __analyticsCalls?: string[] }).__analyticsCalls ?? [];
+      }));
+    }).toEqual(expect.arrayContaining(['Claim Page Opened', 'Claim Succeeded']));
+  });
 });
