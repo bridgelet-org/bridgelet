@@ -20,6 +20,7 @@
 7. [Conversion Funnel Definitions](#7-conversion-funnel-definitions)
 8. [Business Metrics & KPI Definitions](#8-business-metrics--kpi-definitions)
 9. [Implementation Notes](#9-implementation-notes)
+   - [9.6 Event Sampling Policy](#96-event-sampling-policy)
 
 ---
 
@@ -179,6 +180,8 @@ Fired on the sender's first interaction with any field in the Create Claim form.
 #### `Send Form Field Changed`
 
 Fired when the sender changes a field value and moves focus away (blur). Not fired on every keystroke.
+
+> **Implementation guidance:** Attach to the field's `blur` event, not `input` or `change`. If a reactive framework re-fires `change` on every render, guard with a ref that tracks the last-emitted value and skip emission when the value hasn't changed. For the `amount` field specifically, also apply a 300 ms debounce on top of blur (some frameworks emit blur on every programmatic value update). Do **not** use a polling interval or `input`-event approach — both will generate one event per keystroke and are the exact pattern this spec is designed to avoid.
 
 | Property | Type | Value / Description |
 |----------|------|---------------------|
@@ -926,6 +929,37 @@ Where server-side events are used, they should be enriched with client context (
 ### 9.5 Do Not Track
 
 Respect browser-level `DNT` headers. If `DNT: 1`, suppress all analytics events. This is especially important for the recipient flow, where the user may not have any prior relationship with Bridgelet.
+
+### 9.6 Event Sampling Policy
+
+Not all events carry the same business weight. Under high load, some events may be sampled down to reduce pipeline costs — but events that feed a KPI numerator or denominator must never be sampled because losing even a small fraction of them silently corrupts the metrics that drive product decisions.
+
+**Never sample — capture at 100%:**
+
+| Event | Why |
+|-------|-----|
+| `Payment Created` | Denominator for Expiry Rate, Sender Activation Rate, and Asset Distribution; also the anchor timestamp for Time to Claim |
+| `Claim Succeeded` | Primary conversion event; numerator for CCR, TTC, Viral K-Factor, and the end-to-end funnel |
+| `Claim Failed` | Numerator for Claim Failure Rate; losing failures understates error rates |
+| `Claim Verified` | Denominator for CCR — sampling this inflates the conversion rate |
+| `Funds Reclaimed` | Numerator for Reclaim Rate |
+| `Payment Cancelled` | Affects payment lifecycle counts used in Expiry Rate calculations |
+
+These events are the accounting record of what actually happened. Treat them like financial transactions: every occurrence must be recorded.
+
+**Candidates for sampling under sustained high load:**
+
+| Event | Suggested approach |
+|-------|--------------------|
+| `Page Viewed` | Sample to 10–25%; Sender Activation Rate uses unique `anonymous_id` counts so cardinality estimates are acceptable at reduced volume |
+| `Send Form Field Changed` | High-frequency UI event; 10–20% sample is sufficient for UX diagnostics |
+| `Dashboard Viewed` / `Dashboard Filter Applied` | Engagement signals, not KPI inputs; 50% sample is fine |
+| `Explorer Link Clicked` | Informational only; sample freely |
+| `Error Displayed` | Sample at 50% for low-severity `error_type` values (e.g. `invalid_wallet_address`); keep 100% for `transaction_failed` and `network_unavailable` since those feed operational monitoring |
+
+When sampling, attach a `sample_rate` property to the event payload so downstream queries can weight counts correctly. For example, a `Page Viewed` event captured at 10% should carry `"sample_rate": 0.1`, and the Sender Activation Rate query should divide raw counts by `sample_rate` before computing ratios.
+
+If your analytics platform (e.g. Segment, PostHog) supports server-side sampling rules, apply them there rather than in the frontend to avoid silent gaps from browser crashes or network loss before the client-side sample decision is made.
 
 ---
 
