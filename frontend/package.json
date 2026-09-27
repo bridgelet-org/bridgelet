@@ -6,7 +6,12 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "lint": "eslint .",
     "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:a11y:ci": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "test:e2e": "playwright test --config ../e2e/playwright.config.ts",
     "generate:types": "node scripts/generate-types.mjs",
     "lhci": "lhci autorun"
   },

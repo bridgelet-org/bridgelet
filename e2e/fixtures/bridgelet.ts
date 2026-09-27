@@ -310,6 +310,41 @@ export class ClaimFlowPage {
   }
 }
 
+// ── Analytics spy ────────────────────────────────────────────────────────────
+
+/**
+ * Installs a `window.plausible` stub that records every analytics call into
+ * `window.__analyticsEvents` before the page loads. This lets e2e tests
+ * assert which events fired — and that none were silently dropped — without
+ * relying on a live Plausible instance.
+ *
+ * Must be called before `page.goto()` so the stub is in place when the
+ * Plausible script tag would normally mount.
+ */
+export async function addAnalyticsSpy(page: Page): Promise<void> {
+  await page.addInitScript(() => {
+    (window as unknown as Record<string, unknown>).__analyticsEvents = [];
+    (window as unknown as Record<string, unknown>).plausible = (
+      event: string,
+      opts: { props?: Record<string, unknown> },
+    ) => {
+      (window as unknown as { __analyticsEvents: Array<{ event: string; props: Record<string, unknown> }> }).__analyticsEvents.push({
+        event,
+        props: opts?.props ?? {},
+      });
+    };
+  });
+}
+
+/** Returns all events captured by the analytics spy. */
+export async function getAnalyticsEvents(
+  page: Page,
+): Promise<Array<{ event: string; props: Record<string, unknown> }>> {
+  return page.evaluate(() => {
+    return (window as unknown as { __analyticsEvents: Array<{ event: string; props: Record<string, unknown> }> }).__analyticsEvents ?? [];
+  });
+}
+
 // ── Extended test fixtures ────────────────────────────────────────────────────
 
 type BridgeletFixtures = {

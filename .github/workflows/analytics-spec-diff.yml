@@ -34,7 +34,7 @@ jobs:
             >> /tmp/code_events.txt
 
           # Mobile event names are the `name:` discriminator values.
-          awk '/export type AnalyticsEvent =/{flag=1} flag{print} flag && /^};/{exit}' mobile/app/src/analytics/analytics.ts \
+          awk '/export type AnalyticsEvent =/{flag=1} flag{print} flag && /};$/{exit}' mobile/app/src/analytics/analytics.ts \
             | grep -oE 'name: *"[A-Za-z0-9 ]+"' \
             | sed -E 's/name: *"([A-Za-z0-9 ]+)"/\1/' \
             >> /tmp/code_events.txt
