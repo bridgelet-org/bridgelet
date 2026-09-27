@@ -36,6 +36,7 @@ const createMockTxHash = (seed: string): string => {
 export default function ClaimTokenEntryScreen() {
   const router = useRouter();
   const colors = useThemeColors();
+  useScreenTracking('claim-token-entry');
   const [tokenInput, setTokenInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);

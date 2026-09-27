@@ -11,6 +11,7 @@ import {
 import { useRouter } from 'expo-router';
 import { secureStorage } from '../src/utils/storage';
 import { useThemeColors } from '../src/hooks/useThemeColors';
+import { useScreenTracking } from '../src/hooks/useScreenTracking';
 
 const { width } = Dimensions.get('window');
 
@@ -34,6 +35,7 @@ export default function OnboardingScreen() {
   const flatListRef = React.useRef<FlatList>(null);
   const router = useRouter();
   const colors = useThemeColors();
+  useScreenTracking('onboarding');
 
   const handleSkip = async () => {
     await secureStorage.setItem('has_onboarded', 'true');

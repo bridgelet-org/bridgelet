@@ -20,9 +20,11 @@ import {
 } from "../src/security/auth";
 import type { BiometricDeviceSupport } from "../src/security/auth";
 import { useThemeColors } from "../src/hooks/useThemeColors";
+import { useScreenTracking } from "../src/hooks/useScreenTracking";
 
 export default function SecuritySetupScreen() {
   const colors = useThemeColors();
+  useScreenTracking('security-setup');
   const [isLoading, setIsLoading] = useState(true);
   const [isBusy, setIsBusy] = useState(false);
   const [refreshing, setRefreshing] = useState(false);

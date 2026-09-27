@@ -3,6 +3,8 @@ import { SafeAreaView, StyleSheet } from 'react-native';
 import { SenderFlow } from '../src/sender/SenderFlow';
 
 export default function CreateTransferScreen() {
+  useScreenTracking('send-create');
+
   return (
     <SafeAreaView style={styles.container}>
       <SenderFlow />

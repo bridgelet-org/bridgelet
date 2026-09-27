@@ -3,6 +3,13 @@ import { track } from "../analytics/analytics";
 
 export function useScreenTracking(screen: string) {
   useEffect(() => {
-    track({ name: "screen_view", params: { screen } });
+    track({
+      name: "Page Viewed",
+      params: {
+        page: screen,
+        journey: "shared",
+        entry_source: "mobile",
+      },
+    });
   }, [screen]);
 }
