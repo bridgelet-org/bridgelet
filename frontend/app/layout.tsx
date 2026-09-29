@@ -41,7 +41,7 @@ export default function RootLayout({ children }: RootLayoutProps) {
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
-      <body>
+      <body className="antialiased">
         <ThemeProvider>
           {children}
           {isDev && <DevToolbar />}
