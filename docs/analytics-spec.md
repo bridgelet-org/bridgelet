@@ -52,6 +52,8 @@ Events use the **`Noun Verb`** pattern in **Title Case**, where:
 - **Noun** = the object being acted on (e.g., `Payment`, `Claim`, `Wallet`)
 - **Verb** = past tense of the action (e.g., `Created`, `Opened`, `Failed`)
 
+These exact Title Case strings are the event names sent to analytics providers; they are not display labels translated to a separate wire format.
+
 ```
 <Noun> <Past-Tense Verb>
 ```

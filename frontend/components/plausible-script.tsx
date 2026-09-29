@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
+import { initializePlausibleQueue } from '@/lib/analytics';
 
 /**
  * Loads the Plausible analytics script (§9.1) so `track()` in
@@ -23,7 +24,15 @@ export function PlausibleScript() {
     if (!domain) return; // Not configured — analytics stays console-only.
 
     const w = window as unknown as { plausible?: unknown };
-    if (w.plausible) return; // Already loaded (e.g. React strict-mode remount).
+    if (typeof w.plausible === 'function' && !(w.plausible as { q?: unknown }).q) return;
+
+    initializePlausibleQueue();
+    const alreadyLoading = Array.from(
+      document.querySelectorAll<HTMLScriptElement>('script[data-domain]'),
+    ).some(
+      (existingScript) => existingScript.dataset.domain === domain,
+    );
+    if (alreadyLoading) return;
 
     const apiHost = process.env.NEXT_PUBLIC_PLAUSIBLE_API_HOST ?? 'https://plausible.io';
     const script = document.createElement('script');

@@ -15,6 +15,7 @@ import {
   ErrorType,
   getAnonymousId,
   getSessionId,
+  initializePlausibleQueue,
   isDoNotTrackEnabled,
   type ClaimFailedErrorType,
   type ExplorerJourney,
@@ -266,7 +267,9 @@ describe('track base payload merge', () => {
   afterEach(() => {
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
     delete (window as unknown as { plausible?: unknown }).plausible;
+    delete (window as unknown as { __bridgeletAnalytics?: unknown }).__bridgeletAnalytics;
   });
 
   it('attaches the base payload to every tracking call', () => {
@@ -296,12 +299,70 @@ describe('track base payload merge', () => {
       expect(call[1]).toEqual({
         props: expect.objectContaining({
           app_version: expect.any(String),
+          timestamp: expect.any(String),
+          network: expect.stringMatching(/^(testnet|mainnet)$/),
           user_agent: expect.any(String),
           device_type: expect.stringMatching(/^(mobile|tablet|desktop)$/),
         }),
       });
       expect('referrer' in call[1].props).toBe(true);
     }
+  });
+
+  it('queues early events and transfers them to Plausible when initialized', () => {
+    vi.stubEnv('NEXT_PUBLIC_PLAUSIBLE_DOMAIN', 'bridgelet.example');
+    const target = window as unknown as { plausible?: { q?: unknown[] } };
+    delete target.plausible;
+
+    analytics.claimPageViewed({ claimId: 'tok_early', entryChannel: 'direct' });
+    initializePlausibleQueue();
+
+    const queuedStub = Reflect.get(window, 'plausible') as { q?: unknown[] } | undefined;
+    expect(queuedStub?.q).toHaveLength(1);
+    expect(queuedStub?.q?.[0]).toEqual([
+      'Claim Page Opened',
+      { props: expect.objectContaining({ claim_id: 'tok_early' }) },
+    ]);
+  });
+
+  it('records payload validation results in local verification mode', () => {
+    vi.stubEnv('NEXT_PUBLIC_ANALYTICS_VERIFY', 'true');
+    (window as unknown as { plausible?: ReturnType<typeof plausibleMock> }).plausible =
+      plausibleMock();
+
+    analytics.claimPageViewed({ claimId: 'tok_verify', entryChannel: 'direct' });
+
+    const records = (window as unknown as {
+      __bridgeletAnalytics?: { events: { event: string; valid: boolean; errors: string[] }[] };
+    }).__bridgeletAnalytics?.events;
+    expect(records?.at(-1)).toEqual(
+      expect.objectContaining({ event: 'Claim Page Opened', valid: true, errors: [] }),
+    );
+  });
+
+  it('blocks events whose shared payload violates the spec contract', () => {
+    vi.stubEnv('NEXT_PUBLIC_ANALYTICS_VERIFY', 'true');
+    const provider = plausibleMock();
+    (window as unknown as { plausible?: ReturnType<typeof plausibleMock> }).plausible = provider;
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    analytics.errorDisplayed({
+      journey: 'invalid',
+      errorType: 'unknown',
+      sourceScreen: 'claim_landing',
+    } as unknown as Parameters<typeof analytics.errorDisplayed>[0]);
+
+    const records = (window as unknown as {
+      __bridgeletAnalytics?: { events: { valid: boolean; errors: string[] }[] };
+    }).__bridgeletAnalytics?.events;
+    expect(provider).not.toHaveBeenCalled();
+    expect(records?.at(-1)).toEqual(
+      expect.objectContaining({
+        event: 'Error Displayed',
+        valid: false,
+        errors: ['journey must be sender, recipient, or shared'],
+      }),
+    );
   });
 
   it('merges event-specific props next to the base payload', () => {

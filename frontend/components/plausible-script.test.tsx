@@ -41,6 +41,16 @@ describe('PlausibleScript', () => {
     expect(script.defer).toBe(true);
   });
 
+  it('does not inject a duplicate script when mounted again', async () => {
+    vi.stubEnv('NEXT_PUBLIC_PLAUSIBLE_DOMAIN', 'bridgelet.example');
+
+    render(<PlausibleScript />);
+    await vi.waitFor(() => expect(scriptTags()).toHaveLength(1));
+    render(<PlausibleScript />);
+
+    expect(scriptTags()).toHaveLength(1);
+  });
+
   it('defaults the api host to plausible.io', async () => {
     vi.stubEnv('NEXT_PUBLIC_PLAUSIBLE_DOMAIN', 'bridgelet.example');
     delete process.env.NEXT_PUBLIC_PLAUSIBLE_API_HOST;

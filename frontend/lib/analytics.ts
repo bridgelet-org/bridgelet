@@ -1,42 +1,154 @@
-// #118 – Privacy-respecting analytics events (Plausible-compatible, no PII)
-// Event names must match `docs/analytics-spec.md` `#### \`Event Name\`` headings exactly.
-type ClaimEvent =
-  | 'Page Viewed'
-  | 'Send Form Viewed'
-  | 'Send Form Started'
-  | 'Send Form Field Changed'
-  | 'Send Form Completed'
-  | 'Payment Confirmation Viewed'
-  | 'Wallet Connected'
-  | 'Wallet Connection Failed'
-  | 'Payment Confirmed'
-  | 'Payment Created'
-  | 'Payment Creation Failed'
-  | 'Payment Success Viewed'
-  | 'Claim Link Copied'
-  | 'Claim Link Shared'
-  | 'Dashboard Viewed'
-  | 'Dashboard Filter Applied'
-  | 'Payment Details Viewed'
-  | 'Payment Cancelled'
-  | 'Funds Reclaimed'
-  | 'Claim Page Opened'
-  | 'Claim Verified'
-  | 'Claim CTA Clicked'
-  | 'Wallet Address Screen Viewed'
-  | 'Wallet Address Entered'
-  | 'Wallet Address Validation Failed'
-  | 'Claim Confirmation Viewed'
-  | 'Claim Submitted'
-  | 'Claim Succeeded'
-  | 'Claim Failed'
-  | 'Claim Success Viewed'
-  | 'Sender Signup CTA Clicked'
-  | 'Explorer Link Clicked'
-  | 'Error Displayed'
-  | 'Retry Clicked';
+// #118 – Privacy-respecting analytics events (Plausible-compatible, no PII).
+// Names match the exact `docs/analytics-spec.md` headings and provider values.
+const CLAIM_EVENTS = [
+  'Page Viewed',
+  'Send Form Viewed',
+  'Send Form Started',
+  'Send Form Field Changed',
+  'Send Form Completed',
+  'Payment Confirmation Viewed',
+  'Wallet Connected',
+  'Wallet Connection Failed',
+  'Payment Confirmed',
+  'Payment Created',
+  'Payment Creation Failed',
+  'Payment Success Viewed',
+  'Claim Link Copied',
+  'Claim Link Shared',
+  'Dashboard Viewed',
+  'Dashboard Filter Applied',
+  'Payment Details Viewed',
+  'Payment Cancelled',
+  'Funds Reclaimed',
+  'Claim Page Opened',
+  'Claim Verified',
+  'Claim CTA Clicked',
+  'Wallet Address Screen Viewed',
+  'Wallet Address Entered',
+  'Wallet Address Validation Failed',
+  'Claim Confirmation Viewed',
+  'Claim Submitted',
+  'Claim Succeeded',
+  'Claim Failed',
+  'Claim Success Viewed',
+  'Sender Signup CTA Clicked',
+  'Explorer Link Clicked',
+  'Error Displayed',
+  'Retry Clicked',
+] as const;
+
+type ClaimEvent = (typeof CLAIM_EVENTS)[number];
 
 type EventProps = Record<string, string | number | boolean | null>;
+
+type PlausibleCall = [event: string, options: { props: EventProps }];
+type PlausibleQueue = ((event: string, options: { props: EventProps }) => void) & {
+  q?: PlausibleCall[];
+};
+
+const MAX_PENDING_ANALYTICS_EVENTS = 100;
+const pendingPlausibleEvents: PlausibleCall[] = [];
+
+export type AnalyticsVerificationRecord = {
+  event: string;
+  props: EventProps;
+  valid: boolean;
+  errors: string[];
+};
+
+type AnalyticsVerificationWindow = Window & {
+  __bridgeletAnalytics?: { events: AnalyticsVerificationRecord[] };
+};
+
+function validateEventPayload(event: ClaimEvent, payload: EventProps): string[] {
+  const errors: string[] = [];
+  const requiredStrings = [
+    'anonymous_id',
+    'session_id',
+    'journey',
+    'timestamp',
+    'platform',
+    'network',
+    'user_agent',
+    'app_version',
+  ];
+
+  for (const key of requiredStrings) {
+    if (typeof payload[key] !== 'string' || payload[key] === '') {
+      errors.push(`${key} must be a non-empty string`);
+    }
+  }
+  if (!['sender', 'recipient', 'shared'].includes(String(payload.journey))) {
+    errors.push('journey must be sender, recipient, or shared');
+  }
+  if (payload.platform !== 'web') errors.push('platform must be web');
+  if (!['testnet', 'mainnet'].includes(String(payload.network))) {
+    errors.push('network must be testnet or mainnet');
+  }
+  if (!['mobile', 'tablet', 'desktop'].includes(String(payload.device_type))) {
+    errors.push('device_type must be mobile, tablet, or desktop');
+  }
+  if (payload.referrer !== null && typeof payload.referrer !== 'string') {
+    errors.push('referrer must be a string or null');
+  }
+  if (typeof payload.timestamp === 'string' && Number.isNaN(Date.parse(payload.timestamp))) {
+    errors.push('timestamp must be an ISO 8601 date string');
+  }
+  if (!(CLAIM_EVENTS as readonly string[]).includes(event)) {
+    errors.push('event name must match an analytics-spec event');
+  }
+  for (const [key, value] of Object.entries(payload)) {
+    if (!/^[a-z][a-z0-9_]*$/.test(key)) {
+      errors.push(`${key} must use snake_case`);
+    }
+    if (
+      value !== null &&
+      typeof value !== 'string' &&
+      typeof value !== 'number' &&
+      typeof value !== 'boolean'
+    ) {
+      errors.push(`${key} must be a string, number, boolean, or null`);
+    }
+    if (typeof value === 'number' && !Number.isFinite(value)) {
+      errors.push(`${key} must be a finite number`);
+    }
+  }
+  return errors;
+}
+
+/** Installs Plausible's documented queue stub and transfers early events. */
+export function initializePlausibleQueue(): void {
+  if (typeof window === 'undefined') return;
+  const target = window as AnalyticsVerificationWindow & { plausible?: PlausibleQueue };
+
+  if (typeof target.plausible === 'function') {
+    for (const [event, options] of pendingPlausibleEvents.splice(0)) {
+      target.plausible(event, options);
+    }
+    return;
+  }
+
+  const queuedCalls = pendingPlausibleEvents.splice(0);
+  const plausible = ((event: string, options: { props: EventProps }) => {
+    plausible.q?.push([event, options]);
+  }) as PlausibleQueue;
+  plausible.q = queuedCalls;
+  target.plausible = plausible;
+}
+
+function recordVerification(event: ClaimEvent, payload: EventProps): boolean {
+  if (process.env.NODE_ENV === 'production' || process.env.NEXT_PUBLIC_ANALYTICS_VERIFY !== 'true') {
+    return true;
+  }
+
+  const errors = validateEventPayload(event, payload);
+  const target = window as AnalyticsVerificationWindow;
+  const sink = (target.__bridgeletAnalytics ??= { events: [] });
+  sink.events.push({ event, props: payload, valid: errors.length === 0, errors });
+  if (sink.events.length > 500) sink.events.shift();
+  if (errors.length > 0) console.error('[analytics:verify]', event, errors);
+  return errors.length === 0;
+}
 
 export type DeviceType = 'mobile' | 'tablet' | 'desktop';
 
@@ -66,14 +178,17 @@ export function detectDeviceType(userAgent?: string): DeviceType {
 
 /**
  * Base payload fields (`docs/analytics-spec.md` §3.1) shared by every
- * event: `app_version`, `user_agent`, `device_type`, `referrer`, and the
- * fixed frontend `platform` value "web". Each field degrades gracefully
- * when the browser API it depends on is unavailable (SSR, unit tests
- * without a DOM).
+ * event: identity fields, `timestamp`, `network`, `app_version`,
+ * `user_agent`, `device_type`, `referrer`, and the fixed frontend
+ * `platform` value "web". Browser-dependent fields degrade gracefully
+ * when their APIs are unavailable (SSR, unit tests without a DOM).
  */
 export function buildBasePayload(): EventProps {
+  const configuredNetwork = process.env.NEXT_PUBLIC_CRYPTO_NETWORK ?? 'stellar-testnet';
   return {
     app_version: appVersion(),
+    timestamp: new Date().toISOString(),
+    network: configuredNetwork.includes('mainnet') ? 'mainnet' : 'testnet',
     user_agent: typeof navigator !== 'undefined' ? navigator.userAgent : '',
     device_type: detectDeviceType(),
     referrer: typeof document !== 'undefined' && document.referrer ? document.referrer : null,
@@ -393,6 +508,8 @@ function track(event: ClaimEvent, props?: EventProps): void {
     message_id: generateUUID(),
   };
 
+  if (!recordVerification(event, payload)) return;
+
   // Plausible custom event API
   const plausible = (window as unknown as { plausible?: Function }).plausible;
   if (typeof plausible === 'function') {
@@ -404,6 +521,14 @@ function track(event: ClaimEvent, props?: EventProps): void {
   const posthog = (window as unknown as { posthog?: { capture?: Function } }).posthog;
   if (typeof posthog?.capture === 'function') {
     posthog.capture(event, payload);
+    return;
+  }
+
+  if (process.env.NEXT_PUBLIC_PLAUSIBLE_DOMAIN) {
+    pendingPlausibleEvents.push([event, { props: payload }]);
+    if (pendingPlausibleEvents.length > MAX_PENDING_ANALYTICS_EVENTS) {
+      pendingPlausibleEvents.shift();
+    }
     return;
   }
 
