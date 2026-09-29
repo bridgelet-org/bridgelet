@@ -1,3 +1,9 @@
+import {
+  JOURNEY,
+  buildBasePayload as buildSharedBasePayload,
+  type Journey,
+} from '@bridgelet/analytics';
+
 // #118 – Privacy-respecting analytics events (Plausible-compatible, no PII)
 // Event names must match `docs/analytics-spec.md` `#### \`Event Name\`` headings exactly.
 type ClaimEvent =

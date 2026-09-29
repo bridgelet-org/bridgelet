@@ -1,4 +1,9 @@
 import Constants from "expo-constants";
+import {
+  JOURNEY,
+  buildBasePayload as buildSharedBasePayload,
+  type Journey,
+} from "@bridgelet/analytics";
 
 const IS_DEV = Constants.appOwnership === "expo" || __DEV__;
 
