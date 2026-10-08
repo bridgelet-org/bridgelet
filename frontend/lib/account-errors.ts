@@ -127,9 +127,9 @@ function mapApiCodeToCreationInfo(
   if (statusCode === 401) {
     return {
       code: AccountCreationErrorCode.UNAUTHORIZED,
-      userMessage: 'Please reconnect your wallet.',
+      userMessage: 'The server could not authenticate with the Bridgelet API.',
       retryable: false,
-      suggestion: 'Reconnect your wallet to continue.',
+      suggestion: 'Check BRIDGELET_SDK_TOKEN in .env.local and JWT_SECRET on the SDK, then restart both.',
     };
   }
 
