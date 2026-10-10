@@ -6,7 +6,7 @@ import { AccountStatus } from '@/lib/api/types';
 import { BridgeletClient } from '@/lib/api/client';
 import { ClaimView, loadClaimView, markTokenClaimed } from '@/lib/claim-view';
 import { submitClaimWithRetry, pollClaimStatus } from '@/lib/claim-retry';
-import { ClaimError } from '@/lib/claim-errors';
+import { ClaimError, claimErrorCodeFromApiCode, getClaimErrorMessage } from '@/lib/claim-errors';
 import { analytics, daysRemainingUntil, type ClaimEntryChannel } from '@/lib/analytics';
 
 interface ClaimPageClientProps {
@@ -175,9 +175,9 @@ export function ClaimPageClient({ token, supportEmail, initialView }: ClaimPageC
 
       try {
         const result = await submitClaimWithRetry(client, token, destinationAddress, {
-          maxAttempts: 3,
-          baseDelayMs: 1000,
-          maxDelayMs: 15_000,
+          // A failing claim makes exactly one request; the explicit "Try again"
+          // button is the only thing that re-submits.
+          maxAttempts: 1,
           pollTimeoutMs: 30_000,
           pollIntervalMs: 2_000,
         });
@@ -257,11 +257,18 @@ export function ClaimPageClient({ token, supportEmail, initialView }: ClaimPageC
           case "terminal": {
             // Explicit rejection -- do not retry.
             const apiErr = result.outcome.error;
+            // Map the backend's machine-readable code to a specific message
+            // (e.g. DESTINATION_NOT_FUNDED, SWEEP_CONTRACT_FAILED) so the user
+            // is told exactly what is wrong instead of a generic failure.
+            const mappedCode = claimErrorCodeFromApiCode(apiErr?.code);
+            const userMessage = mappedCode
+              ? getClaimErrorMessage(mappedCode)
+              : apiErr?.message ?? getClaimErrorMessage('SUBMISSION_FAILED_FINAL');
             // §5.3 Claim Failed — transaction_failed, terminal rejection path.
             analytics.claimFailed({
               claimId: token,
               assetType: view?.assetCode,
-              errorCode: apiErr?.message ?? 'unknown',
+              errorCode: apiErr?.code ?? apiErr?.message ?? 'unknown',
               errorType: 'transaction_failed',
               attemptNumber: currentAttempt,
             });
@@ -269,12 +276,14 @@ export function ClaimPageClient({ token, supportEmail, initialView }: ClaimPageC
               journey: 'recipient',
               claimId: token,
               errorType: 'transaction_failed',
-              errorCode: apiErr?.statusCode != null ? String(apiErr.statusCode) : 'unknown',
+              errorCode:
+                apiErr?.code ??
+                (apiErr?.statusCode != null ? String(apiErr.statusCode) : 'unknown'),
               sourceScreen: 'claim_landing',
             });
             throw new ClaimError(
-              "SUBMISSION_FAILED_FINAL",
-              apiErr?.message ?? "Something went wrong after several attempts. Your funds are safe, but we need our team to look into this.",
+              mappedCode ?? "SUBMISSION_FAILED_FINAL",
+              userMessage,
               false,
             );
           }

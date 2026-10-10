@@ -22,7 +22,7 @@ export class BridgeletApiError extends Error {
 }
 
 function defaultUserMessage(status: number): string {
-  if (status === 401) return 'You are not authorised. Please reconnect your wallet.';
+  if (status === 401) return 'The server could not authenticate with the Bridgelet API.';
   if (status === 404) return 'The requested resource was not found.';
   if (status === 409) return 'This claim has already been redeemed.';
   if (status === 410) return 'This claim has expired.';

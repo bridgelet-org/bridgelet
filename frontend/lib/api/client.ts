@@ -86,22 +86,28 @@ export class BridgeletClient {
     this.maxDelayMs = options.maxDelayMs ?? 30_000;
   }
 
-  private async request<T>(path: string, options: RequestInit = {}): Promise<T> {
+  private async request<T>(
+    path: string,
+    options: RequestInit = {},
+    tuning: { maxRetries?: number; timeoutMs?: number } = {},
+  ): Promise<T> {
     const url = `${this.baseUrl}${path}`;
     const headers = new Headers(options.headers);
     headers.set('Content-Type', 'application/json');
 
-    for (let attempt = 0; attempt <= this.maxRetries; attempt++) {
+    const maxRetries = tuning.maxRetries ?? this.maxRetries;
+
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
       let response: Response | null = null;
       let thrown: unknown = null;
       try {
-        response = await fetchWithTimeout(url, { ...options, headers });
+        response = await fetchWithTimeout(url, { ...options, headers }, tuning.timeoutMs);
       } catch (err) {
         thrown = err;
       }
 
       if (!response) {
-        if (attempt < this.maxRetries) {
+        if (attempt < maxRetries) {
           await this.backoff(attempt);
           continue;
         }
@@ -116,7 +122,7 @@ export class BridgeletClient {
 
       if (!response.ok) {
         // Only retry server-side failures (5xx); 4xx are deterministic.
-        if (attempt < this.maxRetries && response.status >= 500) {
+        if (attempt < maxRetries && response.status >= 500) {
           await this.backoff(attempt);
           continue;
         }
@@ -144,12 +150,23 @@ export class BridgeletClient {
     });
   }
 
-  /** Redeem a claim token by sweeping funds to the destination address. */
+  /**
+   * Redeem a claim token by sweeping funds to the destination address.
+   *
+   * No automatic retries: a redeem is not idempotent-friendly for the user
+   * (a retry can't fix a contract/validation error and burns the backend's
+   * 5 requests/min budget), and the sweep includes an on-chain step. The
+   * explicit "Try again" button is the only thing that re-submits.
+   */
   redeemClaim(claimToken: string, destinationAddress: string): Promise<RedeemClaimResponse> {
-    return this.request<RedeemClaimResponse>('/claims/redeem', {
-      method: 'POST',
-      body: JSON.stringify({ claimToken, destinationAddress }),
-    });
+    return this.request<RedeemClaimResponse>(
+      '/claims/redeem',
+      {
+        method: 'POST',
+        body: JSON.stringify({ claimToken, destinationAddress }),
+      },
+      { maxRetries: 0, timeoutMs: 60_000 },
+    );
   }
 }
 

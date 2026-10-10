@@ -1,5 +1,5 @@
 import { AccountStatus } from '@/lib/api/types';
-import { BridgeletApiError, type BridgeletClient } from '@/lib/api/client';
+import { BridgeletApiError, RateLimitError, type BridgeletClient } from '@/lib/api/client';
 import { RequestTimeoutError } from '@/lib/fetch-with-timeout';
 
 export interface SubmitClaimOptions {
@@ -20,7 +20,7 @@ export type SubmitClaimOutcome =
   /** The submission may or may not have been received; poll for truth. */
   | { kind: 'ambiguous' }
   /** The server explicitly rejected the submission — do not retry. */
-  | { kind: 'terminal'; error?: { message?: string; statusCode?: number } };
+  | { kind: 'terminal'; error?: { message?: string; statusCode?: number; code?: string } };
 
 export interface SubmitClaimResult {
   outcome: SubmitClaimOutcome;
@@ -43,12 +43,19 @@ function backoffDelay(attempt: number, baseDelayMs: number, maxDelayMs: number):
 /**
  * Submit a claim with bounded retry and double-submit prevention semantics.
  *
- * Retries are limited to failures that are safe to retry (network errors and
- * 5xx responses). A 4xx rejection is terminal. When retries are exhausted on
- * an ambiguous failure (a request that may have reached the server), we probe
- * with the idempotent `verifyClaim` call — the backend has no per-token
- * status endpoint — and report `alreadyClaimed` if the token has been
- * consumed, otherwise `ambiguous`.
+ * There are no hidden retries by default: a failed claim makes exactly one
+ * request. Callers that genuinely want retries can raise `maxAttempts`, but a
+ * contract/validation error cannot succeed on retry and burns the backend's
+ * 5 requests/min budget — so the default is a single attempt and only the
+ * explicit "Try again" button re-submits.
+ *
+ * Retries, when enabled, are limited to failures that are safe to retry
+ * (network errors and 5xx responses). A 4xx rejection is terminal. A 429 is
+ * rethrown as a `RateLimitError` so the UI can show the rate-limit message.
+ * When retries are exhausted on an ambiguous failure (a request that may have
+ * reached the server), we probe with the idempotent `verifyClaim` call — the
+ * backend has no per-token status endpoint — and report `alreadyClaimed` if
+ * the token has been consumed, otherwise `ambiguous`.
  */
 export async function submitClaimWithRetry(
   client: BridgeletClient,
@@ -57,7 +64,7 @@ export async function submitClaimWithRetry(
   options: SubmitClaimOptions = {},
 ): Promise<SubmitClaimResult> {
   const {
-    maxAttempts = 3,
+    maxAttempts = 1,
     baseDelayMs = 1_000,
     maxDelayMs = 15_000,
     pollTimeoutMs = 30_000,
@@ -80,6 +87,12 @@ export async function submitClaimWithRetry(
         },
       };
     } catch (err) {
+      // A 429 is a rate-limit, not a generic network failure: surface it so the
+      // UI can show the rate-limit message instead of a retryable one.
+      if (err instanceof RateLimitError) {
+        throw err;
+      }
+
       if (err instanceof BridgeletApiError) {
         if (err.statusCode === 409) {
           return { outcome: { kind: 'alreadyClaimed' } };
@@ -91,7 +104,7 @@ export async function submitClaimWithRetry(
         return {
           outcome: {
             kind: 'terminal',
-            error: { message: err.message, statusCode: err.statusCode },
+            error: { message: err.message, statusCode: err.statusCode, code: err.error },
           },
         };
       }
