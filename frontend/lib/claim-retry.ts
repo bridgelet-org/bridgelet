@@ -12,7 +12,7 @@ export interface SubmitClaimOptions {
 
 export type SubmitClaimOutcome =
   /** The sweep completed on the server. */
-  | { kind: 'success'; response: { isPartial: boolean; message?: string } }
+  | { kind: 'success'; response: { isPartial: boolean; message?: string; txHash?: string } }
   /** The token was already redeemed (HTTP 409). */
   | { kind: 'alreadyClaimed' }
   /** The request never reached the server — safe to resubmit. */
@@ -83,6 +83,7 @@ export async function submitClaimWithRetry(
           response: {
             isPartial: resp.isPartial ?? false,
             message: resp.message ?? 'The payment has been claimed successfully.',
+            txHash: resp.txHash,
           },
         },
       };

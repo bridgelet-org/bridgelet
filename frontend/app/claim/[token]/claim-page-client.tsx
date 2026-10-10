@@ -199,6 +199,7 @@ export function ClaimPageClient({ token, supportEmail, initialView }: ClaimPageC
               sweepNote: resp.message,
               claimedByMe: true,
               sweepDestination: destinationAddress,
+              sweepTxHash: resp.txHash,
               sweepAmountStroops: prev?.amountStroops,
             }));
             return;
@@ -400,6 +401,7 @@ export function ClaimPageClient({ token, supportEmail, initialView }: ClaimPageC
       onClaim={handleClaim}
       claimedByMe={view.claimedByMe}
       sweepDestination={view.sweepDestination}
+      sweepTxHash={view.sweepTxHash}
       sweepAmountStroops={view.sweepAmountStroops}
     />
   );
