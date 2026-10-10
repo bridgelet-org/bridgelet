@@ -262,31 +262,31 @@ export function ConfirmStep({ state, onBack }: ConfirmStepProps) {
         aria-live="polite"
         className="rounded-lg border border-green-200 bg-green-50 px-4 py-4 space-y-3 dark:border-green-800 dark:bg-green-950"
       >
-        <p className="font-medium text-green-800">Payment sent!</p>
-        <p className="mt-1 text-sm text-green-700">
+        <p className="font-medium text-green-800 dark:text-green-200">Payment sent!</p>
+        <p className="mt-1 text-sm text-green-700 dark:text-green-300">
           Share the claim link below with the recipient. It expires in{' '}
           {formatExpiryLabel(state.expiresIn)}.
         </p>
         {accountStatus === 'pending_payment' && (
-          <p role="status" className="text-xs text-green-700">
+          <p role="status" className="text-xs text-green-700 dark:text-green-300">
             Confirming your payment on the network — the link becomes claimable in about a
             minute.
           </p>
         )}
         {accountStatus === 'pending_claim' && (
-          <p role="status" className="text-xs font-medium text-green-800">
+          <p role="status" className="text-xs font-medium text-green-800 dark:text-green-200">
             Payment confirmed — the link is ready to claim.
           </p>
         )}
 
         {claimUrl && (
-          <div className="mt-2 flex flex-col gap-2">
-            <p className="text-sm text-green-700">
+          <div className="mt-2 flex min-w-0 flex-col gap-2">
+            <p className="break-all text-sm text-green-700 dark:text-green-300">
               Send the recipient this link:{' '}
               <a
                 href={claimUrl}
                 data-testid="claim-link"
-                className="font-medium underline underline-offset-2 hover:text-green-900"
+                className="break-all font-medium underline underline-offset-2 hover:text-green-900 dark:hover:text-green-100"
               >
                 {claimUrl}
               </a>
@@ -304,7 +304,7 @@ export function ConfirmStep({ state, onBack }: ConfirmStepProps) {
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={handleWhatsAppShare}
-                className="inline-flex items-center rounded-lg border border-green-700 px-3 py-1.5 text-xs font-medium text-green-800 transition hover:bg-green-100 dark:border-green-600 dark:text-green-300 dark:hover:bg-green-950"
+                className="inline-flex items-center rounded-lg border border-green-700 px-3 py-1.5 text-xs font-medium text-green-800 transition hover:bg-green-100 dark:border-green-600 dark:text-green-300 dark:hover:bg-green-900"
               >
                 Share on WhatsApp
               </a>
