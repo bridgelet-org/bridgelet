@@ -203,10 +203,18 @@ export class BridgeletClient {
 
   redeemClaim(claimToken: string, destinationAddress: string): Promise<RedeemClaimResponse> {
     const body: RedeemClaimRequest = { claimToken, destinationAddress };
-    return this.request<RedeemClaimResponse>(`${this.baseUrl}/claims/redeem`, {
-      method: 'POST',
-      body: JSON.stringify(body),
-    });
+    // Same reasoning as createAccount: a claim failure (contract/validation
+    // error) cannot be fixed by retrying, and retries burn the backend's
+    // 5 requests/min budget. One attempt; the user re-submits explicitly.
+    // The timeout is long enough to cover the on-chain sweep step.
+    return this.request<RedeemClaimResponse>(
+      `${this.baseUrl}/claims/redeem`,
+      {
+        method: 'POST',
+        body: JSON.stringify(body),
+      },
+      { maxRetries: 0, timeoutMs: 60_000 },
+    );
   }
   verifyClaim(claimToken: string): Promise<ClaimView> {
     const body: VerifyClaimRequest = { claimToken };
