@@ -410,14 +410,14 @@ function ClaimedPanel({
           />
         </svg>
         <div>
-          <p className="text-sm font-semibold text-blue-800">{claimedByMe ? 'Payment claimed!' : 'Payment already claimed'}</p>
-          <p className="text-xs text-blue-600 mt-0.5">
+          <p className="text-sm font-semibold text-blue-800 dark:text-blue-100">{claimedByMe ? 'Payment claimed!' : 'Payment already claimed'}</p>
+          <p className="text-xs text-blue-700 mt-0.5 dark:text-blue-200">
             {claimedByMe
               ? 'The funds have been swept to your wallet.'
               : 'These funds have been transferred to the recipient\u2019s wallet. Each claim link can only be used once.'}
           </p>
           {sweepDestination && (
-            <p className="mt-1 break-all font-mono text-[10px] text-blue-500">
+            <p className="mt-1 break-all font-mono text-[10px] text-blue-600 dark:text-blue-300">
               {sweepDestination}
             </p>
           )}
@@ -438,7 +438,7 @@ function ClaimedPanel({
                 sourceScreen: 'claim_success',
               })
             }
-            className="block text-center text-xs text-blue-600 underline underline-offset-2 hover:text-blue-800"
+            className="block text-center text-xs text-blue-600 underline underline-offset-2 hover:text-blue-800 dark:text-blue-300 dark:hover:text-blue-100"
           >
             View transaction on Stellar Explorer ↗
           </a>
@@ -447,7 +447,7 @@ function ClaimedPanel({
           <a
             href="/send"
             onClick={() => analytics.senderSignupCtaClicked({ claimId })}
-            className="block w-full rounded-lg border border-slate-200 bg-slate-50 px-4 py-2.5 text-center text-xs font-medium text-slate-700 transition hover:bg-slate-100"
+            className="block w-full rounded-lg border border-slate-200 bg-slate-50 px-4 py-2.5 text-center text-xs font-medium text-slate-700 transition hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
           >
             Create your own payment link →
           </a>
@@ -584,10 +584,10 @@ export function ClaimStatusCard({
       aria-live="polite"
       aria-atomic="true"
       aria-relevant="additions text"
-      className={`rounded-xl border-2 ${BORDER_COLORS[status]} bg-white p-5 shadow-sm space-y-4`}
+      className={`rounded-xl border-2 ${BORDER_COLORS[status]} bg-white p-5 shadow-sm space-y-4 dark:bg-slate-900`}
     >
       <header className="flex items-center justify-between">
-        <h2 className="text-base font-semibold text-slate-900">{HEADERS[status]}</h2>
+        <h2 className="text-base font-semibold text-slate-900 dark:text-slate-50">{HEADERS[status]}</h2>
         <StatusBadge status={status} />
       </header>
 
