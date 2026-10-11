@@ -168,3 +168,21 @@ MIT License - see [LICENSE](./LICENSE)
 ---
 
 **Built for the Stellar ecosystem 🌟**
+## Deploying the Frontend
+
+### Required Environment Variables
+
+| Variable | Scope | Description | Default Local Example |
+| :--- | :--- | :--- | :--- |
+| NEXT_PUBLIC_APP_URL | Client & Server | Canonical public origin for frontend | http://localhost:3000 |
+| NEXT_PUBLIC_API_BASE_URL | Client (Browser) | Public SDK URL for /claims/* endpoints | http://localhost:3001 |
+| NEXT_PUBLIC_CRYPTO_NETWORK | Client (Browser) | Target Stellar network | stellar-testnet |
+| BRIDGELET_SDK_URL | Server-only | Private or public SDK URL for backend route handlers | http://localhost:3001 |
+| BRIDGELET_SDK_TOKEN | Server-only | JWT signed with SDK JWT_SECRET (single line) | *(minted from SDK)* |
+
+### Production Configuration Checklist
+1. **Minting SDK Token**: Mint a JWT signed with the SDK's JWT_SECRET containing sender authorization. Paste as a single unbroken string in BRIDGELET_SDK_TOKEN.
+2. **CORS & Claim Base URL**: Set SDK CLAIM_BASE_URL to match the frontend public domain (e.g. https://app.bridgelet.org), and ensure SDK CORS origin allows requests from the frontend origin.
+3. **Serverless Function Duration**: Ensure host serverless limits accommodate up to 60s execution for account funding and claim operations (pp/api/accounts).
+4. **Environment Verification**: Run 
+pm run check-env to ensure all production variables are set without leaks prior to deploying.
