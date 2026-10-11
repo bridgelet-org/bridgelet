@@ -156,6 +156,20 @@ describe('ClaimStatusCard', () => {
       expect(await screen.findByText(/claim submitted/i)).toBeInTheDocument();
     });
 
+
+    it('renders readable dark mode classes and clean focus rings (#761)', () => {
+      render(
+        <ClaimStatusCard
+          status={AccountStatus.PENDING_CLAIM}
+          amountStroops="10000000"
+          assetCode="XLM"
+        />,
+      );
+      const input = screen.getByPlaceholderText('G...');
+      expect(input).toHaveClass('dark:bg-slate-800', 'dark:text-slate-100', 'focus:ring-1');
+      const amountLabel = screen.getByText('Amount');
+      expect(amountLabel).toHaveClass('dark:text-slate-300');
+    });
     it('renders the ChainSelector', () => {
       render(<ClaimStatusCard status={AccountStatus.PENDING_CLAIM} amountStroops="10000000" />);
       expect(screen.getByTestId('chain-selector')).toBeInTheDocument();

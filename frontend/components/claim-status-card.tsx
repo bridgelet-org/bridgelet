@@ -78,7 +78,7 @@ const HEADERS: Record<ClaimStatus, string> = {
 const BORDER_COLORS: Record<ClaimStatus, string> = {
   [AccountStatus.INITIALIZING]: 'border-slate-200',
   [AccountStatus.PENDING_PAYMENT]: 'border-amber-200',
-  [AccountStatus.PENDING_CLAIM]: 'border-green-200',
+  [AccountStatus.PENDING_CLAIM]: 'border-green-200 dark:border-green-800',
   [AccountStatus.CLAIMING]: 'border-blue-200',
   [AccountStatus.PARTIAL_SWEEP]: 'border-blue-200',
   [AccountStatus.CLAIMED]: 'border-blue-200',
@@ -259,8 +259,8 @@ function AvailablePanel({
     <div className="space-y-4">
       <dl className="space-y-2 text-sm">
         <div className="flex justify-between">
-          <dt className="font-medium text-slate-700">Amount</dt>
-          <dd className="font-semibold text-slate-900">
+          <dt className="font-medium text-slate-700 dark:text-slate-300">Amount</dt>
+          <dd className="font-semibold text-slate-900 dark:text-slate-50">
             {amountStroops ? (
               stroopsToDisplay(amountStroops, assetCode)
             ) : (
@@ -286,7 +286,7 @@ function AvailablePanel({
       {claimError && (
         <p
           role="alert"
-          className="text-sm text-red-700 bg-red-50 border border-red-200 rounded px-3 py-2"
+          className="text-sm text-red-700 bg-red-50 border border-red-200 dark:border-red-800 dark:bg-red-950 dark:text-red-200 rounded px-3 py-2"
         >
           {claimError}
         </p>
@@ -295,7 +295,7 @@ function AvailablePanel({
       <div>
         <label
           htmlFor="destination-address"
-          className="mb-1 block text-xs font-medium text-slate-700"
+          className="mb-1 block text-xs font-medium text-slate-700 dark:text-slate-300"
         >
           Your Stellar wallet address
         </label>
@@ -308,10 +308,10 @@ function AvailablePanel({
           placeholder="G..."
           value={destinationAddress}
           onChange={(e) => setDestinationAddress(e.target.value.trim())}
-          className="w-full rounded-lg border border-slate-300 px-3 py-2 font-mono text-xs text-slate-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-600"
+          className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 font-mono text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-green-600 focus:ring-1 focus:ring-green-600 dark:bg-slate-800 dark:border-slate-600 dark:text-slate-100 dark:placeholder-slate-500 dark:focus:border-green-500 dark:focus:ring-green-500"
         />
         {destinationAddress.length > 0 && !isValidAddress && (
-          <p className="mt-1 text-xs text-red-600">
+          <p className="mt-1 text-xs text-red-600 dark:text-red-400">
             Enter a valid Stellar public key (starts with G, 56 characters).
           </p>
         )}
@@ -321,7 +321,7 @@ function AvailablePanel({
         type="button"
         onClick={handleClaim}
         disabled={claiming || !isValidAddress}
-        className="w-full rounded-lg bg-green-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-green-700 disabled:opacity-60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-600"
+        className="w-full rounded-lg bg-green-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-green-700 disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-600 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-900"
       >
         {claiming ? 'Claiming…' : 'Claim now'}
       </button>
