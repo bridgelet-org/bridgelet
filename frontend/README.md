@@ -106,3 +106,21 @@ const account: EphemeralAccount = await createEphemeralAccount({
   ```bash
   npm run build
   ```
+
+
+## Deploying
+
+To successfully deploy or run a local instance of the frontend, you must properly configure the environment workspace.
+
+### Required Environment Variables
+
+| Variable | Scope | Target Destination | Description |
+| :--- | :--- | :--- | :--- |
+| `NEXT_PUBLIC_API_BASE_URL` | Public (Browser) | SDK Client Port | Handles browser-side `/claims/*` calls. Must be publicly reachable and allow CORS. |
+| `BRIDGELET_SDK_URL` | Server-only | SDK Backend Port | Used strictly for server-side fetches. |
+| `BRIDGELET_SDK_TOKEN` | Server-only | Authorization | Must be a valid, single-line JWT authentication token. |
+
+### Configuration Rules:
+1. **Token Minting:** The `BRIDGELET_SDK_TOKEN` must be signed exactly with the SDK's internal `JWT_SECRET`. It must be formatted as one unbroken string line; extra spaces or line breaks will trigger `401 Unauthorized` errors.
+2. **CORS Alignment:** Ensure the target SDK instance has explicit CORS handling rules configured to authorize requests coming from this frontend's public deployment origin.
+3. **Serverless Platform Limitations:** The endpoint logic in `app/api/accounts` configures a `maxDuration = 60` script limit. If you are deploying on serverless infrastructure, confirm that your hosting provider allows function lifetimes of at least 60 seconds.
