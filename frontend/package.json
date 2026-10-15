@@ -8,7 +8,9 @@
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "generate:types": "node scripts/generate-types.mjs",
-    "lhci": "lhci autorun"
+    "lhci": "lhci autorun",
+    "e2e": "playwright test",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@stellar/freighter-api": "^6.0.1",
@@ -20,6 +22,7 @@
   },
   "devDependencies": {
     "@lhci/cli": "^0.15.1",
+    "@playwright/test": "^1.51.1",
     "@storybook/nextjs-vite": "^10.4.6",
     "@tailwindcss/postcss": "^4.0.0",
     "@testing-library/jest-dom": "^6.6.3",
