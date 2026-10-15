@@ -59,12 +59,13 @@ export function DetailsStep({ state, onChange, onBack, onNext }: DetailsStepProp
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    const email = state.recipientEmail.trim();
-    const amount = state.amountXlm.trim();
-    const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-    const amountValid = amount !== '' && Number.isFinite(Number(amount)) && Number(amount) > 0;
-    if (!emailValid || !amountValid) {
-      setValidationError('All fields are required. Enter a valid email address and amount.');
+    // Email is optional: only the amount (and a valid asset) gate progression.
+    // When an email is provided it must still be well-formed.
+    const fieldErrors = validateDetails(state);
+    const firstError =
+      fieldErrors.amountXlm ?? fieldErrors.assetCode ?? fieldErrors.recipientEmail;
+    if (firstError) {
+      setValidationError(firstError);
       return;
     }
     setValidationError(null);
@@ -108,13 +109,19 @@ export function DetailsStep({ state, onChange, onBack, onNext }: DetailsStepProp
           onChange={(e) => onChange({ recipientEmail: e.target.value })}
           placeholder="recipient@example.com"
           aria-invalid={errors.recipientEmail ? true : undefined}
-          aria-describedby={errors.recipientEmail ? 'recipient-email-error' : undefined}
+          aria-describedby={
+            errors.recipientEmail ? 'recipient-email-error recipient-email-hint' : 'recipient-email-hint'
+          }
           className={`mt-1 block w-full rounded-lg border px-3 py-2 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-1 dark:bg-slate-800 dark:text-slate-100 dark:placeholder-slate-500 ${
             errors.recipientEmail
               ? 'border-red-400 focus:border-red-500 focus:ring-red-500 dark:border-red-600'
               : 'border-slate-300 focus:border-slate-500 focus:ring-slate-500 dark:border-slate-600 dark:focus:border-slate-400 dark:focus:ring-slate-400'
           }`}
         />
+        <p id="recipient-email-hint" className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+          We&apos;ll email the claim link to this address. Optional — send to anyone and share the
+          link yourself instead.
+        </p>
         {errors.recipientEmail && (
           <p id="recipient-email-error" role="alert" className="mt-1 text-sm text-red-600 dark:text-red-400">
             {errors.recipientEmail}

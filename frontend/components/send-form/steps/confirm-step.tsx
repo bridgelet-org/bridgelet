@@ -83,6 +83,8 @@ type SubmitPhase =
   | 'funding'
   | 'success';
 
+type EmailStatus = 'idle' | 'sending' | 'sent' | 'failed' | 'not-configured';
+
 const STATUS_POLL_INTERVAL_MS = 3_000;
 const STATUS_POLL_MAX_MS = 120_000;
 
@@ -101,10 +103,16 @@ export function ConfirmStep({ state, onBack }: ConfirmStepProps) {
   // ever returned once).
   const [pendingAccount, setPendingAccount] = useState<EphemeralAccount | null>(null);
   const [accountStatus, setAccountStatus] = useState<string | null>(null);
+  const [emailStatus, setEmailStatus] = useState<EmailStatus>('idle');
   const { isSupported, writeUrl, isWriting, error: nfcError } = useNfc();
   // Timestamp of the sender's "Confirm & Send" intent, used to measure
   // Payment Confirmed → Payment Created latency.
   const confirmedAt = useRef<number | null>(null);
+  // Guards against a double-click firing two account-creation requests before
+  // the disabled state renders.
+  const submitGuardRef = useRef(false);
+  // Ensures the claim-link email is sent at most once per submission.
+  const emailSentRef = useRef(false);
 
   const submitting = submitPhase !== 'idle' && submitPhase !== 'success';
 
@@ -154,12 +162,14 @@ export function ConfirmStep({ state, onBack }: ConfirmStepProps) {
           setSigningModeUsed('backend');
         }
 
-        if (!account.claimUrl) {
-          throw new Error(
-            'Account was created but no claim link was returned. Please contact support.',
-          );
-        }
         setPendingAccount(account);
+      }
+
+      const claimLink = account.claimUrl;
+      if (!claimLink) {
+        throw new Error(
+          'Account was created but no claim link was returned. Please contact support.',
+        );
       }
 
       // The backend only provisions the ephemeral account (status: pending_payment).
@@ -172,9 +182,9 @@ export function ConfirmStep({ state, onBack }: ConfirmStepProps) {
         assetCode: state.assetCode,
       });
       setAccountStatus('pending_payment');
-      void pollAccountStatus(account.accountId);
+      void pollAccountStatus(account.accountId, claimLink);
 
-      setClaimUrl(account.claimUrl);
+      setClaimUrl(claimLink);
       setCreatedAccountId(account.accountId);
       setSubmitPhase('success');
       analytics.paymentCreated({
@@ -194,19 +204,25 @@ export function ConfirmStep({ state, onBack }: ConfirmStepProps) {
       }
       setRetryCount(attempt);
       setSubmitPhase('idle');
+      submitGuardRef.current = false;
     }
   }
 
   // The backend's payment monitor polls Horizon every ~30s and moves the account
   // pending_payment -> pending_claim once it sees the payment. Until then a claim
   // attempt is rejected ("not funded"), so surface the state to the sender.
-  async function pollAccountStatus(accountId: string) {
+  async function pollAccountStatus(accountId: string, claimLink: string) {
     const deadline = Date.now() + STATUS_POLL_MAX_MS;
     while (Date.now() < deadline) {
       await new Promise((r) => setTimeout(r, STATUS_POLL_INTERVAL_MS));
       try {
         const latest = await client.getAccount(accountId);
         setAccountStatus(latest.status);
+        // Email the claim link once the payment is confirmed and the link is
+        // actually claimable. Never blocks the success screen.
+        if (latest.status === 'pending_claim' && state.recipientEmail.trim()) {
+          void sendClaimEmail(claimLink);
+        }
         if (latest.status !== 'pending_payment' && latest.status !== 'initializing') return;
       } catch {
         // transient — keep polling until the deadline
@@ -214,7 +230,37 @@ export function ConfirmStep({ state, onBack }: ConfirmStepProps) {
     }
   }
 
+  async function sendClaimEmail(claimLink: string) {
+    if (emailSentRef.current) return;
+    emailSentRef.current = true;
+    setEmailStatus('sending');
+    try {
+      const res = await fetch('/api/send-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          claimUrl: claimLink,
+          recipientEmail: state.recipientEmail.trim(),
+          recipientName: state.recipientName.trim() || undefined,
+          amount: state.amountXlm,
+          assetCode: state.assetCode,
+        }),
+      });
+      if (res.ok) {
+        setEmailStatus('sent');
+      } else if (res.status === 501) {
+        setEmailStatus('not-configured');
+      } else {
+        setEmailStatus('failed');
+      }
+    } catch {
+      setEmailStatus('failed');
+    }
+  }
+
   function handleConfirm() {
+    if (submitGuardRef.current) return;
+    submitGuardRef.current = true;
     confirmedAt.current = Date.now();
     analytics.paymentConfirmed({
       assetType: state.assetCode,
@@ -225,8 +271,10 @@ export function ConfirmStep({ state, onBack }: ConfirmStepProps) {
   }
 
   function handleRetry() {
+    if (submitGuardRef.current) return;
     const nextAttempt = retryCount + 1;
     if (nextAttempt > MAX_RETRIES) return;
+    submitGuardRef.current = true;
     executeCreateAccount(nextAttempt);
   }
 
@@ -276,6 +324,29 @@ export function ConfirmStep({ state, onBack }: ConfirmStepProps) {
         {accountStatus === 'pending_claim' && (
           <p role="status" className="text-xs font-medium text-green-800 dark:text-green-200">
             Payment confirmed — the link is ready to claim.
+          </p>
+        )}
+
+        {state.recipientEmail.trim() && emailStatus !== 'idle' && (
+          <p
+            role="status"
+            aria-live="polite"
+            className={`text-xs ${
+              emailStatus === 'sent'
+                ? 'font-medium text-green-800 dark:text-green-200'
+                : emailStatus === 'sending'
+                  ? 'text-green-700 dark:text-green-300'
+                  : 'text-amber-700 dark:text-amber-300'
+            }`}
+          >
+            {emailStatus === 'sending' &&
+              `Emailing the claim link to ${state.recipientEmail.trim()}…`}
+            {emailStatus === 'sent' &&
+              `Claim link emailed to ${state.recipientEmail.trim()}.`}
+            {emailStatus === 'failed' &&
+              'Email could not be sent — share the link manually below.'}
+            {emailStatus === 'not-configured' &&
+              'Email is not configured — share the link manually below.'}
           </p>
         )}
 

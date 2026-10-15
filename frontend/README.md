@@ -31,6 +31,58 @@ Reference Next.js UI for initiating and claiming crypto payments.
 
 4. Open [http://localhost:3000](http://localhost:3000).
 
+## Deploying
+
+The frontend needs four settings to line up. The most common failures are the
+wrong SDK port, a token that does not match the SDK's `JWT_SECRET`, and a CORS
+origin that does not include the frontend.
+
+### Required environment variables
+
+| Variable | Visibility | Purpose | Must match |
+| --- | --- | --- | --- |
+| `NEXT_PUBLIC_APP_URL` | browser | Public URL of this frontend; used to build claim links | The SDK's `CLAIM_BASE_URL` |
+| `NEXT_PUBLIC_API_BASE_URL` | browser | Public SDK URL the browser calls for `/claims/*` | SDK host/port, with CORS allowing this origin |
+| `BRIDGELET_SDK_URL` | server-only | SDK URL used by server Route Handlers (account create/lookup) | SDK host/port (may be internal) |
+| `BRIDGELET_SDK_TOKEN` | server-only | `Authorization: Bearer` JWT for the SDK | Signed with the SDK's `JWT_SECRET` |
+| `RESEND_API_KEY` | server-only | Sends the claim-link email | A Resend account key |
+| `EMAIL_FROM` | server-only | Verified `from` address for that email | A domain verified in Resend |
+
+- **Browser vs server.** Anything prefixed `NEXT_PUBLIC_` is inlined into the
+  browser bundle and must never hold a secret. `BRIDGELET_SDK_URL` and
+  `BRIDGELET_SDK_TOKEN` are read only inside `app/api/**/route.ts` and never
+  reach the client.
+- **SDK port.** The SDK listens on the port set in *its own* `.env` (3001 in our
+  setup), which is different from this frontend's 3000. Point both
+  `NEXT_PUBLIC_API_BASE_URL` and `BRIDGELET_SDK_URL` at the SDK, not the app.
+- **Minting the token.** Generate a JWT signed with the SDK's `JWT_SECRET` using
+  the SDK's tooling, and paste it as one unbroken line. A malformed or
+  mismatched token surfaces as a 401 from `/api/accounts`.
+- **Claim links.** Set the SDK's `CLAIM_BASE_URL` to the public frontend URL
+  (`NEXT_PUBLIC_APP_URL`) so the link a recipient receives points at this app.
+- **CORS.** The SDK must allow this frontend's origin so browser calls to
+  `/claims/*` succeed.
+
+### Function duration
+
+`app/api/accounts/route.ts` sets `maxDuration = 60` because creating an
+ephemeral account provisions an on-chain account and can take tens of seconds
+(plus cold starts). On a host with a lower serverless limit, raise the limit for
+this route or deploy it on a long-running runtime; otherwise the request is
+killed mid-flight.
+
+### Fail fast
+
+Validate the required variables before building or starting:
+
+```bash
+npm run check-env
+```
+
+This exits non-zero with a readable list when `BRIDGELET_SDK_URL`,
+`BRIDGELET_SDK_TOKEN`, `RESEND_API_KEY`, or `EMAIL_FROM` are missing, instead of
+failing on the first request.
+
 ## Routes
 
 - `/` homepage placeholder
