@@ -33,11 +33,18 @@ export class FreighterSenderSigningError extends Error {
   }
 }
 
-/** Feature flag for the Freighter sender-signing experiment (default: enabled). */
+/**
+ * Feature flag for the Freighter sender-signing experiment (default: disabled).
+ *
+ * The SDK does not implement `POST /accounts/prepare` yet, so when this is on
+ * the send flow issues a request that is expected to 404 before falling back.
+ * Leaving it off keeps the default send path free of that dead request; opt in
+ * explicitly (truthy value) only when the SDK side exists.
+ */
 export function isFreighterSenderSigningEnabled(): boolean {
   const raw = process.env['NEXT_PUBLIC_ENABLE_FREIGHTER_SENDER_SIGNING'];
-  if (raw == null || raw.trim() === '') return true;
-  return !['0', 'false', 'off', 'no'].includes(raw.trim().toLowerCase());
+  if (raw == null || raw.trim() === '') return false;
+  return ['1', 'true', 'on', 'yes'].includes(raw.trim().toLowerCase());
 }
 
 export function isPrepareUnavailableError(err: unknown): boolean {

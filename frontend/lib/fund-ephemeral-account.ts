@@ -16,12 +16,57 @@ import { signFreighterTransaction } from '@/lib/wallet';
  */
 
 export class FundingError extends Error {
-  readonly code: 'UNSUPPORTED_ASSET' | 'USER_REJECTED' | 'SIGNER_MISMATCH' | 'SUBMIT_FAILED';
+  readonly code:
+    | 'UNSUPPORTED_ASSET'
+    | 'MISSING_TRUSTLINE'
+    | 'INSUFFICIENT_BALANCE'
+    | 'USER_REJECTED'
+    | 'SIGNER_MISMATCH'
+    | 'SUBMIT_FAILED';
 
   constructor(code: FundingError['code'], message: string) {
     super(message);
     this.name = 'FundingError';
     this.code = code;
+  }
+}
+
+/** A non-native balance line as returned by Horizon's account response. */
+interface IssuedBalanceLine {
+  asset_type: string;
+  asset_code?: string;
+  asset_issuer?: string;
+  balance: string;
+}
+
+/**
+ * Confirms the sender actually holds a trustline (and enough balance) for an
+ * issued asset before asking them to sign. Horizon rejects the payment anyway,
+ * but only after a wallet round-trip, so failing early gives a clearer message.
+ */
+function assertCanPayIssuedAsset(
+  balances: readonly IssuedBalanceLine[],
+  assetCode: string,
+  assetIssuer: string,
+  amount: string,
+): void {
+  const line = balances.find(
+    (b) =>
+      b.asset_type !== 'native' &&
+      b.asset_code === assetCode &&
+      b.asset_issuer === assetIssuer,
+  );
+  if (!line) {
+    throw new FundingError(
+      'MISSING_TRUSTLINE',
+      `Your wallet has no ${assetCode} trustline. Add one in Freighter before sending ${assetCode}.`,
+    );
+  }
+  if (Number(line.balance) < Number(amount)) {
+    throw new FundingError(
+      'INSUFFICIENT_BALANCE',
+      `Your ${assetCode} balance is too low to send ${amount} ${assetCode}.`,
+    );
   }
 }
 
@@ -44,24 +89,33 @@ export interface FundEphemeralAccountParams {
   to: string;
   /** Decimal string, max 7 decimal places. */
   amount: string;
-  /** 'XLM' only for now — see note below. */
+  /** Asset code: `XLM` for the native asset, or an issued code such as `USDC`. */
   assetCode: string;
+  /** Issuer account for an issued asset; ignored for `XLM`. */
+  assetIssuer?: string;
 }
 
 export async function fundEphemeralAccount(
   params: FundEphemeralAccountParams,
 ): Promise<{ txHash: string }> {
-  // The backend creates the ephemeral account with a plain 2 XLM createAccount and
-  // never adds a trustline, so an issued asset (e.g. USDC) payment would fail
-  // on-chain with op_no_trust. Refuse early with a clear message instead.
-  if (params.assetCode !== 'XLM') {
+  const isNative = params.assetCode === 'XLM';
+
+  // An issued asset (e.g. USDC) needs both a code and its issuer to build the
+  // payment. Refuse early with a clear message rather than sending a malformed
+  // asset down to Horizon.
+  if (!isNative && !params.assetIssuer) {
     throw new FundingError(
       'UNSUPPORTED_ASSET',
-      `${params.assetCode} is not supported yet — the ephemeral account has no trustline. Please send XLM.`,
+      `${params.assetCode} is not supported yet — no issuer is configured for this network. Please send XLM.`,
     );
   }
 
-  const server = new Horizon.Server(horizonUrl());
+  const url = horizonUrl();
+  const server = new Horizon.Server(url, {
+    // stellar-sdk refuses `http://` Horizon URLs unless explicitly allowed.
+    // Production points at https; local dev and the e2e stub use http://localhost.
+    allowHttp: url.startsWith('http://'),
+  });
 
   let unsignedXdr: string;
   let networkPassphrase: string;
@@ -73,11 +127,26 @@ export async function fundEphemeralAccount(
         ? 'Public Global Stellar Network ; September 2015'
         : 'Test SDF Network ; September 2015';
 
+    // Verify the sender can actually pay an issued asset before prompting them
+    // to sign: no trustline (op_no_trust) or too little balance (op_underfunded)
+    // otherwise only fail after the wallet round-trip.
+    const asset = isNative
+      ? Asset.native()
+      : new Asset(params.assetCode, params.assetIssuer!);
+    if (!isNative) {
+      assertCanPayIssuedAsset(
+        sourceAccount.balances as IssuedBalanceLine[],
+        params.assetCode,
+        params.assetIssuer!,
+        params.amount,
+      );
+    }
+
     unsignedXdr = new TransactionBuilder(sourceAccount, { fee, networkPassphrase })
       .addOperation(
         Operation.payment({
           destination: params.to,
-          asset: Asset.native(),
+          asset,
           amount: params.amount,
         }),
       )
@@ -85,6 +154,8 @@ export async function fundEphemeralAccount(
       .build()
       .toXDR();
   } catch (err) {
+    // A FundingError from the trustline/balance pre-check is already user-facing.
+    if (err instanceof FundingError) throw err;
     throw new FundingError(
       'SUBMIT_FAILED',
       err instanceof Error

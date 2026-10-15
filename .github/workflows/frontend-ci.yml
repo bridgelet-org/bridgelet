@@ -128,6 +128,13 @@ jobs:
       - name: Build app
         run: npm run build
 
+      - name: Cache Playwright browsers
+        if: steps.pkg.outputs.has_e2e == 'true'
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('frontend/package-lock.json') }}
+
       - name: Install Playwright browsers
         if: steps.pkg.outputs.has_e2e == 'true'
         run: npx playwright install --with-deps chromium
@@ -138,10 +145,12 @@ jobs:
         env:
           CI: true
 
-      - name: Upload Playwright report
+      - name: Upload Playwright report and traces
         if: failure() && steps.pkg.outputs.has_e2e == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: playwright-report
-          path: frontend/playwright-report/
+          path: |
+            frontend/playwright-report/
+            frontend/test-results/
           retention-days: 7

@@ -173,6 +173,16 @@ export class BridgeletClient {
 
   // ─── Accounts (proxied through this app's own server) ───────────────────────
 
+  listAccounts(options: { limit?: number; offset?: number } = {}): Promise<AccountResponse[]> {
+    const params = new URLSearchParams();
+    if (options.limit != null) params.set('limit', String(options.limit));
+    if (options.offset != null) params.set('offset', String(options.offset));
+    const qs = params.toString();
+    return this.request<AccountResponse[]>(
+      `${this.internalBaseUrl}/api/accounts${qs ? `?${qs}` : ''}`,
+    );
+  }
+
   createAccount(data: CreateAccountRequest): Promise<AccountResponse> {
     // Never auto-retry: every attempt provisions a NEW on-chain account (2 XLM
     // reserve from the funding wallet) and returns a claim URL exactly once. A
