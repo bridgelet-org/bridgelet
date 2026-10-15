@@ -80,6 +80,21 @@ const account: EphemeralAccount = await createEphemeralAccount({
 - **Errors** — non-2xx responses are parsed into typed errors: `RateLimitError` on 429 (exposes `retryAfter`) and `BridgeletApiError` otherwise (exposes `statusCode` and the backend error code). `lib/account-errors.ts` maps these to user-facing messages.
 - **Retries** — transient network failures and 5xx responses are retried with exponential backoff by the underlying `BridgeletClient` (`lib/create-bridgelet-client.ts`).
 
+## Freighter sender signing (experimental, off by default)
+
+The confirm step can optionally ask Freighter to sign the account-creation
+transaction. This experiment is **disabled by default** because the SDK does
+not implement `POST /accounts/prepare` yet, so enabling it only adds a request
+that is expected to 404 before falling back to backend signing.
+
+- `NEXT_PUBLIC_ENABLE_FREIGHTER_SENDER_SIGNING` — set to `true` (or `1`/`on`/`yes`)
+  to opt in; empty or `false` keeps the default backend-signing-only path.
+- With the flag off, the default send makes **no** request to
+  `/api/accounts/prepare`.
+- The dormant code (`lib/freighter-sender-signing.ts`,
+  `app/api/accounts/prepare/route.ts`) is kept for the SDK follow-up described
+  in [`docs/experiments/freighter-sender-signing.md`](../docs/experiments/freighter-sender-signing.md).
+
 ## Quality checks
 
 - Type-check only:
@@ -100,6 +115,13 @@ const account: EphemeralAccount = await createEphemeralAccount({
   npx playwright install chromium   # one-time
   npm run test:e2e
   ```
+
+  The suite is hermetic: it starts a local stub SDK + Horizon
+  (`e2e/stub-sdk.mjs`) and replaces Freighter with a `window.postMessage`
+  responder (`e2e/fixtures.ts`), so it never touches Stellar testnet, the real
+  SDK, a browser extension, or any secret. Optionally, a full manual testnet
+  smoke test can be run against a real SDK instance — see
+  [`../TESTING.md`](../TESTING.md).
 
 - Production build:
 

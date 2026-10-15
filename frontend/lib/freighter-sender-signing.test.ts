@@ -29,17 +29,37 @@ const PAYLOAD = {
 describe('freighter-sender-signing', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    delete process.env.NEXT_PUBLIC_ENABLE_FREIGHTER_SENDER_SIGNING;
+    // These tests exercise the experiment when it is enabled; the flag-specific
+    // tests below flip it off. See issue #766 (default is now disabled).
+    process.env.NEXT_PUBLIC_ENABLE_FREIGHTER_SENDER_SIGNING = 'true';
     vi.mocked(isFreighterTransactionSigningAvailable).mockReturnValue(true);
   });
 
-  it('defaults the experiment feature flag to enabled', () => {
+  it('defaults the experiment feature flag to disabled (no prepare request on the default path)', () => {
+    delete process.env.NEXT_PUBLIC_ENABLE_FREIGHTER_SENDER_SIGNING;
+    expect(isFreighterSenderSigningEnabled()).toBe(false);
+  });
+
+  it('enables the experiment when the feature flag is truthy', () => {
+    process.env.NEXT_PUBLIC_ENABLE_FREIGHTER_SENDER_SIGNING = 'true';
+    expect(isFreighterSenderSigningEnabled()).toBe(true);
+    process.env.NEXT_PUBLIC_ENABLE_FREIGHTER_SENDER_SIGNING = '1';
     expect(isFreighterSenderSigningEnabled()).toBe(true);
   });
 
   it('disables the experiment when the feature flag is off', () => {
     process.env.NEXT_PUBLIC_ENABLE_FREIGHTER_SENDER_SIGNING = 'false';
     expect(isFreighterSenderSigningEnabled()).toBe(false);
+  });
+
+  it('never calls prepare when the feature flag is disabled', async () => {
+    delete process.env.NEXT_PUBLIC_ENABLE_FREIGHTER_SENDER_SIGNING;
+    const client = { prepareAccountTransaction: vi.fn() };
+    await expect(tryFreighterSenderSigning(client, PAYLOAD)).resolves.toEqual({
+      mode: 'backend',
+      reason: 'feature-flag-disabled',
+    });
+    expect(client.prepareAccountTransaction).not.toHaveBeenCalled();
   });
 
   it('detects prepare-unavailable API statuses', () => {

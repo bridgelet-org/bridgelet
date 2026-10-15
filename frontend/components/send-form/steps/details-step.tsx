@@ -4,8 +4,7 @@ import { useEffect, useState } from 'react';
 import type { SendFormState } from '../index';
 import { ChainSelector } from '../../chain-selector';
 import { getXlmUsdRate, formatFiat } from '@/lib/xlm-price';
-
-const SUPPORTED_ASSETS = ['XLM', 'USDC'] as const;
+import { isAssetAvailable, supportedAssetCodes } from '@/lib/bridgelet';
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -29,7 +28,7 @@ export function validateDetails(state: SendFormState): FieldErrors {
     errors.amountXlm = 'Amount must be greater than 0.';
   }
 
-  if (!SUPPORTED_ASSETS.includes(state.assetCode as (typeof SUPPORTED_ASSETS)[number])) {
+  if (!isAssetAvailable(state.assetCode)) {
     errors.assetCode = 'Select an asset.';
   }
 
@@ -48,6 +47,10 @@ export function DetailsStep({ state, onChange, onBack, onNext }: DetailsStepProp
   const [selectedChain, setSelectedChain] = useState<string>('stellar');
   const [usdRate, setUsdRate] = useState<number | null>(null);
   const errors = validateDetails(state);
+  // Issued assets are only offered when an issuer is configured for the active
+  // network; otherwise offer them disabled with an explanatory hint.
+  const availableAssets = supportedAssetCodes();
+  const usdcAvailable = isAssetAvailable('USDC');
 
   useEffect(() => {
     let active = true;
@@ -72,8 +75,13 @@ export function DetailsStep({ state, onChange, onBack, onNext }: DetailsStepProp
   }
 
   const amount = Number(state.amountXlm);
+  const isUsdStable = state.assetCode === 'USDC';
+  const hasValidAmount = !Number.isNaN(amount) && amount > 0;
+  // USDC is a USD stablecoin, so its fiat estimate is the amount itself (rate 1)
+  // and does not depend on the XLM rate. XLM still needs the live rate.
+  const conversionRate = isUsdStable ? 1 : usdRate;
   const showConversion =
-    state.assetCode === 'XLM' && usdRate !== null && !Number.isNaN(amount) && amount > 0;
+    hasValidAmount && (isUsdStable || (state.assetCode === 'XLM' && usdRate !== null));
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4" noValidate>
@@ -153,13 +161,23 @@ export function DetailsStep({ state, onChange, onBack, onNext }: DetailsStepProp
             aria-describedby={errors.assetCode ? 'asset-error' : undefined}
             className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:focus:border-slate-400 dark:focus:ring-slate-400"
           >
-            {SUPPORTED_ASSETS.map((asset) => (
+            {availableAssets.map((asset) => (
               <option key={asset} value={asset}>
                 {asset}
               </option>
             ))}
+            {!usdcAvailable && (
+              <option value="USDC" disabled>
+                USDC — unavailable
+              </option>
+            )}
           </select>
         </div>
+        {!usdcAvailable && (
+          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+            USDC isn&apos;t available on this network yet — send XLM for now.
+          </p>
+        )}
         {errors.amountXlm && (
           <p id="amount-error" role="alert" className="mt-1 text-sm text-red-600 dark:text-red-400">
             {errors.amountXlm}
@@ -170,12 +188,14 @@ export function DetailsStep({ state, onChange, onBack, onNext }: DetailsStepProp
             {errors.assetCode}
           </p>
         )}
-        {/* Live XLM → USD conversion; hidden when the rate is unavailable */}
+        {/* Live fiat estimate: XLM uses the CoinGecko rate, USDC is pegged to USD. */}
         <p aria-live="polite" className="mt-1 min-h-5 text-sm text-slate-500 dark:text-slate-400">
-          {showConversion && typeof usdRate === 'number' && (
+          {showConversion && conversionRate !== null && (
             <>
-              ≈ {formatFiat(amount, usdRate)} USD
-              <span className="sr-only"> at the current XLM/USD rate</span>
+              ≈ {formatFiat(amount, conversionRate)} USD
+              <span className="sr-only">
+                {isUsdStable ? ' at the USDC peg' : ' at the current XLM/USD rate'}
+              </span>
             </>
           )}
         </p>

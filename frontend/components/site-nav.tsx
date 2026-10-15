@@ -11,6 +11,7 @@ type NavLink = { href: string; label: string; external?: boolean };
 const LINKS: NavLink[] = [
   { href: '/', label: 'Home' },
   { href: '/send', label: 'Send' },
+  { href: '/send/history', label: 'History' },
   { href: 'https://github.com/bridgelet-org/bridgelet/tree/main/docs', label: 'Docs', external: true },
   { href: 'https://github.com/bridgelet-org/bridgelet', label: 'GitHub', external: true },
 ];

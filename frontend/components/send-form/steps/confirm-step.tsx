@@ -1,10 +1,15 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
 import type { SendFormState } from '../index';
 import { useNfc } from '@/hooks/use-nfc';
 import { BridgeletClient, RateLimitError } from '@/lib/create-bridgelet-client';
-import { createEphemeralAccount, type EphemeralAccount } from '@/lib/bridgelet';
+import {
+  createEphemeralAccount,
+  getAssetIssuer,
+  type EphemeralAccount,
+} from '@/lib/bridgelet';
 import {
   FreighterSenderSigningError,
   toCreateAccountRequestWithFreighterSignature,
@@ -50,13 +55,21 @@ function classifyError(err: unknown): AccountCreationErrorInfo {
           : AccountCreationErrorCode.INVALID_REQUEST,
       userMessage: err.message,
       // The account already exists — retrying only re-sends the payment.
-      retryable: err.code === 'USER_REJECTED' || err.code === 'SUBMIT_FAILED',
+      retryable:
+        err.code === 'USER_REJECTED' ||
+        err.code === 'SUBMIT_FAILED' ||
+        err.code === 'MISSING_TRUSTLINE' ||
+        err.code === 'INSUFFICIENT_BALANCE',
       suggestion:
         err.code === 'SIGNER_MISMATCH'
           ? 'Reconnect the Freighter wallet you selected, then try again.'
-          : err.code === 'UNSUPPORTED_ASSET'
-            ? 'Go back and choose XLM.'
-            : 'Try again — your claim link is kept until the payment goes through.',
+          : err.code === 'MISSING_TRUSTLINE'
+            ? 'Add a trustline for this asset in Freighter, then try again.'
+            : err.code === 'INSUFFICIENT_BALANCE'
+              ? 'Top up your wallet balance, then try again.'
+              : err.code === 'UNSUPPORTED_ASSET'
+                ? 'Go back and choose XLM.'
+                : 'Try again — your claim link is kept until the payment goes through.',
     };
   }
   if (err instanceof RateLimitError) {
@@ -121,6 +134,9 @@ export function ConfirmStep({ state, onBack }: ConfirmStepProps) {
       recovery_address: state.publicKey,
       amount: state.amountXlm,
       asset_code: state.assetCode !== 'XLM' ? state.assetCode : undefined,
+      // Issued assets (e.g. USDC) need the per-network issuer so the backend can
+      // establish the ephemeral account's trustline and fund the right asset.
+      asset_issuer: state.assetCode !== 'XLM' ? getAssetIssuer(state.assetCode) : undefined,
       expiresIn: state.expiresIn || DEFAULT_EXPIRES_IN_SECONDS,
       metadata: {
         recipientName: state.recipientName || undefined,
@@ -170,6 +186,8 @@ export function ConfirmStep({ state, onBack }: ConfirmStepProps) {
         to: account.publicKey,
         amount: state.amountXlm,
         assetCode: state.assetCode,
+        assetIssuer:
+          state.assetCode !== 'XLM' ? getAssetIssuer(state.assetCode) : undefined,
       });
       setAccountStatus('pending_payment');
       void pollAccountStatus(account.accountId);
@@ -332,6 +350,15 @@ export function ConfirmStep({ state, onBack }: ConfirmStepProps) {
             {nfcError && <p className="mt-2 text-xs text-red-600 dark:text-red-400">{nfcError}</p>}
           </div>
         )}
+
+        <div className="border-t border-green-200 pt-3 dark:border-green-800">
+          <Link
+            href="/send/history"
+            className="text-xs font-medium text-green-800 underline underline-offset-2 hover:text-green-900 dark:text-green-300 dark:hover:text-green-100"
+          >
+            View all sent payments →
+          </Link>
+        </div>
       </div>
     );
   }
