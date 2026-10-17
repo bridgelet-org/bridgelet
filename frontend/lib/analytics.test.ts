@@ -6,6 +6,8 @@ import {
   CLAIM_FAILED_ERROR_TYPES,
   conditional,
   createDeduplicationStore,
+  DASHBOARD_FILTERS,
+  type DashboardFilter,
   daysRemainingUntil,
   DEDUP_MAX_ENTRIES,
   DEDUP_TTL_MS,
@@ -16,6 +18,7 @@ import {
   getAnonymousId,
   getSessionId,
   isDoNotTrackEnabled,
+  track,
   type ClaimFailedErrorType,
   type ExplorerJourney,
   type ExplorerSourceScreen,
@@ -928,6 +931,116 @@ describe('post-claim events (§5.3–§5.4)', () => {
       }),
     ).not.toThrow();
     expect(plausible).not.toHaveBeenCalled();
+  });
+});
+
+describe('sender dashboard events (§4.5)', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+    delete (window as unknown as { plausible?: unknown }).plausible;
+  });
+
+  const mockPlausible = () =>
+    ((window as unknown as { plausible?: ReturnType<typeof plausibleMock> }).plausible =
+      plausibleMock());
+
+  const latest = () =>
+    (window as unknown as { plausible: ReturnType<typeof plausibleMock> }).plausible.mock
+      .calls[0]!;
+
+  describe('analytics.dashboardViewed (§4.5)', () => {
+    it('emits Dashboard Viewed with required fields and default active_filter="all"', () => {
+      mockPlausible();
+      analytics.dashboardViewed({ totalPayments: 5 });
+
+      const call = latest();
+      expect(call[0]).toBe('Dashboard Viewed');
+      expect(call[1].props).toEqual(
+        expect.objectContaining({
+          journey: 'sender',
+          total_payments: 5,
+          active_filter: 'all',
+        }),
+      );
+    });
+
+    it('emits Dashboard Viewed with total_payments: 0 for empty state', () => {
+      mockPlausible();
+      analytics.dashboardViewed({ totalPayments: 0 });
+
+      const call = latest();
+      expect(call[0]).toBe('Dashboard Viewed');
+      expect(call[1].props).toEqual(
+        expect.objectContaining({
+          journey: 'sender',
+          total_payments: 0,
+          active_filter: 'all',
+        }),
+      );
+    });
+
+    it.each(DASHBOARD_FILTERS)(
+      'emits Dashboard Viewed with explicit active_filter="%s"',
+      (filter) => {
+        mockPlausible();
+        analytics.dashboardViewed({ totalPayments: 3, activeFilter: filter });
+
+        const call = latest();
+        expect(call[0]).toBe('Dashboard Viewed');
+        expect(call[1].props).toEqual(
+          expect.objectContaining({
+            journey: 'sender',
+            total_payments: 3,
+            active_filter: filter,
+          }),
+        );
+      },
+    );
+
+    it('allows direct track() call for Dashboard Viewed', () => {
+      mockPlausible();
+      track('Dashboard Viewed', {
+        journey: 'sender',
+        total_payments: 10,
+        active_filter: 'unclaimed',
+      });
+
+      const call = latest();
+      expect(call[0]).toBe('Dashboard Viewed');
+      expect(call[1].props).toEqual(
+        expect.objectContaining({
+          journey: 'sender',
+          total_payments: 10,
+          active_filter: 'unclaimed',
+        }),
+      );
+    });
+  });
+
+  describe('analytics.dashboardFilterApplied (§4.5)', () => {
+    it.each(DASHBOARD_FILTERS)(
+      'emits Dashboard Filter Applied with filter="%s"',
+      (filter) => {
+        mockPlausible();
+        analytics.dashboardFilterApplied({ filter });
+
+        const call = latest();
+        expect(call[0]).toBe('Dashboard Filter Applied');
+        expect(call[1].props).toEqual(
+          expect.objectContaining({
+            journey: 'sender',
+            filter,
+          }),
+        );
+      },
+    );
+  });
+
+  describe('DASHBOARD_FILTERS (§4.5)', () => {
+    it('defines exactly the four closed-set filter values from §4.5', () => {
+      expect(DASHBOARD_FILTERS).toEqual(['all', 'unclaimed', 'claimed', 'expired']);
+    });
   });
 });
 

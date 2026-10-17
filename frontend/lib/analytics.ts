@@ -305,9 +305,11 @@ export function createDeduplicationStore(
       prune(now);
       if (seen.has(key)) {
         // Refresh recency so a hot claim is not evicted by the cap while
-        // older idle claims are.
+        // older idle claims are, but keep the original recorded time so TTL
+        // expiry remains based on the initial occurrence.
+        const originalRecordedAt = seen.get(key)!;
         seen.delete(key);
-        seen.set(key, now);
+        seen.set(key, originalRecordedAt);
         return true;
       }
       seen.set(key, now);
@@ -368,7 +370,7 @@ function isDuplicateClaimEvent(event: ClaimEvent, claimId: unknown): boolean {
  * 2. `window.posthog` — capture fallback when PostHog is wired up instead.
  * 3. Console debug output in development builds.
  */
-function track(event: ClaimEvent, props?: EventProps): void {
+export function track(event: ClaimEvent, props?: EventProps): void {
   if (typeof window === 'undefined') return;
 
   // #635 (§9.5) — first, before any payload is built. `getAnonymousId()`
@@ -434,6 +436,21 @@ export type EntrySource = 'direct' | 'referral' | 'shared_link' | 'unknown';
 export type ClaimEntryChannel = 'sms' | 'email' | 'whatsapp' | 'direct' | 'unknown';
 
 export type PaymentClaimStatus = 'unclaimed' | 'claimed' | 'expired';
+
+/**
+ * §4.5 Dashboard filter closed set: exactly one of "all", "unclaimed", "claimed", "expired".
+ */
+export const DASHBOARD_FILTERS = ['all', 'unclaimed', 'claimed', 'expired'] as const;
+export type DashboardFilter = (typeof DASHBOARD_FILTERS)[number];
+
+export interface DashboardViewedProps {
+  totalPayments: number;
+  activeFilter?: DashboardFilter;
+}
+
+export interface DashboardFilterAppliedProps {
+  filter: DashboardFilter;
+}
 
 /**
  * Conditional payload properties (`docs/analytics-spec.md` §3.2) are
@@ -850,5 +867,27 @@ export const analytics = {
       ...(timeToClaimHours !== undefined ? { time_to_claim_hours: timeToClaimHours } : {}),
       ...(sweepDurationMs !== undefined ? { sweep_duration_ms: sweepDurationMs } : {}),
       entry_channel: entryChannel,
+    }),
+
+  /**
+   * §4.5 Dashboard Viewed — fires when the sender's payment dashboard is loaded.
+   */
+  dashboardViewed: ({
+    totalPayments,
+    activeFilter = 'all',
+  }: DashboardViewedProps) =>
+    track('Dashboard Viewed', {
+      journey: 'sender',
+      total_payments: totalPayments,
+      active_filter: activeFilter,
+    }),
+
+  /**
+   * §4.5 Dashboard Filter Applied — fires when the sender selects a different status filter on the dashboard.
+   */
+  dashboardFilterApplied: ({ filter }: DashboardFilterAppliedProps) =>
+    track('Dashboard Filter Applied', {
+      journey: 'sender',
+      filter,
     }),
 };

@@ -1,9 +1,10 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { listEphemeralAccounts, type EphemeralAccount } from '@/lib/bridgelet';
 import { RateLimitError } from '@/lib/create-bridgelet-client';
+import { analytics } from '@/lib/analytics';
 
 /**
  * Sender-facing list of the payments created from this browser.
@@ -99,6 +100,7 @@ export function SendHistory() {
   // Tracked separately from `accounts.length` so the Next button stays disabled
   // while a page is in flight and reflects the last loaded page size.
   const [hasMore, setHasMore] = useState(false);
+  const hasTrackedView = useRef(false);
 
   const load = useCallback(async (nextOffset: number) => {
     setLoading(true);
@@ -107,6 +109,13 @@ export function SendHistory() {
       const page = await listEphemeralAccounts({ limit: PAGE_SIZE, offset: nextOffset });
       setAccounts(page);
       setHasMore(page.length === PAGE_SIZE);
+      if (nextOffset === 0 && !hasTrackedView.current) {
+        hasTrackedView.current = true;
+        analytics.dashboardViewed({
+          totalPayments: page.length,
+          activeFilter: 'all',
+        });
+      }
     } catch (err) {
       if (err instanceof RateLimitError) {
         setError(err.message);
