@@ -166,6 +166,20 @@ This separation means:
 
 The SDK stores account metadata (public keys, expiration, status). It does **not** store recipient email addresses, phone numbers, or personally identifiable information. Any PII handling is the integrator's domain.
 
+### What data does Bridgelet collect or track?
+
+Bridgelet adheres to strict privacy-by-design principles, especially given that the platform facilitates financial transactions:
+
+- **Zero Personally Identifiable Information (PII):** Bridgelet never logs or collects names, emails, phone numbers, or physical addresses.
+- **Wallet Addresses & On-Chain Privacy:**
+  - Recipient destination wallet addresses are used solely for building on-chain sweep transactions; they are **never** included in client-side or server-side analytics event payloads.
+  - Recipient wallet addresses are never exposed to or logged in sender-journey events.
+  - Sender public keys are recorded on-chain as the funding source, but are kept pseudonymous.
+- **Product & Analytics Event Tracking:**
+  - When telemetry/analytics instrumentation is active, tracking is strictly event-based (following [`docs/analytics-spec.md`](./docs/analytics-spec.md)) and uses client-generated random UUIDs (`anonymous_id`, `session_id`) rather than persistent personal identity.
+  - Event payloads record transaction metadata such as asset type (e.g. XLM, USDC), claim expiration duration, and interaction timestamps. Exact transfer amounts are excluded from general event payloads (or represented as USD equivalents where required for funnel performance).
+  - **Consent Gating & Do Not Track:** Telemetry respects browser-level `DNT` (Do Not Track) headers (`DNT: 1` suppresses all event tracking) and user consent preferences. No analytics events are dispatched without user consent.
+
 ---
 
 ## Use Cases & Costs
