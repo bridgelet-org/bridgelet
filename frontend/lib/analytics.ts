@@ -34,7 +34,9 @@ type ClaimEvent =
   | 'Sender Signup CTA Clicked'
   | 'Explorer Link Clicked'
   | 'Error Displayed'
-  | 'Retry Clicked';
+  | 'Retry Clicked'
+  | 'Recovery Information Viewed'
+  | 'Recovery Information Copied';
 
 type EventProps = Record<string, string | number | boolean | null>;
 
@@ -537,10 +539,30 @@ export type ExplorerSourceScreen = 'claim_success' | 'payment_details';
 /** §2.3 journey values for Explorer Link Clicked. */
 export type ExplorerJourney = 'sender' | 'recipient';
 
+/**
+ * §5.4 `explorer` values — the block explorer the clicked link opened.
+ * Closed set; see `docs/analytics-spec.md` §5.4.
+ */
+export type ExplorerName = 'stellar_expert' | 'stellar_chain';
+
+/** §5.4 `network` values for the explorer URL (testnet and mainnet explorers differ). */
+export type ExplorerNetwork = 'testnet' | 'mainnet';
+
 interface ExplorerLinkClickedProps {
   journey: ExplorerJourney;
   claimId: string;
   sourceScreen: ExplorerSourceScreen;
+  /**
+   * §5.4 `tx_hash` — the on-chain transaction hash from the link's URL, so a
+   * click can be correlated with the actual Stellar transaction. Omitted when
+   * the link target has no transaction hash; never parsed from an unvalidated
+   * URL segment.
+   */
+  txHash?: string;
+  /** §5.4 `explorer` — which block explorer was opened. */
+  explorer?: ExplorerName;
+  /** §5.4 `network` — the network the explorer URL targets. */
+  network?: ExplorerNetwork;
 }
 
 /** Client-side address-validation failure reasons (`docs/analytics-spec.md` §5.2). */
@@ -560,6 +582,29 @@ interface ClaimSucceededProps {
   /** Time in ms from `Claim Submitted` to on-chain confirmation. */
   sweepDurationMs?: number;
   entryChannel?: string;
+}
+
+/**
+ * §4.5 `recovery_method` values for the recovery information events. Closed
+ * set — see `docs/analytics-spec.md` §4.5.
+ */
+export type RecoveryMethod = 'reclaim_expired' | 'reclaim_cancelled' | 'self_custody_backup';
+
+/**
+ * §4.5 `copy_target` values for `Recovery Information Copied`. Records *what*
+ * was copied, never its value.
+ */
+export type RecoveryCopyTarget = 'claim_link' | 'recovery_address' | 'wallet_secret';
+
+interface RecoveryInformationViewedProps {
+  claimId: string;
+  recoveryMethod: RecoveryMethod;
+}
+
+interface RecoveryInformationCopiedProps {
+  claimId: string;
+  recoveryMethod: RecoveryMethod;
+  copyTarget: RecoveryCopyTarget;
 }
 
 export function daysRemainingUntil(iso: string): number | undefined {
@@ -824,11 +869,21 @@ export const analytics = {
    * §5.4/§6 Explorer Link Clicked — fires when a user (sender or recipient) clicks a
    * Stellar Explorer transaction link.
    */
-  explorerLinkClicked: ({ journey, claimId, sourceScreen }: ExplorerLinkClickedProps) =>
+  explorerLinkClicked: ({
+    journey,
+    claimId,
+    sourceScreen,
+    txHash,
+    explorer,
+    network,
+  }: ExplorerLinkClickedProps) =>
     track('Explorer Link Clicked', {
       journey,
       claim_id: claimId,
       source_screen: sourceScreen,
+      ...(txHash ? { tx_hash: txHash } : {}),
+      ...(explorer ? { explorer } : {}),
+      ...(network ? { network } : {}),
     }),
   claimSubmitted: ({ claimId, assetType }: ClaimCtaClickedProps) =>
     track('Claim Submitted', {
@@ -850,5 +905,34 @@ export const analytics = {
       ...(timeToClaimHours !== undefined ? { time_to_claim_hours: timeToClaimHours } : {}),
       ...(sweepDurationMs !== undefined ? { sweep_duration_ms: sweepDurationMs } : {}),
       entry_channel: entryChannel,
+    }),
+
+  /**
+   * §4.5 Recovery Information Viewed — fires when a sender opens the surface
+   * that shows their recovery information (reclaim instructions or a
+   * self-custody backup). The recovery material itself is never in the payload.
+   */
+  recoveryInformationViewed: ({ claimId, recoveryMethod }: RecoveryInformationViewedProps) =>
+    track('Recovery Information Viewed', {
+      journey: 'sender',
+      claim_id: claimId,
+      recovery_method: recoveryMethod,
+    }),
+
+  /**
+   * §4.5 Recovery Information Copied — fires when a sender copies recovery
+   * information to the clipboard. `copy_target` records what was copied, never
+   * its value.
+   */
+  recoveryInformationCopied: ({
+    claimId,
+    recoveryMethod,
+    copyTarget,
+  }: RecoveryInformationCopiedProps) =>
+    track('Recovery Information Copied', {
+      journey: 'sender',
+      claim_id: claimId,
+      recovery_method: recoveryMethod,
+      copy_target: copyTarget,
     }),
 };

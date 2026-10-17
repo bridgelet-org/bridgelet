@@ -239,7 +239,8 @@ Fired when the sender successfully connects their wallet.
 | Property | Type | Value / Description |
 |----------|------|---------------------|
 | `journey` | string | `"sender"` |
-| `wallet_type` | string | Name of the wallet provider (e.g., `"Freighter"`, `"Albedo"`, `"xBull"`) |
+| `wallet_type` | string | Human-readable wallet provider name, free-form (e.g., `"Freighter"`, `"Albedo"`, `"xBull"`). For display and for providers that are not in the `wallet_provider` closed set |
+| `wallet_provider` | string | **Closed set:** `"freighter"`, `"lobstr"`, `"generated"` — the connection path that was used (see below) |
 
 ---
 
@@ -250,8 +251,23 @@ Fired when wallet connection is attempted but fails.
 | Property | Type | Value / Description |
 |----------|------|---------------------|
 | `journey` | string | `"sender"` |
-| `wallet_type` | string | Attempted wallet provider |
+| `wallet_type` | string | Human-readable attempted wallet provider, free-form (same rules as `Wallet Connected`) |
+| `wallet_provider` | string | **Closed set:** `"freighter"`, `"lobstr"`, `"generated"` — the connection path that was attempted |
 | `error_code` | string | Provider error code or `"unknown"` |
+
+**`wallet_provider` values (closed set)**
+
+Both wallet events carry the same `wallet_provider` value, so `Wallet Connection Failed` can be broken down by connection path (the failure rate differs sharply by provider, and a provider-specific regression — for example a Freighter API version pin — is only visible when the provider is recorded). The three values match the `WalletType` union in `frontend/lib/wallet.ts`:
+
+| `wallet_provider` value | Connection path | Notes |
+|-------------------------|-----------------|-------|
+| `freighter` | Live connection to the Freighter browser extension | The only path wired into the UI today |
+| `lobstr` | LOBSTR paste-your-public-key flow | `connectLobstr()` throws `USE_PASTE_FLOW`; a live SDK connection does not exist |
+| `generated` | Client-side keypair from `generateNewWallet()` | The user never connects an external wallet; a key is created for them |
+
+Definitions of the three paths, and how `generated` relates to the custodial funding key, are maintained in `bridgelet-product-audit/glossary/wallet-connection-types.md` and `bridgelet-product-audit/glossary/custodial-model-in-practice.md`. Send the lowercase enum value, never the display label.
+
+> **Implementation status:** Neither event is emitted from `frontend/` today. `Wallet Connected` and `Wallet Connection Failed` are defined here before implementation, per the pre-flight runbook `bridgelet-product-audit/runbooks/review-analytics-spec-before-new-event.md`. See `docs/analytics-server-vs-client-decision.md` §2.
 
 ---
 
@@ -433,6 +449,51 @@ Fired when the sender successfully reclaims expired funds.
 
 ---
 
+#### `Recovery Information Viewed`
+
+Fired when a sender opens the screen or panel that shows their recovery information for a payment — the details needed to get funds back when a claim link is lost, the recipient never claims, or the sender created a self-custody wallet. Fires when that information is rendered to the sender.
+
+| Property | Type | Value / Description |
+|----------|------|---------------------|
+| `journey` | string | `"sender"` |
+| `claim_id` | string | |
+| `recovery_method` | string | **Closed set:** `"reclaim_expired"`, `"reclaim_cancelled"`, `"self_custody_backup"` — which recovery surface was opened (see below) |
+
+---
+
+#### `Recovery Information Copied`
+
+Fired when a sender copies their recovery information to the clipboard.
+
+| Property | Type | Value / Description |
+|----------|------|---------------------|
+| `journey` | string | `"sender"` |
+| `claim_id` | string | |
+| `recovery_method` | string | Same closed set as `Recovery Information Viewed` |
+| `copy_target` | string | **Closed set:** `"claim_link"`, `"recovery_address"`, `"wallet_secret"` — what was copied |
+
+**`recovery_method` values (closed set)**
+
+| `recovery_method` value | Recovery surface |
+|-------------------------|------------------|
+| `reclaim_expired` | Reclaiming funds after a claim expired (the flow that produces `Funds Reclaimed`) |
+| `reclaim_cancelled` | Reclaiming funds after the sender cancelled an unclaimed payment |
+| `self_custody_backup` | Backing up a client-generated wallet's key/seed (`wallet_type: "generated"`) |
+
+**Why these events exist**
+
+For a custodial product, drop-off in the recovery flow is a direct signal of support burden: a sender who opens the recovery screen but never copies the information, or never completes a reclaim, is a likely support ticket. `Funds Reclaimed` records only the successful end state, so today there is no way to see how many senders reach recovery and abandon it. These two events add the entry point (`Recovery Information Viewed`) and the key hand-off step (`Recovery Information Copied`) so the funnel can be measured.
+
+**Privacy boundary**
+
+- Never include the recovery material itself in either payload — no claim link, no recovery address, no key, no seed phrase. Only the *fact* that the sender viewed or copied it, and which surface it was.
+- `wallet_secret` records that a wallet secret or seed phrase was copied, not its value. If even that signal is judged too sensitive to store, prefer dropping the `copy_target` row over weakening the rule.
+- Recovery events are `journey: "sender"` only. A recipient never sees these surfaces.
+
+> **Implementation status:** The event names are registered in the `ClaimEvent` union and emitters (`analytics.recoveryInformationViewed` / `recoveryInformationCopied`) exist in `frontend/lib/analytics.ts`, so the `analytics-spec-diff` name check holds. No recovery UI, reclaim screen, or self-custody backup surface exists in `frontend/` today, so neither emitter has a call site yet (only the on-chain reclaim outcome is modeled, by `Funds Reclaimed`). Defined ahead of implementation per the pre-flight runbook `bridgelet-product-audit/runbooks/review-analytics-spec-before-new-event.md`. See `bridgelet-product-audit/glossary/custodial-model-in-practice.md`.
+
+---
+
 ## 5. Recipient Journey Events
 
 Events are listed in chronological order through the recipient claim flow.
@@ -450,6 +511,17 @@ Fired immediately when a recipient opens a claim link. Fires before token verifi
 | `journey` | string | `"recipient"` |
 | `claim_id` | string | Extracted from URL token |
 | `entry_channel` | string | Best-guess referral channel: `"sms"`, `"email"`, `"whatsapp"`, `"direct"`, `"unknown"` |
+
+**Deduplication within a session**
+
+Repeat opens of the same claim link within one session are **not** deduplicated. A recipient who refreshes the page, navigates away and returns, or opens the same link again is performing a distinct, real interaction; every open emits one `Claim Page Opened`. This is deliberate and is consistent with §9.4, which makes only `Payment Created` and `Claim Succeeded` idempotent — `Claim Page Opened` is not in that set.
+
+The rule below distinguishes a genuine repeat open from an accidental double-fire:
+
+- **Count it:** one `Claim Page Opened` per page load. A second page load — in the same session or a later one — is another event.
+- **Suppress it:** a second event from the *same* page load. React StrictMode double-invokes effects in development, and a component can re-render on mount; neither is a second open. The emitter must guard against this with a per-mount flag so one mounted claim page produces exactly one event.
+
+Analysts wanting "distinct opens" should count distinct `session_id` (+ `claim_id`) pairs rather than assuming the event is deduplicated. Because a repeat open carries the same `claim_id` and `session_id` but a fresh `timestamp`, within-session repeats are still countable without losing the "returning to the same link" signal.
 
 ---
 
@@ -656,6 +728,22 @@ Fired when a user (sender or recipient) clicks a Stellar Explorer transaction li
 | `journey` | string | `"sender"` or `"recipient"` |
 | `claim_id` | string | |
 | `source_screen` | string | `"claim_success"`, `"payment_details"` |
+| `tx_hash` | string | Hash of the on-chain transaction the link points to, taken from the link's URL, so the click can be correlated with the actual Stellar transaction. Omit only when the link target has no transaction hash (for example an account-level link) |
+| `explorer` | string | **Closed set:** `"stellar_expert"`, `"stellar_chain"` — the block explorer the link opened (see below) |
+| `network` | string | `"testnet"` or `"mainnet"` — the network the explorer URL targets |
+
+**`explorer` values (closed set)**
+
+| `explorer` value | Explorer | Base URL pattern |
+|------------------|----------|------------------|
+| `stellar_expert` | [Stellar Expert](https://stellar.expert) | `https://stellar.expert/explorer/{network}/tx/{tx_hash}` |
+| `stellar_chain` | [StellarChain](https://stellarchain.io) | `https://stellarchain.io/{network === "mainnet" ? "" : "testnet/"}tx/{tx_hash}` |
+
+Rules:
+
+- The explorer and network are properties of the *link the user clicked*, not of the user's session. If Bridgelet ever links to more than one explorer, each emits its own `explorer` value; do not collapse them into one.
+- Testnet and mainnet explorers differ. `network` is recorded explicitly rather than inferred, because the same `tx_hash` shape appears on both networks and a dashboard that assumes one will silently mix them.
+- Never build `tx_hash` from an unvalidated URL segment. Read it from the link target that was actually rendered, so a forged URL cannot inject an arbitrary value into the payload.
 
 ---
 
