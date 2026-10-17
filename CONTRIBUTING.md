@@ -21,6 +21,27 @@ Thanks for helping improve Bridgelet! Please read this guide before opening an i
 - Include tests or notes on why tests are not required.
 - Update documentation when behavior or APIs change.
 - Link related issues/discussions and describe the approach and rationale.
+- If you add or change an analytics event or tracking call, update `docs/analytics-spec.md` first and follow the [analytics event runbook](./bridgelet-product-audit/runbooks/review-analytics-spec-before-new-event.md) — see [Adding or Modifying Analytics Events](#adding-or-modifying-analytics-events).
+
+## Adding or Modifying Analytics Events
+
+Analytics events are specified before they are implemented. If your change adds
+or changes a tracking call, work through the process before opening the PR:
+
+1. Read the [analytics specification](./docs/analytics-spec.md). Event names and
+   property keys must match it exactly, and it defines the privacy rules for
+   payloads.
+2. Run the pre-flight checklist in the
+   [analytics event runbook](./bridgelet-product-audit/runbooks/review-analytics-spec-before-new-event.md):
+   search for an existing event before adding one, confirm the `Noun Verb` name,
+   update the spec, and place the event in the correct journey section.
+3. Update the spec in the same pull request as the code, add the emitter to
+   `frontend/lib/analytics.ts`, and follow the
+   [analytics testing strategy](./TESTING.md#analytics-event-verification).
+
+The runbook exists so a new event is a deliberate spec change rather than an
+ad-hoc string in a component; reviewers will ask for the spec update when a
+tracking call lands without one.
 
 ## Development Notes
 
