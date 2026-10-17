@@ -422,14 +422,24 @@ Fired when the sender cancels an unclaimed payment.
 
 #### `Funds Reclaimed`
 
-Fired when the sender successfully reclaims expired funds.
+Fired when the sender successfully reclaims funds — either because the claim expired or because the sender cancelled an unclaimed payment.
 
 | Property | Type | Value / Description |
 |----------|------|---------------------|
 | `journey` | string | `"sender"` |
 | `claim_id` | string | |
 | `asset_type` | string | |
-| `days_expired` | number | Days the claim was expired before reclaim |
+| `reclaim_reason` | string | **Closed set:** `"expired"` (the claim expired and the funds returned), `"cancelled"` (the sender cancelled the unclaimed payment and the funds returned) |
+| `days_expired` | number | Days the claim was expired before reclaim. Only meaningful when `reclaim_reason = "expired"`; omit (or send `0`) when `reclaim_reason = "cancelled"` |
+
+**`reclaim_reason` values (closed set)**
+
+| `reclaim_reason` value | Situation | Distinct product signal |
+|------------------------|-----------|-------------------------|
+| `expired` | The recipient never claimed before the expiry window closed | The claim link reached the recipient but did not convert — a delivery/timing problem |
+| `cancelled` | The sender cancelled the payment before it was claimed | The sender changed their mind — a sender-intent decision, not a recipient failure |
+
+These are different user situations and warrant different interventions, so they must not be collapsed into one "reclaim" bucket. In particular, `Reclaim Rate` (§8.1) should be read per `reclaim_reason`; a rising `cancelled` share says something about sender intent, while a rising `expired` share says something about recipient reach. `days_expired` stays relevant only to the `expired` case, which is why it is scoped there.
 
 ---
 
@@ -450,6 +460,15 @@ Fired immediately when a recipient opens a claim link. Fires before token verifi
 | `journey` | string | `"recipient"` |
 | `claim_id` | string | Extracted from URL token |
 | `entry_channel` | string | Best-guess referral channel: `"sms"`, `"email"`, `"whatsapp"`, `"direct"`, `"unknown"` |
+| `is_returning_visit` | boolean | `false` on the first `Claim Page Opened` recorded for this `anonymous_id`; `true` when the same `anonymous_id` has already fired `Claim Page Opened` before (any claim link) |
+
+**`is_returning_visit` and how it is derived**
+
+`Claim Conversion Rate` (§8.1) currently divides `Claim Succeeded` by `Claim Verified`, but the recipient funnel (§7.2) starts at `Claim Page Opened`. Without a first-time/returning split, a recipient who opens the same link several times while deciding whether to claim — inflating the opener count — is indistinguishable from genuinely new traffic, which makes the denominator of any open-based conversion metric misleading.
+
+- The property is derived from `anonymous_id` history, not from anything about the current page load. It is `false` only for the first `Claim Page Opened` ever seen for a given `anonymous_id`; every subsequent open by that same `anonymous_id` is `true`.
+- Two equivalent ways to compute it, both acceptable: (a) the emitter keeps a `localStorage` flag (`bridgelet_claim_page_opened`) and reports its value before setting it, or (b) the analytics pipeline computes it by grouping on `anonymous_id` and ordering by `timestamp`. Method (b) is authoritative — it still works when `localStorage` was cleared or blocked — and should be the fallback when `anonymous_id` is empty.
+- `anonymous_id` is per-browser and per-store, so a recipient who opens the link on a second device is `false` there. That is inherent to a cookie-less anonymous identity (§9.3) and is preferable to inventing a cross-device signal.
 
 ---
 
