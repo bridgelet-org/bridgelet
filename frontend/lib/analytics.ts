@@ -34,7 +34,9 @@ type ClaimEvent =
   | 'Sender Signup CTA Clicked'
   | 'Explorer Link Clicked'
   | 'Error Displayed'
-  | 'Retry Clicked';
+  | 'Retry Clicked'
+  | 'Recovery Information Viewed'
+  | 'Recovery Information Copied';
 
 type EventProps = Record<string, string | number | boolean | null>;
 
@@ -582,6 +584,29 @@ interface ClaimSucceededProps {
   entryChannel?: string;
 }
 
+/**
+ * §4.5 `recovery_method` values for the recovery information events. Closed
+ * set — see `docs/analytics-spec.md` §4.5.
+ */
+export type RecoveryMethod = 'reclaim_expired' | 'reclaim_cancelled' | 'self_custody_backup';
+
+/**
+ * §4.5 `copy_target` values for `Recovery Information Copied`. Records *what*
+ * was copied, never its value.
+ */
+export type RecoveryCopyTarget = 'claim_link' | 'recovery_address' | 'wallet_secret';
+
+interface RecoveryInformationViewedProps {
+  claimId: string;
+  recoveryMethod: RecoveryMethod;
+}
+
+interface RecoveryInformationCopiedProps {
+  claimId: string;
+  recoveryMethod: RecoveryMethod;
+  copyTarget: RecoveryCopyTarget;
+}
+
 export function daysRemainingUntil(iso: string): number | undefined {
   const expiresAt = Date.parse(iso);
   if (Number.isNaN(expiresAt)) return undefined;
@@ -880,5 +905,34 @@ export const analytics = {
       ...(timeToClaimHours !== undefined ? { time_to_claim_hours: timeToClaimHours } : {}),
       ...(sweepDurationMs !== undefined ? { sweep_duration_ms: sweepDurationMs } : {}),
       entry_channel: entryChannel,
+    }),
+
+  /**
+   * §4.5 Recovery Information Viewed — fires when a sender opens the surface
+   * that shows their recovery information (reclaim instructions or a
+   * self-custody backup). The recovery material itself is never in the payload.
+   */
+  recoveryInformationViewed: ({ claimId, recoveryMethod }: RecoveryInformationViewedProps) =>
+    track('Recovery Information Viewed', {
+      journey: 'sender',
+      claim_id: claimId,
+      recovery_method: recoveryMethod,
+    }),
+
+  /**
+   * §4.5 Recovery Information Copied — fires when a sender copies recovery
+   * information to the clipboard. `copy_target` records what was copied, never
+   * its value.
+   */
+  recoveryInformationCopied: ({
+    claimId,
+    recoveryMethod,
+    copyTarget,
+  }: RecoveryInformationCopiedProps) =>
+    track('Recovery Information Copied', {
+      journey: 'sender',
+      claim_id: claimId,
+      recovery_method: recoveryMethod,
+      copy_target: copyTarget,
     }),
 };

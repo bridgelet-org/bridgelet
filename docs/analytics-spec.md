@@ -490,7 +490,7 @@ For a custodial product, drop-off in the recovery flow is a direct signal of sup
 - `wallet_secret` records that a wallet secret or seed phrase was copied, not its value. If even that signal is judged too sensitive to store, prefer dropping the `copy_target` row over weakening the rule.
 - Recovery events are `journey: "sender"` only. A recipient never sees these surfaces.
 
-> **Implementation status:** No recovery UI, reclaim screen, or self-custody backup surface exists in `frontend/` today (only the on-chain reclaim outcome is modeled, by `Funds Reclaimed`). These events are defined ahead of implementation per the pre-flight runbook `bridgelet-product-audit/runbooks/review-analytics-spec-before-new-event.md`, so the emitter is built against a settled definition rather than the reverse. See `bridgelet-product-audit/glossary/custodial-model-in-practice.md`.
+> **Implementation status:** The event names are registered in the `ClaimEvent` union and emitters (`analytics.recoveryInformationViewed` / `recoveryInformationCopied`) exist in `frontend/lib/analytics.ts`, so the `analytics-spec-diff` name check holds. No recovery UI, reclaim screen, or self-custody backup surface exists in `frontend/` today, so neither emitter has a call site yet (only the on-chain reclaim outcome is modeled, by `Funds Reclaimed`). Defined ahead of implementation per the pre-flight runbook `bridgelet-product-audit/runbooks/review-analytics-spec-before-new-event.md`. See `bridgelet-product-audit/glossary/custodial-model-in-practice.md`.
 
 ---
 

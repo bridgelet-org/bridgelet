@@ -946,6 +946,66 @@ describe('post-claim events (§5.3–§5.4)', () => {
     });
   });
 
+  describe('analytics recovery information events (§4.5)', () => {
+    it('emits Recovery Information Viewed with journey, claim_id, and recovery_method', () => {
+      mockPlausible();
+      analytics.recoveryInformationViewed({
+        claimId: 'claim-013',
+        recoveryMethod: 'reclaim_expired',
+      });
+
+      const call = latest();
+      expect(call[0]).toBe('Recovery Information Viewed');
+      expect(call[1].props).toEqual(
+        expect.objectContaining({
+          journey: 'sender',
+          claim_id: 'claim-013',
+          recovery_method: 'reclaim_expired',
+        }),
+      );
+    });
+
+    it('emits Recovery Information Copied with recovery_method and copy_target', () => {
+      mockPlausible();
+      analytics.recoveryInformationCopied({
+        claimId: 'claim-014',
+        recoveryMethod: 'self_custody_backup',
+        copyTarget: 'wallet_secret',
+      });
+
+      const call = latest();
+      expect(call[0]).toBe('Recovery Information Copied');
+      expect(call[1].props).toEqual(
+        expect.objectContaining({
+          journey: 'sender',
+          claim_id: 'claim-014',
+          recovery_method: 'self_custody_backup',
+          copy_target: 'wallet_secret',
+        }),
+      );
+    });
+
+    it('never carries the recovery material itself (§4.5 privacy boundary)', () => {
+      mockPlausible();
+      analytics.recoveryInformationCopied({
+        claimId: 'claim-015',
+        recoveryMethod: 'reclaim_expired',
+        copyTarget: 'claim_link',
+      });
+
+      const props = latest()[1].props as Record<string, unknown>;
+      expect(props).toMatchObject({
+        journey: 'sender',
+        claim_id: 'claim-015',
+        recovery_method: 'reclaim_expired',
+        copy_target: 'claim_link',
+      });
+      // Records the copy, not what was copied.
+      expect(props).not.toHaveProperty('value');
+      expect(props).not.toHaveProperty('secret');
+    });
+  });
+
   it('no-ops when the window object is unavailable', () => {
     const plausible = plausibleMock();
     (window as unknown as { plausible?: ReturnType<typeof plausibleMock> }).plausible = plausible;
