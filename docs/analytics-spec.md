@@ -1,11 +1,19 @@
 # Bridgelet Analytics & Product Event Tracking Specification
 
-**Version:** 1.0
+**Version:** 1.0.0
 **Status:** Draft
 **Created:** March 2026
 **Based On:** `bridgelet-frd-ui-ux.md`, `ROADMAP.md`, `FRONTEND_TECHNICAL_SPEC.md`
 
 > **Implementation status:** Implementation compliance has **not** been verified. Treat this document as the intended design for Bridgelet's analytics instrumentation, not as a source of truth. See `bridgelet-product-audit/postmortems/analytics-spec-vs-implementation-unverified.md`.
+
+---
+
+## Spec Changelog
+
+| Spec Version | Date | Changes | Compatible App Versions |
+|--------------|------|---------|-------------------------|
+| `1.0.0` | 2026-03-15 | Initial baseline analytics specification defining sender and recipient journey events, funnels, KPIs, and base payload. Added `analytics_spec_version` tracking field. | `0.1.0+` |
 
 ---
 
@@ -122,8 +130,9 @@ Every event includes a **base payload** of common properties. Event-specific pro
   "device_type": "mobile | tablet | desktop",
   "referrer": "string | null",      // URL of the referring page or null
 
-  // App version
-  "app_version": "string"           // e.g. "1.0.0"
+  // App & Spec version
+  "app_version": "string",          // e.g. "1.0.0"
+  "analytics_spec_version": "string" // Semantic version of this analytics spec (e.g. "1.0.0")
 }
 ```
 
