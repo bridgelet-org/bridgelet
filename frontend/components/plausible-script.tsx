@@ -22,8 +22,7 @@ export function PlausibleScript() {
     const domain = process.env.NEXT_PUBLIC_PLAUSIBLE_DOMAIN;
     if (!domain) return; // Not configured — analytics stays console-only.
 
-    const w = window as unknown as { plausible?: unknown };
-    if (w.plausible) return; // Already loaded (e.g. React strict-mode remount).
+    if (window.plausible) return; // Already loaded (e.g. React strict-mode remount).
 
     const apiHost = process.env.NEXT_PUBLIC_PLAUSIBLE_API_HOST ?? 'https://plausible.io';
     const script = document.createElement('script');

@@ -1,11 +1,14 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   analytics,
+  ANALYTICS_NETWORKS,
   appVersion,
   buildBasePayload,
   CLAIM_FAILED_ERROR_TYPES,
+  clearPendingEvents,
   conditional,
   createDeduplicationStore,
+  currentNetwork,
   daysRemainingUntil,
   DEDUP_MAX_ENTRIES,
   DEDUP_TTL_MS,
@@ -15,11 +18,21 @@ import {
   ErrorType,
   getAnonymousId,
   getSessionId,
+  isAnalyticsOptedOut,
   isDoNotTrackEnabled,
+  isVerificationEnabled,
+  JOURNEYS,
+  normalizeJourney,
+  PENDING_QUEUE_MAX_EVENTS,
+  pendingEventCount,
+  PLATFORM,
+  PLATFORMS,
+  setAnalyticsOptedOut,
   type ClaimFailedErrorType,
   type ExplorerJourney,
   type ExplorerSourceScreen,
   VALID_EXPIRY_WINDOWS,
+  validatePayload,
   type ValidationError,
 } from '@/lib/analytics';
 
@@ -1604,3 +1617,309 @@ describe('dispatch targets and PostHog fallback', () => {
     expect(capture).not.toHaveBeenCalled();
   });
 })
+// ─── #886 platform constant ───────────────────────────────────────────────────
+
+describe('PLATFORM constant', () => {
+  it('exposes "web" as the only web platform value', () => {
+    expect(PLATFORM).toBe('web');
+    expect(Object.values(PLATFORMS)).toEqual(['web']);
+  });
+
+  it('is the value buildBasePayload emits', () => {
+    expect(buildBasePayload().platform).toBe(PLATFORM);
+  });
+});
+
+// ─── #807 journey dimension ───────────────────────────────────────────────────
+
+describe('journey dimension', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
+    delete (window as unknown as { plausible?: unknown }).plausible;
+    clearPendingEvents();
+  });
+
+  it('defaults to "shared" when no journey is supplied', () => {
+    expect(buildBasePayload().journey).toBe(JOURNEYS.shared);
+  });
+
+  it('accepts each spec journey value', () => {
+    for (const journey of Object.values(JOURNEYS)) {
+      expect(buildBasePayload(journey).journey).toBe(journey);
+    }
+  });
+
+  it('normalizes unknown or malformed values to "shared"', () => {
+    expect(normalizeJourney(undefined)).toBe('shared');
+    expect(normalizeJourney('Sender')).toBe('shared');
+    expect(normalizeJourney(null)).toBe('shared');
+    expect(normalizeJourney('recipient')).toBe('recipient');
+  });
+
+  it('is populated on every event even when the emitter omits it', () => {
+    const plausible = plausibleMock();
+    window.plausible = plausible;
+
+    analytics.sendFormViewed();
+
+    expect(plausible).toHaveBeenCalledTimes(1);
+    expect(plausible.mock.calls[0]![1]).toEqual(expect.objectContaining({ journey: 'sender' }));
+  });
+});
+
+// ─── #808 timestamp dimension ─────────────────────────────────────────────────
+
+describe('timestamp dimension', () => {
+  it('emits an ISO 8601 send time', () => {
+    const payload = buildBasePayload();
+    expect(typeof payload.timestamp).toBe('string');
+    expect(Number.isNaN(Date.parse(payload.timestamp as string))).toBe(false);
+    expect(payload.timestamp).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
+  });
+});
+
+// ─── #810 / #881 network dimension ────────────────────────────────────────────
+
+describe('network dimension', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it('maps stellar-mainnet to mainnet', () => {
+    vi.stubEnv('NEXT_PUBLIC_CRYPTO_NETWORK', 'stellar-mainnet');
+    expect(currentNetwork()).toBe(ANALYTICS_NETWORKS.mainnet);
+  });
+
+  it('maps stellar-testnet to testnet', () => {
+    vi.stubEnv('NEXT_PUBLIC_CRYPTO_NETWORK', 'stellar-testnet');
+    expect(currentNetwork()).toBe(ANALYTICS_NETWORKS.testnet);
+  });
+
+  it('reports "unknown" rather than silently claiming testnet when unset', () => {
+    vi.stubEnv('NEXT_PUBLIC_CRYPTO_NETWORK', '');
+    expect(currentNetwork()).toBe(ANALYTICS_NETWORKS.unknown);
+  });
+
+  it('reports "unknown" for an unrecognised value', () => {
+    vi.stubEnv('NEXT_PUBLIC_CRYPTO_NETWORK', 'stellar-future-net');
+    expect(currentNetwork()).toBe(ANALYTICS_NETWORKS.unknown);
+  });
+
+  it('is present on the base payload', () => {
+    vi.stubEnv('NEXT_PUBLIC_CRYPTO_NETWORK', 'stellar-mainnet');
+    expect(buildBasePayload().network).toBe('mainnet');
+  });
+});
+
+// ─── #882 consent gate ────────────────────────────────────────────────────────
+
+describe('explicit analytics opt-out', () => {
+  afterEach(() => {
+    setAnalyticsOptedOut(false);
+    vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
+    delete (window as unknown as { plausible?: unknown }).plausible;
+    clearPendingEvents();
+  });
+
+  it('defaults to allowing tracking when no decision is recorded', () => {
+    expect(isAnalyticsOptedOut()).toBe(false);
+  });
+
+  it('persists the opt-out and clears it again', () => {
+    setAnalyticsOptedOut(true);
+    expect(isAnalyticsOptedOut()).toBe(true);
+    setAnalyticsOptedOut(false);
+    expect(isAnalyticsOptedOut()).toBe(false);
+  });
+
+  it('suppresses every event once opted out', () => {
+    const plausible = plausibleMock();
+    window.plausible = plausible;
+    setAnalyticsOptedOut(true);
+
+    analytics.claimPageViewed({ claimId: 'tok_optout', entryChannel: 'direct' });
+
+    expect(plausible).not.toHaveBeenCalled();
+    expect(pendingEventCount()).toBe(0);
+  });
+
+  it('does not mint an anonymous_id for a visitor who opted out', () => {
+    window.plausible = plausibleMock();
+    setAnalyticsOptedOut(true);
+    localStorage.removeItem('bridgelet_anonymous_id');
+
+    analytics.sendFormViewed();
+
+    expect(localStorage.getItem('bridgelet_anonymous_id')).toBeNull();
+  });
+});
+
+// ─── #851 pre-provider queue ──────────────────────────────────────────────────
+
+describe('queueing events until a provider appears', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
+    delete (window as unknown as { plausible?: unknown }).plausible;
+    delete (window as unknown as { posthog?: unknown }).posthog;
+    clearPendingEvents();
+  });
+
+  it('buffers a page-load event when the provider has not loaded yet', () => {
+    analytics.pageViewed({ page: '/' });
+
+    expect(pendingEventCount()).toBe(1);
+  });
+
+  it('replays buffered events once Plausible appears, in order', () => {
+    analytics.pageViewed({ page: '/' });
+    analytics.sendFormViewed();
+
+    const plausible = plausibleMock();
+    window.plausible = plausible;
+    analytics.paymentConfirmationViewed({});
+
+    expect(plausible.mock.calls.map((call) => call[0])).toEqual([
+      'Page Viewed',
+      'Send Form Viewed',
+      'Payment Confirmation Viewed',
+    ]);
+    expect(pendingEventCount()).toBe(0);
+  });
+
+  it('preserves the original payload of a buffered event', () => {
+    analytics.claimPageOpened({ claimId: 'tok_queue', entryChannel: 'direct' });
+
+    const plausible = plausibleMock();
+    window.plausible = plausible;
+    analytics.sendFormViewed();
+
+    const replayed = plausible.mock.calls[0]![1] as { props: Record<string, unknown> };
+    expect(replayed.props.claim_id).toBe('tok_queue');
+    expect(replayed.props.journey).toBe('recipient');
+  });
+
+  it('bounds the queue, dropping the oldest events first', () => {
+    for (let i = 0; i < PENDING_QUEUE_MAX_EVENTS + 5; i += 1) {
+      analytics.paymentDetailsViewed({ claimId: 'claim_' + i, claimStatus: 'unclaimed' });
+    }
+
+    expect(pendingEventCount()).toBe(PENDING_QUEUE_MAX_EVENTS);
+
+    const plausible = plausibleMock();
+    window.plausible = plausible;
+    analytics.sendFormViewed();
+
+    const replayed = plausible.mock.calls.slice(0, PENDING_QUEUE_MAX_EVENTS);
+    expect(replayed[0]![1]).toEqual(expect.objectContaining({ claim_id: 'claim_5' }));
+  });
+
+  it('sends straight through once a provider is available', () => {
+    const plausible = plausibleMock();
+    window.plausible = plausible;
+
+    analytics.sendFormViewed();
+
+    expect(pendingEventCount()).toBe(0);
+    expect(plausible).toHaveBeenCalledTimes(1);
+  });
+
+  it('discards the queue when PostHog takes over instead', () => {
+    analytics.sendFormViewed();
+    const capture = vi.fn();
+    window.posthog = { capture };
+
+    analytics.sendFormViewed();
+
+    expect(capture).toHaveBeenCalledTimes(1);
+    expect(pendingEventCount()).toBe(0);
+  });
+});
+
+// ─── #853 payload verification ────────────────────────────────────────────────
+
+describe('payload verification', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
+    delete (window as unknown as { plausible?: unknown }).plausible;
+    clearPendingEvents();
+    vi.restoreAllMocks();
+  });
+
+  it('accepts a payload built by the module', () => {
+    expect(validatePayload(buildBasePayload('sender'))).toEqual([]);
+  });
+
+  it('reports every missing base-payload field', () => {
+    expect(validatePayload({})).toEqual(
+      expect.arrayContaining([
+        'missing §3.1 field "journey"',
+        'missing §3.1 field "timestamp"',
+        'missing §3.1 field "network"',
+      ]),
+    );
+  });
+
+  it('rejects a non-ISO timestamp', () => {
+    const payload = buildBasePayload('sender');
+    payload.timestamp = 'yesterday';
+    expect(validatePayload(payload)).toEqual(
+      expect.arrayContaining(['field "timestamp" is not an ISO 8601 date string']),
+    );
+  });
+
+  it('rejects a journey outside the spec vocabulary', () => {
+    const payload = buildBasePayload('sender');
+    payload.journey = 'Sender';
+    expect(validatePayload(payload)).toEqual(
+      expect.arrayContaining(['field "journey" is not one of sender | recipient | shared']),
+    );
+  });
+
+  it('accepts a null referrer, which the spec documents as its own value', () => {
+    const payload = buildBasePayload('sender');
+    payload.referrer = null;
+    expect(validatePayload(payload)).toEqual([]);
+  });
+
+  it('reports a wrongly-typed field', () => {
+    const payload = buildBasePayload('sender');
+    payload.device_type = 42;
+    expect(validatePayload(payload)).toEqual(
+      expect.arrayContaining(['field "device_type" should be string, got number']),
+    );
+  });
+
+  it('is off unless NEXT_PUBLIC_ANALYTICS_VERIFY is enabled', () => {
+    vi.stubEnv('NEXT_PUBLIC_ANALYTICS_VERIFY', 'false');
+    expect(isVerificationEnabled()).toBe(false);
+    vi.stubEnv('NEXT_PUBLIC_ANALYTICS_VERIFY', 'true');
+    expect(isVerificationEnabled()).toBe(true);
+  });
+
+  it('warns on the console about a malformed payload when enabled', () => {
+    vi.stubEnv('NEXT_PUBLIC_ANALYTICS_VERIFY', 'true');
+    window.plausible = plausibleMock();
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+
+    analytics.sendFormViewed();
+
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringContaining('docs/analytics-spec.md'),
+      expect.any(Array),
+    );
+  });
+
+  it('stays silent about a well-formed payload', () => {
+    vi.stubEnv('NEXT_PUBLIC_ANALYTICS_VERIFY', 'true');
+    window.plausible = plausibleMock();
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+
+    analytics.sendFormViewed();
+
+    expect(warn).not.toHaveBeenCalled();
+  });
+});
