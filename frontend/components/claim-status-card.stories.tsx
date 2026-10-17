@@ -1,7 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/nextjs-vite';
 import { AccountStatus } from '@/lib/api/types';
 import { ClaimStatusCard } from './claim-status-card';
-import { AccountStatus } from '@/lib/api/types';
 
 const meta: Meta<typeof ClaimStatusCard> = {
   title: 'Components/ClaimStatusCard',
@@ -35,10 +34,6 @@ export const Claimed: Story = {
 
 export const Expired: Story = {
   args: { status: AccountStatus.EXPIRED, expiresAt: '2026-06-01T00:00:00Z', supportEmail: 'support@bridgelet.com' },
-};
-
-export const PendingPayment: Story = {
-  args: { status: AccountStatus.PENDING_PAYMENT },
 };
 
 export const Failed: Story = {
