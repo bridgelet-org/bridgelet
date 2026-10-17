@@ -436,6 +436,11 @@ function ClaimedPanel({
                 journey: 'recipient',
                 claimId,
                 sourceScreen: 'claim_success',
+                // The link targets this transaction on Stellar Expert (testnet);
+                // capture both so clicks correlate with the on-chain tx.
+                txHash: claimId,
+                explorer: 'stellar_expert',
+                network: 'testnet',
               })
             }
             className="block text-center text-xs text-blue-600 underline underline-offset-2 hover:text-blue-800 dark:text-blue-300 dark:hover:text-blue-100"

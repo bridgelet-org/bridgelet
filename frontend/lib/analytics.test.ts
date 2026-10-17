@@ -913,6 +913,37 @@ describe('post-claim events (§5.3–§5.4)', () => {
         expect(props.source_screen).toBe(sourceScreen);
       },
     );
+
+    it('carries tx_hash, explorer, and network when provided (§5.4)', () => {
+      mockPlausible();
+      analytics.explorerLinkClicked({
+        journey: 'recipient',
+        claimId: 'claim-011',
+        sourceScreen: 'claim_success',
+        txHash: 'abc123',
+        explorer: 'stellar_expert',
+        network: 'testnet',
+      });
+
+      const props = latest()[1].props as Record<string, unknown>;
+      expect(props.tx_hash).toBe('abc123');
+      expect(props.explorer).toBe('stellar_expert');
+      expect(props.network).toBe('testnet');
+    });
+
+    it('omits tx_hash, explorer, and network when not provided (§5.4)', () => {
+      mockPlausible();
+      analytics.explorerLinkClicked({
+        journey: 'sender',
+        claimId: 'claim-012',
+        sourceScreen: 'payment_details',
+      });
+
+      const props = latest()[1].props as Record<string, unknown>;
+      expect('tx_hash' in props).toBe(false);
+      expect('explorer' in props).toBe(false);
+      expect('network' in props).toBe(false);
+    });
   });
 
   it('no-ops when the window object is unavailable', () => {

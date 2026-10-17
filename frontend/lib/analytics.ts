@@ -537,10 +537,30 @@ export type ExplorerSourceScreen = 'claim_success' | 'payment_details';
 /** §2.3 journey values for Explorer Link Clicked. */
 export type ExplorerJourney = 'sender' | 'recipient';
 
+/**
+ * §5.4 `explorer` values — the block explorer the clicked link opened.
+ * Closed set; see `docs/analytics-spec.md` §5.4.
+ */
+export type ExplorerName = 'stellar_expert' | 'stellar_chain';
+
+/** §5.4 `network` values for the explorer URL (testnet and mainnet explorers differ). */
+export type ExplorerNetwork = 'testnet' | 'mainnet';
+
 interface ExplorerLinkClickedProps {
   journey: ExplorerJourney;
   claimId: string;
   sourceScreen: ExplorerSourceScreen;
+  /**
+   * §5.4 `tx_hash` — the on-chain transaction hash from the link's URL, so a
+   * click can be correlated with the actual Stellar transaction. Omitted when
+   * the link target has no transaction hash; never parsed from an unvalidated
+   * URL segment.
+   */
+  txHash?: string;
+  /** §5.4 `explorer` — which block explorer was opened. */
+  explorer?: ExplorerName;
+  /** §5.4 `network` — the network the explorer URL targets. */
+  network?: ExplorerNetwork;
 }
 
 /** Client-side address-validation failure reasons (`docs/analytics-spec.md` §5.2). */
@@ -824,11 +844,21 @@ export const analytics = {
    * §5.4/§6 Explorer Link Clicked — fires when a user (sender or recipient) clicks a
    * Stellar Explorer transaction link.
    */
-  explorerLinkClicked: ({ journey, claimId, sourceScreen }: ExplorerLinkClickedProps) =>
+  explorerLinkClicked: ({
+    journey,
+    claimId,
+    sourceScreen,
+    txHash,
+    explorer,
+    network,
+  }: ExplorerLinkClickedProps) =>
     track('Explorer Link Clicked', {
       journey,
       claim_id: claimId,
       source_screen: sourceScreen,
+      ...(txHash ? { tx_hash: txHash } : {}),
+      ...(explorer ? { explorer } : {}),
+      ...(network ? { network } : {}),
     }),
   claimSubmitted: ({ claimId, assetType }: ClaimCtaClickedProps) =>
     track('Claim Submitted', {
