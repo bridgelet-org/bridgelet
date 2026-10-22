@@ -6,7 +6,7 @@ Thanks for helping improve Bridgelet! Please read this guide before opening an i
 
 - Follow the [Code of Conduct](./CODE_OF_CONDUCT.md) in all community spaces.
 - Start with the [Support Guide](./SUPPORT.md) to choose the right channel for questions vs. bugs.
-- For security issues, **do not** open a public issue; follow `SECURITY.md`.
+- For security issues, **do not** open a public issue; follow `SECURITY.md`..
 
 ## Ways to Contribute
 
