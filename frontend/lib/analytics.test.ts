@@ -262,6 +262,34 @@ describe('analytics.errorDisplayed', () => {
   });
 });
 
+describe('journey namespacing (§2.3 & §1 scope boundary - #899)', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+    delete (window as unknown as { plausible?: unknown }).plausible;
+  });
+
+  it('accepts sender, recipient, and shared journeys across shared event types', () => {
+    (window as unknown as { plausible?: ReturnType<typeof plausibleMock> }).plausible =
+      plausibleMock();
+
+    const validJourneys = ['sender', 'recipient', 'shared'] as const;
+
+    for (const [idx, journey] of validJourneys.entries()) {
+      analytics.errorDisplayed({
+        journey,
+        errorType: 'unknown',
+        sourceScreen: `screen_${idx}`,
+      });
+
+      const call = (window as unknown as { plausible: ReturnType<typeof plausibleMock> }).plausible
+        .mock.calls[idx]!;
+      expect(call[0]).toBe('Error Displayed');
+      expect(call[1].props.journey).toBe(journey);
+    }
+  });
+});
+
 describe('track base payload merge', () => {
   afterEach(() => {
     vi.restoreAllMocks();
