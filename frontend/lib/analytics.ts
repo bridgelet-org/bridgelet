@@ -305,9 +305,10 @@ export function createDeduplicationStore(
       prune(now);
       if (seen.has(key)) {
         // Refresh recency so a hot claim is not evicted by the cap while
-        // older idle claims are.
+        // older idle claims are, preserving original timestamp for TTL window.
+        const recordedAt = seen.get(key)!;
         seen.delete(key);
-        seen.set(key, now);
+        seen.set(key, recordedAt);
         return true;
       }
       seen.set(key, now);
