@@ -339,12 +339,39 @@ Fired when the sender's payment dashboard is loaded.
 
 #### `Dashboard Filter Applied`
 
-Fired when the sender changes the status filter on the dashboard.
+Fired when the sender changes a filter on the payment dashboard (such as status, date range, or asset type). To prevent unbounded cardinality and ensure filter usage can be aggregated meaningfully across analytics platforms (PostHog, Plausible, BigQuery), filter properties follow a closed enumerated structure rather than free-text.
 
 | Property | Type | Value / Description |
 |----------|------|---------------------|
 | `journey` | string | `"sender"` |
-| `filter` | string | `"all"`, `"unclaimed"`, `"claimed"`, `"expired"` |
+| `filter_type` | string | Dimension being filtered: `"status"`, `"asset"`, `"date_range"` |
+| `filter_value` | string | Selected filter value from the enumerated closed sets below |
+| `previous_filter_value` | string \| null | Prior filter value before change, if known |
+| `filter` | string | *(Backward compatibility)* Legacy alias equal to `filter_value` when filtering by status: `"all"`, `"unclaimed"`, `"claimed"`, `"expired"`, `"cancelled"` |
+
+**Enumerated Filter Dimensions & Valid Values:**
+
+1. **Status Filter (`filter_type: "status"`):**
+   - `"all"`: Show all payments
+   - `"unclaimed"`: Show pending/unclaimed payments
+   - `"claimed"`: Show successfully redeemed payments
+   - `"expired"`: Show payments past their expiration window
+   - `"cancelled"`: Show payments cancelled or reclaimed by sender
+
+2. **Date Range Filter (`filter_type: "date_range"`):**
+   - `"today"`: Payments created in the current 24-hour day
+   - `"7d"`: Last 7 calendar days
+   - `"30d"`: Last 30 calendar days
+   - `"90d"`: Last 90 calendar days
+   - `"all_time"`: All historical payments (default)
+   - `"custom"`: Custom date range selection
+
+3. **Asset Filter (`filter_type: "asset"`):**
+   - `"all"`: All currencies/assets
+   - `"native"`: Native Stellar lumens (XLM)
+   - `"USDC"`: Circle USD Coin
+   - `"EURC"`: Circle Euro Coin
+   - Canonical asset code string (alphanumeric token symbol, uppercase, max 12 chars)
 
 ---
 
