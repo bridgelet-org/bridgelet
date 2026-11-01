@@ -5,7 +5,8 @@
 **Created:** March 2026
 **Based On:** `bridgelet-frd-ui-ux.md`, `ROADMAP.md`, `FRONTEND_TECHNICAL_SPEC.md`
 
-> **Implementation status:** Implementation compliance has **not** been verified. Treat this document as the intended design for Bridgelet's analytics instrumentation, not as a source of truth. See `bridgelet-product-audit/postmortems/analytics-spec-vs-implementation-unverified.md`.
+> [!WARNING]
+> **Implementation Compliance Notice:** Implementation compliance has **not** been verified against the codebase. Readers and implementers must treat this document as an architectural design specification rather than an authoritative runtime source of truth. Refer to `bridgelet-product-audit/postmortems/analytics-spec-vs-implementation-unverified.md` for details on unverified telemetry boundaries and verification status.
 
 ---
 
@@ -34,6 +35,13 @@ The purpose of this spec is to:
 - Define business KPIs and how they are derived
 
 > **Scope:** This document defines *what* to track and *how to structure it*. It does not implement any tracking code.
+
+### 1.1 Implementation Compliance & Authority Boundary (#874)
+
+As documented in `bridgelet-product-audit/postmortems/analytics-spec-vs-implementation-unverified.md`:
+- **Design Document Status**: This specification defines the intended taxonomy, schemas, and KPI derivations for Bridgelet analytics. It is not mechanically generated from runtime telemetry.
+- **Verification Caveat**: Runtime compliance across the web frontend (`frontend/`) and mobile application (`mobile/`) remains subject to ongoing verification. Until end-to-end tracing is complete, discrepancies may exist between specified properties and runtime payloads.
+- **Source of Truth Hierarchy**: For runtime event dispatch signatures, consult strongly-typed source definitions (`frontend/lib/analytics.ts` and `mobile/app/src/analytics/analytics.ts`).
 
 ### Two Core User Journeys
 
