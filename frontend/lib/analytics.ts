@@ -1,40 +1,23 @@
-// #118 – Privacy-respecting analytics events (Plausible-compatible, no PII)
-// Event names must match `docs/analytics-spec.md` `#### \`Event Name\`` headings exactly.
-type ClaimEvent =
-  | 'Page Viewed'
-  | 'Send Form Viewed'
-  | 'Send Form Started'
-  | 'Send Form Field Changed'
-  | 'Send Form Completed'
-  | 'Payment Confirmation Viewed'
-  | 'Wallet Connected'
-  | 'Wallet Connection Failed'
-  | 'Payment Confirmed'
-  | 'Payment Created'
-  | 'Payment Creation Failed'
-  | 'Payment Success Viewed'
-  | 'Claim Link Copied'
-  | 'Claim Link Shared'
-  | 'Dashboard Viewed'
-  | 'Dashboard Filter Applied'
-  | 'Payment Details Viewed'
-  | 'Payment Cancelled'
-  | 'Funds Reclaimed'
-  | 'Claim Page Opened'
-  | 'Claim Verified'
-  | 'Claim CTA Clicked'
-  | 'Wallet Address Screen Viewed'
-  | 'Wallet Address Entered'
-  | 'Wallet Address Validation Failed'
-  | 'Claim Confirmation Viewed'
-  | 'Claim Submitted'
-  | 'Claim Succeeded'
-  | 'Claim Failed'
-  | 'Claim Success Viewed'
-  | 'Sender Signup CTA Clicked'
-  | 'Explorer Link Clicked'
-  | 'Error Displayed'
-  | 'Retry Clicked';
+// #118, #890 – Privacy-respecting analytics events (Plausible-compatible, no PII)
+// Single source-of-truth TypeScript event union generated from `docs/analytics-spec.md` (§4–§6).
+import {
+  ANALYTICS_SPEC_EVENT_NAMES,
+  AnalyticsEventName,
+  isAnalyticsEventName,
+  TOTAL_SPEC_EVENT_COUNT,
+} from './analytics-events';
+
+export {
+  ANALYTICS_SPEC_EVENT_NAMES,
+  type AnalyticsEventName,
+  isAnalyticsEventName,
+  TOTAL_SPEC_EVENT_COUNT,
+};
+
+/**
+ * Union of all valid analytics event names matching `docs/analytics-spec.md` exactly.
+ */
+export type ClaimEvent = AnalyticsEventName;
 
 type EventProps = Record<string, string | number | boolean | null>;
 
@@ -303,11 +286,12 @@ export function createDeduplicationStore(
   return {
     isDuplicate(key, now = Date.now()) {
       prune(now);
-      if (seen.has(key)) {
-        // Refresh recency so a hot claim is not evicted by the cap while
-        // older idle claims are.
+      const recordedAt = seen.get(key);
+      if (recordedAt !== undefined) {
+        // Refresh LRU recency so a hot claim is not evicted by the cap while
+        // older idle claims are, but preserve its original TTL expiration timestamp.
         seen.delete(key);
-        seen.set(key, now);
+        seen.set(key, recordedAt);
         return true;
       }
       seen.set(key, now);
