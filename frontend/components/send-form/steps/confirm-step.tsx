@@ -20,7 +20,7 @@ import {
   AccountCreationErrorCode,
   type AccountCreationErrorInfo,
 } from '@/lib/account-errors';
-import { publicEnv } from '@/lib/env';
+import { publicEnv, resolveAppUrl } from '@/lib/env';
 import { FundingError, fundEphemeralAccount } from '@/lib/fund-ephemeral-account';
 import { analytics } from '@/lib/analytics';
 
@@ -319,7 +319,8 @@ export function ConfirmStep({ state, onBack }: ConfirmStepProps) {
   }
 
   if (submitPhase === 'success') {
-    const claimLink = claimUrl || (typeof window !== 'undefined' ? `${window.location.origin}/claim` : 'https://bridgelet.org/claim');
+    const baseAppUrl = resolveAppUrl() || (typeof window !== 'undefined' ? window.location.origin : 'https://bridgelet.org');
+    const claimLink = claimUrl || `${baseAppUrl}/claim`;
     const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(`Here is your payment claim link via Bridgelet: ${claimLink}`)}`;
 
     return (

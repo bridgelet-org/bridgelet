@@ -17,7 +17,19 @@ describe('SharePrompt', () => {
     vi.useRealTimers();
   });
 
-  it('renders the app URL in the code block', () => {
+  it('renders nothing when appUrl is missing, empty, or "not-configured"', () => {
+    const { container: c1 } = render(<SharePrompt appUrl={undefined} />);
+    expect(c1).toBeEmptyDOMElement();
+
+    const { container: c2 } = render(<SharePrompt appUrl="" />);
+    expect(c2).toBeEmptyDOMElement();
+
+    const { container: c3 } = render(<SharePrompt appUrl="not-configured" />);
+    expect(c3).toBeEmptyDOMElement();
+    expect(document.body.textContent).not.toContain('not-configured');
+  });
+
+  it('renders the app URL in the code block when valid', () => {
     render(<SharePrompt appUrl={APP_URL} />);
     expect(screen.getByText(APP_URL)).toBeInTheDocument();
   });

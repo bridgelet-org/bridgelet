@@ -11,7 +11,7 @@ import { analytics, daysRemainingUntil, type ClaimEntryChannel } from '@/lib/ana
 
 interface ClaimPageClientProps {
   token: string;
-  supportEmail: string;
+  supportEmail?: string;
   initialView?: ClaimView;
 }
 
