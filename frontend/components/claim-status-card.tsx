@@ -5,6 +5,7 @@ import { RateLimitBanner } from '@/components/rate-limit-banner';
 import { RateLimitError } from '@/lib/api/client';
 import { ChainSelector } from '@/components/chain-selector';
 import { AccountStatus } from '@/lib/api/types';
+import { explorerTxUrl } from '@/lib/explorer';
 import { analytics, type ValidationError } from '@/lib/analytics';
 
 /**
@@ -38,6 +39,8 @@ export interface ClaimStatusCardProps {
   claimedByMe?: boolean;
   /** Destination address used for this session's sweep. */
   sweepDestination?: string;
+  /** Transaction hash of this session's payout, used for the explorer link. */
+  sweepTxHash?: string;
   /** Amount swept during this session, in stroops. */
   sweepAmountStroops?: string;
 }
@@ -381,7 +384,12 @@ function ClaimedPanel({
   assetCode,
   sweepDestination,
   claimedByMe,
-}: Pick<ClaimStatusCardProps, 'claimId' | 'assetCode' | 'sweepDestination' | 'claimedByMe'>) {
+  sweepTxHash,
+}: Pick<
+  ClaimStatusCardProps,
+  'claimId' | 'assetCode' | 'sweepDestination' | 'claimedByMe' | 'sweepTxHash'
+>) {
+  const explorerUrl = explorerTxUrl(sweepTxHash);
   // §5.4 Claim Success Viewed — fires once when this session's successful
   // claim result is displayed. Guarded by claimedByMe to avoid firing when
   // the panel shows because someone else already claimed.
@@ -424,11 +432,11 @@ function ClaimedPanel({
         </div>
       </div>
 
-      {claimedByMe && claimId && (
+      {claimedByMe && claimId && explorerUrl && (
         <div className="space-y-2">
           {/* §5.4 Explorer Link Clicked — Stellar block explorer link */}
           <a
-            href={`https://stellar.expert/explorer/testnet/tx/${claimId}`}
+            href={explorerUrl}
             target="_blank"
             rel="noopener noreferrer"
             onClick={() =>
@@ -577,6 +585,7 @@ export function ClaimStatusCard({
   supportEmail,
   claimedByMe,
   sweepDestination,
+  sweepTxHash,
 }: ClaimStatusCardProps) {
   return (
     <article
@@ -616,6 +625,7 @@ export function ClaimStatusCard({
           assetCode={assetCode}
           claimedByMe={claimedByMe}
           sweepDestination={sweepDestination}
+          sweepTxHash={sweepTxHash}
         />
       )}
       {status === AccountStatus.EXPIRED && (
