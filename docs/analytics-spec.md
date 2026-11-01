@@ -352,11 +352,19 @@ Fired when the sender changes the status filter on the dashboard.
 
 Fired when the sender opens the detail view for a specific payment.
 
+##### Authorization & Security Scope (#897)
+
+- **Ownership verification required**: `Payment Details Viewed` is an authenticated sender journey event. It MUST fire only when the viewer is verified as the creator/owner of the payment (e.g. the payment was created during the current browser session, exists in client-side sender payment history, or matches the authenticated sender's wallet address).
+- **Probing & enumeration suppression**: Attempted access to unowned or arbitrary payment IDs (such as brute-force or URL crawling against payment detail routes or API endpoints) MUST NOT fire `Payment Details Viewed`.
+  - *Security rationale*: Firing sender events on arbitrary URL parameters creates an enumeration vulnerability, allowing unauthenticated actors to confirm valid payment IDs through client-side analytics beacons, while poisoning conversion and retention funnels with malicious probe noise.
+  - *Unauthorized attempts*: Unauthenticated or unauthorized access attempts fail at the boundary (returning HTTP 403 Forbidden or 404 Not Found) and are routed to security logs or `Error Displayed` (`error_type: "unauthorized_access"` / `"invalid_token"`), rather than the sender product funnel.
+
 | Property | Type | Value / Description |
 |----------|------|---------------------|
 | `journey` | string | `"sender"` |
-| `claim_id` | string | |
+| `claim_id` | string | Verified payment account identifier |
 | `claim_status` | string | `"unclaimed"`, `"claimed"`, `"expired"` |
+| `is_owner` | boolean | Verified ownership flag; must be `true` for standard sender telemetry |
 
 ---
 

@@ -305,9 +305,10 @@ export function createDeduplicationStore(
       prune(now);
       if (seen.has(key)) {
         // Refresh recency so a hot claim is not evicted by the cap while
-        // older idle claims are.
+        // older idle claims are, preserving original timestamp for TTL window.
+        const recordedAt = seen.get(key)!;
         seen.delete(key);
-        seen.set(key, now);
+        seen.set(key, recordedAt);
         return true;
       }
       seen.set(key, now);
@@ -694,15 +695,22 @@ export const analytics = {
   paymentDetailsViewed: ({
     claimId,
     claimStatus,
+    isOwner = true,
   }: {
     claimId: string;
     claimStatus: PaymentClaimStatus;
-  }) =>
-    track('Payment Details Viewed', {
+    isOwner?: boolean;
+  }) => {
+    // #897: Payment Details Viewed is strictly scoped to verified sender access to their own payments.
+    // Suppress event emission on unauthorized/unowned attempts to prevent enumeration probes from polluting telemetry.
+    if (!isOwner) return;
+    return track('Payment Details Viewed', {
       journey: 'sender',
       claim_id: claimId,
       claim_status: claimStatus,
-    }),
+      is_owner: isOwner,
+    });
+  },
   pageViewed: ({ page, entrySource }: { page: string; entrySource?: EntrySource }) =>
     track('Page Viewed', {
       journey: 'sender',

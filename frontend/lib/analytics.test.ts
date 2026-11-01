@@ -262,6 +262,76 @@ describe('analytics.errorDisplayed', () => {
   });
 });
 
+describe('analytics.paymentDetailsViewed (§4.5 authorization & enumeration defense - #897)', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+    delete (window as unknown as { plausible?: unknown }).plausible;
+  });
+
+  it('emits Payment Details Viewed when accessed by verified payment owner', () => {
+    (window as unknown as { plausible?: ReturnType<typeof plausibleMock> }).plausible =
+      plausibleMock();
+
+    analytics.paymentDetailsViewed({
+      claimId: 'claim-owner-123',
+      claimStatus: 'unclaimed',
+      isOwner: true,
+    });
+
+    const call = (window as unknown as { plausible: ReturnType<typeof plausibleMock> }).plausible
+      .mock.calls[0]!;
+    expect(call[0]).toBe('Payment Details Viewed');
+    expect(call[1].props).toEqual(
+      expect.objectContaining({
+        journey: 'sender',
+        claim_id: 'claim-owner-123',
+        claim_status: 'unclaimed',
+        is_owner: true,
+      }),
+    );
+  });
+
+  it('defaults isOwner to true for standard sender flow callers', () => {
+    (window as unknown as { plausible?: ReturnType<typeof plausibleMock> }).plausible =
+      plausibleMock();
+
+    analytics.paymentDetailsViewed({
+      claimId: 'claim-default-456',
+      claimStatus: 'claimed',
+    });
+
+    const call = (window as unknown as { plausible: ReturnType<typeof plausibleMock> }).plausible
+      .mock.calls[0]!;
+    expect(call[0]).toBe('Payment Details Viewed');
+    expect(call[1].props).toEqual(
+      expect.objectContaining({
+        journey: 'sender',
+        claim_id: 'claim-default-456',
+        claim_status: 'claimed',
+        is_owner: true,
+      }),
+    );
+  });
+
+  it('suppresses event emission when accessed by non-owner (probing/enumeration prevention)', () => {
+    (window as unknown as { plausible?: ReturnType<typeof plausibleMock> }).plausible =
+      plausibleMock();
+
+    const result = analytics.paymentDetailsViewed({
+      claimId: 'claim-arbitrary-probe-999',
+      claimStatus: 'unclaimed',
+      isOwner: false,
+    });
+
+    expect(result).toBeUndefined();
+    expect(
+      (window as unknown as { plausible: ReturnType<typeof plausibleMock> }).plausible.mock.calls
+        .length,
+    ).toBe(0);
+  });
+});
+
 describe('track base payload merge', () => {
   afterEach(() => {
     vi.restoreAllMocks();
