@@ -31,6 +31,7 @@ function claimEntryChannel(): ClaimEntryChannel {
     if (flagged.includes('whatsapp') || flagged.includes('wa')) return 'whatsapp';
     if (flagged.includes('mail') || flagged.includes('email')) return 'email';
     if (flagged.includes('sms') || flagged.includes('text')) return 'sms';
+    if (flagged.includes('qr') || flagged.includes('qrcode')) return 'qr_code';
     const referrer = document.referrer;
     if (referrer) {
       const host = new URL(referrer).hostname.toLowerCase();

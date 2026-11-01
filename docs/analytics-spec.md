@@ -402,7 +402,9 @@ Fired immediately when a recipient opens a claim link. Fires before token verifi
 |----------|------|---------------------|
 | `journey` | string | `"recipient"` |
 | `claim_id` | string | Extracted from URL token |
-| `entry_channel` | string | Best-guess referral channel: `"sms"`, `"email"`, `"whatsapp"`, `"direct"`, `"unknown"` |
+| `entry_channel` | string | Best-guess referral channel: `"sms"`, `"email"`, `"whatsapp"`, `"qr_code"`, `"direct"`, `"unknown"` |
+
+*Note on QR scanning:* When a recipient accesses or enters the claim flow via mobile camera/QR scanning (`QRCodeScanner.tsx`), `entry_channel` must be recorded as `"qr_code"`.
 
 ---
 
@@ -809,7 +811,7 @@ Breakdown of channels through which recipients open claim links.
 > `bridgelet-product-audit/postmortems/analytics-spec-vs-implementation-unverified.md`.
 
 ```
-For each entry_channel in {sms, email, whatsapp, direct, unknown}:
+For each entry_channel in {sms, email, whatsapp, qr_code, direct, unknown}:
   % = (Claim Page Opened events with entry_channel)
       / (total Claim Page Opened events)
       × 100
