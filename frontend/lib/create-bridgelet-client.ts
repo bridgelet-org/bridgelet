@@ -21,6 +21,11 @@ export interface BridgeletClientOptions {
   maxDelayMs?: number;
 }
 
+export interface AccountsListResponse {
+  accounts: AccountResponse[];
+  total: number;
+}
+
 export interface PreparedAccountTransaction {
   unsignedTxXdr: string;
   networkPassphrase?: string;
@@ -173,13 +178,37 @@ export class BridgeletClient {
 
   // ─── Accounts (proxied through this app's own server) ───────────────────────
 
-  listAccounts(options: { limit?: number; offset?: number } = {}): Promise<AccountResponse[]> {
+  async listAccounts(
+    options: { limit?: number; offset?: number } = {},
+  ): Promise<AccountsListResponse> {
     const params = new URLSearchParams();
     if (options.limit != null) params.set('limit', String(options.limit));
     if (options.offset != null) params.set('offset', String(options.offset));
     const qs = params.toString();
-    return this.request<AccountResponse[]>(
+    const raw = await this.request<unknown>(
       `${this.internalBaseUrl}/api/accounts${qs ? `?${qs}` : ''}`,
+    );
+
+    if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
+      const obj = raw as Record<string, unknown>;
+      if (Array.isArray(obj.accounts)) {
+        return {
+          accounts: obj.accounts as AccountResponse[],
+          total: typeof obj.total === 'number' ? obj.total : obj.accounts.length,
+        };
+      }
+    }
+
+    if (Array.isArray(raw)) {
+      return {
+        accounts: raw as AccountResponse[],
+        total: raw.length,
+      };
+    }
+
+    throw new BridgeletApiError(
+      { error: 'INVALID_RESPONSE_SHAPE', message: 'Malformed accounts response received from server' },
+      502,
     );
   }
 

@@ -84,9 +84,16 @@ import {
   BridgeletApiError,
   RateLimitError,
   type BridgeletClientOptions,
+  type AccountsListResponse,
 } from '@/lib/create-bridgelet-client';
 
-export { BridgeletClient, BridgeletApiError, RateLimitError, type BridgeletClientOptions };
+export {
+  BridgeletClient,
+  BridgeletApiError,
+  RateLimitError,
+  type BridgeletClientOptions,
+  type AccountsListResponse,
+};
 
 // ─── Ephemeral account ───────────────────────────────────────────────────────
 
@@ -95,6 +102,9 @@ export { BridgeletClient, BridgeletApiError, RateLimitError, type BridgeletClien
  * endpoint. Alias of `AccountResponse`, named for send-form callers.
  */
 export type EphemeralAccount = AccountResponse;
+
+/** Normalized response for listing accounts. */
+export type EphemeralAccountsList = AccountsListResponse;
 
 let _defaultClient: BridgeletClient | null = null;
 
@@ -122,9 +132,9 @@ export function createEphemeralAccount(data: CreateAccountRequest): Promise<Ephe
   return defaultClient().createAccount(data);
 }
 
-export function listEphemeralAccounts(options: { limit?: number; offset?: number } = {}): Promise<
-  EphemeralAccount[]
-> {
+export function listEphemeralAccounts(
+  options: { limit?: number; offset?: number } = {},
+): Promise<AccountsListResponse> {
   return defaultClient().listAccounts(options);
 }
 
