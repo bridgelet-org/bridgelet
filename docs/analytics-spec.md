@@ -912,6 +912,13 @@ This spec is platform-agnostic and compatible with:
 
 Where server-side events are used, they should be enriched with client context (session ID, device type) passed from the frontend.
 
+#### 9.2.1 Webhook & Ledger Consistency Alignment (#878)
+
+To maintain absolute signal consistency between analytics event telemetry and backend webhook consumers (`bridgelet-sdk` webhook events):
+- **Ledger-Confirmed Meaning**: `Payment Created` (analytics) and `account.created` (webhook) both signify ledger-confirmed transaction inclusion on Stellar (never optimistic intent).
+- **Sweep-Confirmed Meaning**: `Claim Succeeded` (analytics) and `sweep.completed` (webhook) both require verified execution of the on-chain sweep transaction.
+- **Intent vs. Outcome**: Client-side intent events (`Payment Confirmed`, `Claim Submitted`) measure user funnel commitments and must never be interpreted as financial settlement.
+
 ### 9.3 Anonymous Identity & Session
 
 - `anonymous_id`: Generate a UUID on first page load and persist to `localStorage`. Use this as the primary identifier across sessions. Do not use cookies for this if avoidable.
