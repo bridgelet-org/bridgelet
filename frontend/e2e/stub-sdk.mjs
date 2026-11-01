@@ -216,7 +216,8 @@ const server = createServer(async (req, res) => {
     const limit = Number(url.searchParams.get('limit') || accounts.size);
     const offset = Number(url.searchParams.get('offset') || 0);
     const all = [...accounts.values()];
-    json(res, 200, all.slice(offset, offset + limit));
+    const page = all.slice(offset, offset + limit);
+    json(res, 200, { accounts: page, total: all.length });
     return;
   }
   if (path.startsWith('/accounts/')) {

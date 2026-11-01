@@ -6,7 +6,7 @@ import { listEphemeralAccounts, type EphemeralAccount } from '@/lib/bridgelet';
 import { RateLimitError } from '@/lib/create-bridgelet-client';
 
 /**
- * Sender-facing list of the payments created from this browser.
+ * Sender-facing list of recent payments.
  *
  * The list deliberately renders only non-sensitive fields. A row's `claimUrl`
  * (which embeds the single-use claim token) is never read or displayed — the
@@ -65,7 +65,7 @@ function EmptyState() {
   return (
     <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-6 py-10 text-center dark:border-slate-700 dark:bg-slate-900">
       <p className="text-sm font-medium text-slate-700 dark:text-slate-200">
-        You haven&apos;t sent any payments from this browser yet.
+        You haven&apos;t sent any payments yet.
       </p>
       <Link
         href="/send"
@@ -80,7 +80,7 @@ function EmptyState() {
 function LoadingState() {
   return (
     <div role="status" aria-live="polite" className="space-y-3">
-      <span className="sr-only">Loading your payments…</span>
+      <span className="sr-only">Loading payments…</span>
       {[0, 1, 2].map((i) => (
         <div
           key={i}
@@ -93,27 +93,29 @@ function LoadingState() {
 
 export function SendHistory() {
   const [accounts, setAccounts] = useState<EphemeralAccount[]>([]);
+  const [total, setTotal] = useState<number>(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [offset, setOffset] = useState(0);
-  // Tracked separately from `accounts.length` so the Next button stays disabled
-  // while a page is in flight and reflects the last loaded page size.
-  const [hasMore, setHasMore] = useState(false);
 
   const load = useCallback(async (nextOffset: number) => {
     setLoading(true);
     setError(null);
     try {
-      const page = await listEphemeralAccounts({ limit: PAGE_SIZE, offset: nextOffset });
-      setAccounts(page);
-      setHasMore(page.length === PAGE_SIZE);
+      const res = await listEphemeralAccounts({ limit: PAGE_SIZE, offset: nextOffset });
+      if (!res || !Array.isArray(res.accounts)) {
+        throw new Error('Received malformed payments data.');
+      }
+      setAccounts(res.accounts);
+      setTotal(typeof res.total === 'number' ? res.total : res.accounts.length);
     } catch (err) {
       if (err instanceof RateLimitError) {
         setError(err.message);
       } else {
         setError(err instanceof Error ? err.message : 'Could not load your payments.');
       }
-      setHasMore(false);
+      setAccounts([]);
+      setTotal(0);
     } finally {
       setLoading(false);
     }
@@ -145,18 +147,32 @@ export function SendHistory() {
     );
   }
 
-  if (accounts.length === 0) {
+  // Defensive array guard: never call .map on non-array
+  const safeAccounts = Array.isArray(accounts) ? accounts : [];
+
+  if (safeAccounts.length === 0) {
     return offset === 0 ? (
       <EmptyState />
     ) : (
-      <p className="text-sm text-slate-500 dark:text-slate-400">No more payments.</p>
+      <div className="space-y-4">
+        <p className="text-sm text-slate-500 dark:text-slate-400">No more payments.</p>
+        <button
+          type="button"
+          onClick={() => setOffset((value) => Math.max(0, value - PAGE_SIZE))}
+          className="rounded border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-100 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+        >
+          Previous
+        </button>
+      </div>
     );
   }
+
+  const hasMore = offset + safeAccounts.length < total;
 
   return (
     <div className="space-y-4">
       <ul className="space-y-3">
-        {accounts.map((account) => (
+        {safeAccounts.map((account) => (
           <li
             key={account.accountId}
             className="rounded-lg border border-slate-200 bg-white px-4 py-3 shadow-sm dark:border-slate-800 dark:bg-slate-900"
@@ -189,6 +205,7 @@ export function SendHistory() {
         </button>
         <span className="text-xs text-slate-500 dark:text-slate-400">
           Page {Math.floor(offset / PAGE_SIZE) + 1}
+          {total > 0 && ` of ${Math.max(1, Math.ceil(total / PAGE_SIZE))}`}
         </span>
         <button
           type="button"
