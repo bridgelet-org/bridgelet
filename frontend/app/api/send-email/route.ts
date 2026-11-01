@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { Resend } from 'resend';
+import { resolveAppUrl } from '@/lib/env';
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -37,7 +38,7 @@ function escapeHtml(value: string): string {
 
 /** The claim link must point at this app's own /claim/<token> route. */
 function isOwnClaimLink(value: string): boolean {
-  const base = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+  const base = resolveAppUrl() || 'http://localhost:3000';
   let expectedOrigin: string;
   let candidate: URL;
   try {

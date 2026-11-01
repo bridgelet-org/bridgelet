@@ -2,7 +2,7 @@
 import { PageShell } from '@/components/page-shell';
 import { SharePrompt } from '@/components/share-prompt';
 import { ClaimPageClient } from './claim-page-client';
-import { publicEnv } from '@/lib/env';
+import { publicEnv, resolveAppUrl, warnIfFallbackUrlUsed } from '@/lib/env';
 import { loadClaimView } from '@/lib/claim-view';
 
 type ClaimPageProps = {
@@ -15,6 +15,8 @@ export default async function ClaimPage({ params }: ClaimPageProps) {
   // Skip the server-side fetch to avoid blocking SSR on slow/unreachable API calls.
   // The client component re-fetches after hydration.
   const initialView = undefined;
+  const appUrl = resolveAppUrl();
+  warnIfFallbackUrlUsed(appUrl);
 
   return (
     <PageShell
@@ -32,7 +34,7 @@ export default async function ClaimPage({ params }: ClaimPageProps) {
           Token: <span className="font-mono break-all">{token}</span>
         </p>
 
-        <SharePrompt appUrl={publicEnv.NEXT_PUBLIC_APP_URL} />
+        <SharePrompt appUrl={appUrl} />
       </div>
     </PageShell>
   );
