@@ -305,9 +305,10 @@ export function createDeduplicationStore(
       prune(now);
       if (seen.has(key)) {
         // Refresh recency so a hot claim is not evicted by the cap while
-        // older idle claims are.
+        // older idle claims are, preserving original timestamp for TTL window.
+        const recordedAt = seen.get(key)!;
         seen.delete(key);
-        seen.set(key, now);
+        seen.set(key, recordedAt);
         return true;
       }
       seen.set(key, now);
@@ -702,6 +703,38 @@ export const analytics = {
       journey: 'sender',
       claim_id: claimId,
       claim_status: claimStatus,
+    }),
+  paymentCancelled: ({
+    claimId,
+    assetType,
+    timeSinceCreationHours,
+  }: {
+    claimId: string;
+    assetType?: string;
+    timeSinceCreationHours?: number;
+  }) =>
+    track('Payment Cancelled', {
+      journey: 'sender',
+      claim_id: claimId,
+      ...(assetType ? { asset_type: assetType } : {}),
+      ...(timeSinceCreationHours != null
+        ? { time_since_creation_hours: timeSinceCreationHours }
+        : {}),
+    }),
+  fundsReclaimed: ({
+    claimId,
+    assetType,
+    daysExpired,
+  }: {
+    claimId: string;
+    assetType?: string;
+    daysExpired?: number;
+  }) =>
+    track('Funds Reclaimed', {
+      journey: 'sender',
+      claim_id: claimId,
+      ...(assetType ? { asset_type: assetType } : {}),
+      ...(daysExpired != null ? { days_expired: daysExpired } : {}),
     }),
   pageViewed: ({ page, entrySource }: { page: string; entrySource?: EntrySource }) =>
     track('Page Viewed', {
