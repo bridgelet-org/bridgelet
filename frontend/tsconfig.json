@@ -15,7 +15,8 @@
     "moduleResolution": "bundler",
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./*"]
+      "@/*": ["./*"],
+      "@bridgelet/analytics": ["../packages/analytics/src/index.ts"]
     },
     "resolveJsonModule": true,
     "isolatedModules": true,
