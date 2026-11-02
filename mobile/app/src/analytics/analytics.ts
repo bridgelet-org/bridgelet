@@ -1,4 +1,12 @@
 import Constants from "expo-constants";
+import {
+  type AnalyticsEventName,
+  type BasePayload,
+  type AnalyticsProvider,
+  createBasePayload,
+} from "@bridgelet/analytics";
+
+export * from "@bridgelet/analytics";
 
 const IS_DEV = Constants.appOwnership === "expo" || __DEV__;
 

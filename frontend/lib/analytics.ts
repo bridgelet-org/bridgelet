@@ -1,44 +1,43 @@
 // #118 – Privacy-respecting analytics events (Plausible-compatible, no PII)
 // Event names must match `docs/analytics-spec.md` `#### \`Event Name\`` headings exactly.
-type ClaimEvent =
-  | 'Page Viewed'
-  | 'Send Form Viewed'
-  | 'Send Form Started'
-  | 'Send Form Field Changed'
-  | 'Send Form Completed'
-  | 'Payment Confirmation Viewed'
-  | 'Wallet Connected'
-  | 'Wallet Connection Failed'
-  | 'Payment Confirmed'
-  | 'Payment Created'
-  | 'Payment Creation Failed'
-  | 'Payment Success Viewed'
-  | 'Claim Link Copied'
-  | 'Claim Link Shared'
-  | 'Dashboard Viewed'
-  | 'Dashboard Filter Applied'
-  | 'Payment Details Viewed'
-  | 'Payment Cancelled'
-  | 'Funds Reclaimed'
-  | 'Claim Page Opened'
-  | 'Claim Verified'
-  | 'Claim CTA Clicked'
-  | 'Wallet Address Screen Viewed'
-  | 'Wallet Address Entered'
-  | 'Wallet Address Validation Failed'
-  | 'Claim Confirmation Viewed'
-  | 'Claim Submitted'
-  | 'Claim Succeeded'
-  | 'Claim Failed'
-  | 'Claim Success Viewed'
-  | 'Sender Signup CTA Clicked'
-  | 'Explorer Link Clicked'
-  | 'Error Displayed'
-  | 'Retry Clicked';
+import {
+  ANALYTICS_EVENT_NAMES,
+  ERROR_TYPES,
+  STANDARD_ERROR_TYPES,
+  AnalyticsDispatcher,
+  type AnalyticsEventName,
+  type ErrorType,
+  type DeviceType,
+  type Platform,
+  type Journey,
+  type AssetType,
+  type ClaimEntryChannel,
+  type ShareChannel,
+  type BasePayload,
+  type BasePayloadInput,
+  type AnalyticsProvider,
+} from '@bridgelet/analytics';
 
+export {
+  ANALYTICS_EVENT_NAMES,
+  ERROR_TYPES,
+  STANDARD_ERROR_TYPES,
+  AnalyticsDispatcher,
+  type AnalyticsEventName,
+  type ErrorType,
+  type DeviceType,
+  type Platform,
+  type Journey,
+  type AssetType,
+  type ClaimEntryChannel,
+  type ShareChannel,
+  type BasePayload,
+  type BasePayloadInput,
+  type AnalyticsProvider,
+};
+
+type ClaimEvent = AnalyticsEventName;
 type EventProps = Record<string, string | number | boolean | null>;
-
-export type DeviceType = 'mobile' | 'tablet' | 'desktop';
 
 /**
  * App version correlated to a deploy (`docs/analytics-spec.md` §3.1
@@ -146,22 +145,7 @@ export function getSessionId(): string {
 
 // ─── §6 Error taxonomy ────────────────────────────────────────────────────────
 
-/**
- * All eight §6 `error_type` values, exported so every `Error Displayed`
- * emitter uses the exact spec string rather than an ad-hoc literal.
- */
-export const ERROR_TYPES = {
-  invalid_token: 'invalid_token',
-  expired_token: 'expired_token',
-  already_claimed: 'already_claimed',
-  invalid_wallet_address: 'invalid_wallet_address',
-  transaction_failed: 'transaction_failed',
-  network_unavailable: 'network_unavailable',
-  wallet_connection_failed: 'wallet_connection_failed',
-  unknown: 'unknown',
-} as const;
 
-export type ErrorType = keyof typeof ERROR_TYPES;
 
 // ─── §9.5 Do Not Track ─────────────────────────────────────────────────────────
 
@@ -304,10 +288,11 @@ export function createDeduplicationStore(
     isDuplicate(key, now = Date.now()) {
       prune(now);
       if (seen.has(key)) {
-        // Refresh recency so a hot claim is not evicted by the cap while
-        // older idle claims are.
+        // Refresh recency in the Map while preserving the original recordedAt timestamp
+        // so the TTL window is measured from initial insertion.
+        const recordedAt = seen.get(key)!;
         seen.delete(key);
-        seen.set(key, now);
+        seen.set(key, recordedAt);
         return true;
       }
       seen.set(key, now);
@@ -430,8 +415,6 @@ export function isDntEnabled(header?: string): boolean {
 export type ShareMethod = 'sms' | 'email' | 'whatsapp' | 'qr_code';
 
 export type EntrySource = 'direct' | 'referral' | 'shared_link' | 'unknown';
-
-export type ClaimEntryChannel = 'sms' | 'email' | 'whatsapp' | 'direct' | 'unknown';
 
 export type PaymentClaimStatus = 'unclaimed' | 'claimed' | 'expired';
 

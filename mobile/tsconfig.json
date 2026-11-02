@@ -10,7 +10,8 @@
     "jsx": "react-native",
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./*"]
+      "@/*": ["./*"],
+      "@bridgelet/analytics": ["../packages/analytics/src/index.ts"]
     },
     "types": ["jest", "node"]
   },

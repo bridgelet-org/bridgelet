@@ -1,0 +1,19 @@
+{
+  "name": "@bridgelet/analytics",
+  "version": "0.1.0",
+  "description": "Shared cross-platform analytics contracts, types, and base-payload builders for Bridgelet (web and mobile)",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "private": true,
+  "scripts": {
+    "test": "vitest run"
+  },
+  "keywords": [
+    "bridgelet",
+    "analytics",
+    "telemetry",
+    "stellar"
+  ],
+  "author": "",
+  "license": "ISC"
+}

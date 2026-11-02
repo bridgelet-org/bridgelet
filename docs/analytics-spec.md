@@ -927,6 +927,15 @@ Where server-side events are used, they should be enriched with client context (
 
 Respect browser-level `DNT` headers. If `DNT: 1`, suppress all analytics events. This is especially important for the recipient flow, where the user may not have any prior relationship with Bridgelet.
 
+### 9.6 Shared Cross-Platform Core (@bridgelet/analytics)
+
+To maintain synchronization and prevent implementation drift between web (`frontend/`) and mobile (`mobile/`), core analytics contracts are extracted into the shared workspace package `@bridgelet/analytics` (`packages/analytics/`):
+
+- **Event Name Constants**: Single source-of-truth `ANALYTICS_EVENT_NAMES` tuple defining all 34 specification events.
+- **Error Taxonomy**: Shared `ERROR_TYPES` mapping the eight canonical taxonomy error codes from §6.
+- **Base Payload Builders**: Cross-platform `createBasePayload()` handling `platform: "web"` and `platform: "mobile"`, device categorization, and fallback generation.
+- **Provider-Agnostic Transport**: `AnalyticsProvider` interface and `AnalyticsDispatcher` enforcing DNT opt-out and §9.4 event deduplication across frontend and mobile runtimes.
+
 ---
 
 *Document version 1.0 — Analytics & Product Event Tracking Specification for Bridgelet*
