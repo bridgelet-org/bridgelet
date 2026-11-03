@@ -2,6 +2,7 @@ import { fetchWithTimeout, RequestTimeoutError } from '@/lib/fetch-with-timeout'
 import type {
   CreateAccountRequest,
   AccountResponse,
+  AccountsListResponse,
   VerifyClaimRequest,
   RedeemClaimRequest,
   RedeemClaimResponse,
@@ -81,6 +82,40 @@ export class BridgeletApiError extends Error {
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * The SDK's `GET /accounts` returns `{ accounts, total }`, but older mocks and
+ * stubs returned a bare array. Normalise both so callers always get the object
+ * shape, and reject anything else instead of letting a bad body crash render.
+ */
+function normalizeAccountsList(body: unknown): AccountsListResponse {
+  if (Array.isArray(body)) {
+    return { accounts: body as AccountResponse[], total: body.length };
+  }
+
+  if (body !== null && typeof body === 'object') {
+    const record = body as Record<string, unknown>;
+    if (Array.isArray(record['accounts'])) {
+      const accounts = record['accounts'] as AccountResponse[];
+      const rawTotal = record['total'];
+      const total =
+        typeof rawTotal === 'number' && Number.isFinite(rawTotal)
+          ? rawTotal
+          : accounts.length;
+      return { accounts, total };
+    }
+  }
+
+  throw new BridgeletApiError(
+    {
+      error: {
+        code: 'INVALID_RESPONSE',
+        message: 'The account list response had an unexpected shape.',
+      },
+    },
+    502,
+  );
 }
 
 function isTransientError(err: unknown): boolean {
@@ -173,14 +208,16 @@ export class BridgeletClient {
 
   // ─── Accounts (proxied through this app's own server) ───────────────────────
 
-  listAccounts(options: { limit?: number; offset?: number } = {}): Promise<AccountResponse[]> {
+  listAccounts(
+    options: { limit?: number; offset?: number } = {},
+  ): Promise<AccountsListResponse> {
     const params = new URLSearchParams();
     if (options.limit != null) params.set('limit', String(options.limit));
     if (options.offset != null) params.set('offset', String(options.offset));
     const qs = params.toString();
-    return this.request<AccountResponse[]>(
+    return this.request<unknown>(
       `${this.internalBaseUrl}/api/accounts${qs ? `?${qs}` : ''}`,
-    );
+    ).then(normalizeAccountsList);
   }
 
   createAccount(data: CreateAccountRequest): Promise<AccountResponse> {

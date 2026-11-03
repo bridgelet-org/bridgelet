@@ -22,6 +22,27 @@ describe('SharePrompt', () => {
     expect(screen.getByText(APP_URL)).toBeInTheDocument();
   });
 
+  it('normalizes whitespace and trailing slashes in the app URL', () => {
+    render(<SharePrompt appUrl="  https://bridgelet.vercel.app/  " />);
+    expect(screen.getByText('https://bridgelet.vercel.app')).toBeInTheDocument();
+    expect(screen.getByTestId('nfc-share-button')).toHaveAttribute(
+      'data-url',
+      'https://bridgelet.vercel.app',
+    );
+  });
+
+  it('renders nothing when no app URL is available', () => {
+    const { container } = render(<SharePrompt />);
+    expect(container).toBeEmptyDOMElement();
+    expect(container.textContent).not.toContain('not-configured');
+  });
+
+  it('renders nothing when the app URL is invalid', () => {
+    const { container } = render(<SharePrompt appUrl="not-configured" />);
+    expect(container).toBeEmptyDOMElement();
+    expect(container.textContent).not.toContain('not-configured');
+  });
+
   it('renders the promotional heading and description', () => {
     render(<SharePrompt appUrl={APP_URL} />);
     expect(screen.getByText(/do you send payments to your team/i)).toBeInTheDocument();
