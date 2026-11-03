@@ -41,7 +41,7 @@ origin that does not include the frontend.
 
 | Variable | Visibility | Purpose | Must match |
 | --- | --- | --- | --- |
-| `NEXT_PUBLIC_APP_URL` | browser | Public URL of this frontend; used to build claim links | The SDK's `CLAIM_BASE_URL` |
+| `NEXT_PUBLIC_APP_URL` | browser | Public URL of this frontend (for example `https://bridgelet.vercel.app`); used to build and validate share/claim links | The SDK's `CLAIM_BASE_URL` |
 | `NEXT_PUBLIC_API_BASE_URL` | browser | Public SDK URL the browser calls for `/claims/*` | SDK host/port, with CORS allowing this origin |
 | `BRIDGELET_SDK_URL` | server-only | SDK URL used by server Route Handlers (account create/lookup) | SDK host/port (may be internal) |
 | `BRIDGELET_SDK_TOKEN` | server-only | `Authorization: Bearer` JWT for the SDK | Signed with the SDK's `JWT_SECRET` |
@@ -60,6 +60,10 @@ origin that does not include the frontend.
   mismatched token surfaces as a 401 from `/api/accounts`.
 - **Claim links.** Set the SDK's `CLAIM_BASE_URL` to the public frontend URL
   (`NEXT_PUBLIC_APP_URL`) so the link a recipient receives points at this app.
+- **Build-time URL.** `NEXT_PUBLIC_APP_URL` is inlined into the browser bundle
+  at build time. Set it before deploying and redeploy after changing it. If it
+  is missing, the app uses the Vercel production hostname or the request origin
+  and hides the share card when no valid URL can be resolved.
 - **CORS.** The SDK must allow this frontend's origin so browser calls to
   `/claims/*` succeed.
 
