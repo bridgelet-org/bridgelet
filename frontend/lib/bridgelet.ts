@@ -46,6 +46,12 @@ export interface AccountResponse {
   metadata?: Record<string, unknown>;
 }
 
+/** Response from GET /accounts (bridgelet-sdk `AccountsListResponseDto`). */
+export interface AccountsListResponse {
+  accounts: AccountResponse[];
+  total: number;
+}
+
 export interface VerifyClaimRequest {
   claimToken: string;
 }
@@ -123,7 +129,7 @@ export function createEphemeralAccount(data: CreateAccountRequest): Promise<Ephe
 }
 
 export function listEphemeralAccounts(options: { limit?: number; offset?: number } = {}): Promise<
-  EphemeralAccount[]
+  AccountsListResponse
 > {
   return defaultClient().listAccounts(options);
 }
