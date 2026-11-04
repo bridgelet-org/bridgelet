@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { Resend } from 'resend';
+import { resolveAppUrl } from '@/lib/env';
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -36,12 +37,11 @@ function escapeHtml(value: string): string {
 }
 
 /** The claim link must point at this app's own /claim/<token> route. */
-function isOwnClaimLink(value: string): boolean {
-  const base = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+function isOwnClaimLink(value: string, appUrl: string): boolean {
   let expectedOrigin: string;
   let candidate: URL;
   try {
-    expectedOrigin = new URL(base).origin;
+    expectedOrigin = new URL(appUrl).origin;
     candidate = new URL(value);
   } catch {
     return false;
@@ -95,6 +95,14 @@ export async function POST(request: Request) {
     );
   }
 
+  const appUrl = resolveAppUrl({ headers: request.headers });
+  if (!appUrl) {
+    return NextResponse.json(
+      { error: 'App URL is not configured' },
+      { status: 503 },
+    );
+  }
+
   if (isRateLimited(clientKey(request))) {
     return NextResponse.json(
       { error: 'Too many requests. Please try again shortly.' },
@@ -114,7 +122,7 @@ export async function POST(request: Request) {
   const recipientEmail =
     typeof payload.recipientEmail === 'string' ? payload.recipientEmail.trim() : '';
 
-  if (!claimUrl || !isOwnClaimLink(claimUrl)) {
+  if (!claimUrl || !isOwnClaimLink(claimUrl, appUrl)) {
     return NextResponse.json(
       { error: 'A valid Bridgelet claim link is required' },
       { status: 400 },

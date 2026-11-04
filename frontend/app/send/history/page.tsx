@@ -5,14 +5,14 @@ export const dynamic = 'force-dynamic';
 
 export const metadata = {
   title: 'Sent payments',
-  description: 'Payments you created from this browser and their claim status.',
+  description: 'Payments created through this app and their claim status.',
 };
 
 export default function SendHistoryPage() {
   return (
     <PageShell
       title="Sent payments"
-      description="Payments you created from this browser, newest first. Claim links are withheld here on purpose."
+      description="Payments created through this app, newest first. Claim links are withheld here on purpose."
     >
       <SendHistory />
     </PageShell>

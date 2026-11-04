@@ -6,7 +6,7 @@ import { listEphemeralAccounts, type EphemeralAccount } from '@/lib/bridgelet';
 import { RateLimitError } from '@/lib/create-bridgelet-client';
 
 /**
- * Sender-facing list of the payments created from this browser.
+ * Sender-facing list of payments.
  *
  * The list deliberately renders only non-sensitive fields. A row's `claimUrl`
  * (which embeds the single-use claim token) is never read or displayed; the
@@ -65,7 +65,7 @@ function EmptyState() {
   return (
     <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-6 py-10 text-center dark:border-slate-700 dark:bg-slate-900">
       <p className="text-sm font-medium text-slate-700 dark:text-slate-200">
-        You haven&apos;t sent any payments from this browser yet.
+        No sent payments to show yet.
       </p>
       <Link
         href="/send"
@@ -105,8 +105,13 @@ export function SendHistory() {
     setError(null);
     try {
       const page = await listEphemeralAccounts({ limit: PAGE_SIZE, offset: nextOffset });
-      setAccounts(page);
-      setHasMore(page.length === PAGE_SIZE);
+      // Defensive: a malformed body must render the in-page error state, never
+      // reach `.map` during render (which would escape to the app error screen).
+      if (!page || !Array.isArray(page.accounts)) {
+        throw new Error('The payment list response was malformed.');
+      }
+      setAccounts(page.accounts);
+      setHasMore(nextOffset + page.accounts.length < page.total);
     } catch (err) {
       if (err instanceof RateLimitError) {
         setError(err.message);
@@ -145,7 +150,9 @@ export function SendHistory() {
     );
   }
 
-  if (accounts.length === 0) {
+  const safeAccounts = Array.isArray(accounts) ? accounts : [];
+
+  if (safeAccounts.length === 0) {
     return offset === 0 ? (
       <EmptyState />
     ) : (
@@ -156,7 +163,7 @@ export function SendHistory() {
   return (
     <div className="space-y-4">
       <ul className="space-y-3">
-        {accounts.map((account) => (
+        {safeAccounts.map((account) => (
           <li
             key={account.accountId}
             className="rounded-lg border border-slate-200 bg-white px-4 py-3 shadow-sm dark:border-slate-800 dark:bg-slate-900"

@@ -216,7 +216,8 @@ const server = createServer(async (req, res) => {
     const limit = Number(url.searchParams.get('limit') || accounts.size);
     const offset = Number(url.searchParams.get('offset') || 0);
     const all = [...accounts.values()];
-    json(res, 200, all.slice(offset, offset + limit));
+    // The real SDK returns `{ accounts, total }`, not a bare array (#956).
+    json(res, 200, { accounts: all.slice(offset, offset + limit), total: all.length });
     return;
   }
   if (path.startsWith('/accounts/')) {

@@ -1,18 +1,21 @@
 'use client';
 
 import { useState } from 'react';
+import { normalizeAppUrl } from '@/lib/env';
 import { NfcShareButton } from './nfc-share-button';
 
 type SharePromptProps = {
-  appUrl: string;
+  appUrl?: string | null;
 };
 
 export function SharePrompt({ appUrl }: SharePromptProps) {
   const [copied, setCopied] = useState(false);
+  const resolvedAppUrl = normalizeAppUrl(appUrl);
 
   async function handleCopy() {
+    if (!resolvedAppUrl) return;
     try {
-      await navigator.clipboard.writeText(appUrl);
+      await navigator.clipboard.writeText(resolvedAppUrl);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
@@ -20,7 +23,9 @@ export function SharePrompt({ appUrl }: SharePromptProps) {
     }
   }
 
-  const shareText = encodeURIComponent(`Send and claim crypto payments seamlessly with Bridgelet: ${appUrl}`);
+  if (!resolvedAppUrl) return null;
+
+  const shareText = encodeURIComponent(`Send and claim crypto payments seamlessly with Bridgelet: ${resolvedAppUrl}`);
   const whatsappUrl = `https://wa.me/?text=${shareText}`;
 
   return (
@@ -37,7 +42,7 @@ export function SharePrompt({ appUrl }: SharePromptProps) {
 
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
         <code className="flex-1 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-700 break-all dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">
-          {appUrl}
+          {resolvedAppUrl}
         </code>
         <button
           onClick={handleCopy}
@@ -49,7 +54,7 @@ export function SharePrompt({ appUrl }: SharePromptProps) {
       </div>
 
       <div className="pt-1 flex flex-col gap-3">
-        <NfcShareButton claimUrl={appUrl} />
+        <NfcShareButton claimUrl={resolvedAppUrl} />
 
         <div className="flex flex-wrap gap-4">
           <a
@@ -69,7 +74,7 @@ export function SharePrompt({ appUrl }: SharePromptProps) {
             Share on X
           </a>
           <a
-            href={`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(appUrl)}`}
+            href={`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(resolvedAppUrl)}`}
             target="_blank"
             rel="noopener noreferrer"
             className="text-xs text-slate-500 underline underline-offset-2 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200"
