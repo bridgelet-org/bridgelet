@@ -1,6 +1,6 @@
 # Error Surface Consistency Across Three Repos
 
-Tracing one concrete error — `AlreadySwept` — from contract to user, to see
+Tracing one concrete error (`AlreadySwept`) from contract to user, to see
 whether its identity survives the trip.
 
 ## The chain
@@ -11,7 +11,7 @@ whether its identity survives the trip.
 | 2. Backend | `bridgelet-sdk` | String matching, per `error-string-matching.md` |
 | 3. Frontend | `bridgelet` (this repo) | An API response rendered in the claim UI |
 
-**Stage 1** is the strongest link — a Rust enum variant is unambiguous.
+**Stage 1** is the strongest link: a Rust enum variant is unambiguous.
 
 **Stage 2 is where identity is most at risk.** bridgelet-sdk-audit's
 `error-string-matching.md` records that the SDK identifies contract errors by
@@ -26,7 +26,7 @@ failure, throws:
 throw new Error(result.error ?? 'Claim could not be completed. Please try again.');
 ```
 
-The specific reason rides in `result.error` — but the `??` fallback means **any
+The specific reason rides in `result.error`, but the `??` fallback means **any
 response lacking that field collapses to a generic message.**
 
 ## Where identity can be lost

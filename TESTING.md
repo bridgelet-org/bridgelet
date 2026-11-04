@@ -94,7 +94,7 @@ When Vitest (or Jest) is added to the frontend, use `msw/node` for a server-side
 
 ```ts
 // tests/setup.ts
-import { server } from '@/mocks/server'; // create this file — see below
+import { server } from '@/mocks/server'; // create this file: see below
 
 beforeAll(() => server.listen({ onUnhandledRequest: 'error' }));
 afterEach(() => server.resetHandlers());
@@ -134,7 +134,7 @@ it('shows an error when account creation fails', async () => {
 });
 ```
 
-#### Known issue — missing import in `browser.ts`
+#### Known issue: missing import in `browser.ts`
 
 `frontend/mocks/browser.ts` uses `horizonHandlers` but the import line is missing. Add it:
 
@@ -232,7 +232,7 @@ npx playwright install --with-deps chromium
 ```bash
 cd frontend
 
-# Headless — starts `next dev` automatically (or reuses a running server)
+# Headless: starts `next dev` automatically (or reuses a running server)
 npm run test:e2e
 
 # Interactive UI mode
@@ -249,7 +249,7 @@ Locally, `webServer` runs `npm run dev` and reuses an existing server when prese
 
 #### Writing tests
 
-Place new specs in `frontend/e2e/`. Prefer role/label/`data-testid` selectors over CSS classes — see [E2E Guidelines](docs/testing/E2E_GUIDELINES.md).
+Place new specs in `frontend/e2e/`. Prefer role/label/`data-testid` selectors over CSS classes: see [E2E Guidelines](docs/testing/E2E_GUIDELINES.md).
 
 ```ts
 // e2e/home.spec.ts
@@ -658,7 +658,7 @@ deployment.
 └──────────────────────────────────┘
 ```
 
-### Quick start — mocked mode (no real backend required)
+### Quick start: mocked mode (no real backend required)
 
 ```bash
 # 1. Install e2e dependencies and Playwright browser
@@ -705,7 +705,7 @@ E2E_USE_MOCKS=false E2E_API_BASE_URL=http://localhost:3001 npm test
 
 ### CI
 
-E2E tests run in a **dedicated, scheduled GitHub Actions workflow** (`.github/workflows/e2e.yml`) rather than on every PR — cross-repo setup cost makes gating every commit impractical. The workflow:
+E2E tests run in a **dedicated, scheduled GitHub Actions workflow** (`.github/workflows/e2e.yml`) rather than on every PR: cross-repo setup cost makes gating every commit impractical. The workflow:
 
 - Runs daily at 06:00 UTC.
 - Can be triggered manually from the Actions tab (supports `use_mocks` input).

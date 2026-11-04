@@ -6,7 +6,7 @@ so nobody wastes time searching the wrong one.
 
 ## `frontend/test-result/` (singular)
 
-Contains **committed test source files** — real vitest specs that run in CI:
+Contains **committed test source files**: real vitest specs that run in CI:
 
 ```
 test-result/tests/app/claim-page-client.test.tsx
@@ -23,7 +23,7 @@ in `frontend/`.
 
 ## `frontend/test-results/` (plural)
 
-Contains **Playwright run output** — generated artifacts, not sources:
+Contains **Playwright run output**: generated artifacts, not sources:
 
 ```
 test-results/.last-run.json
@@ -33,7 +33,7 @@ test-results/send-flow-Send-flow-comple-73748-path-and-shows-a-claim-link-chromi
 `test-results/` is Playwright's default output directory name. Note that the
 Playwright e2e tests and config were removed from this repo (commit `fbec7e4`,
 "chore: remove playwright e2e tests and config"), so this directory is a leftover
-artifact of a test run that predates that removal — the directory name records
+artifact of a test run that predates that removal: the directory name records
 a failing `send-flow` spec that no longer exists.
 
 ## Why this matters
@@ -43,6 +43,6 @@ The confusion runs in the risky direction: the directory whose name reads like
 one holding genuinely disposable output is the plural. Anyone "cleaning up test
 output" by pattern-matching the name could delete six live specs.
 
-No rename is proposed here — that is a separate call with CI implications. The
+No rename is proposed here; that is a separate call with CI implications. The
 fuller repository-hygiene discussion belongs in the corresponding postmortem
 entry.

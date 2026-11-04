@@ -7,7 +7,7 @@
 
 ## Summary
 
-The term **"Custodial Model"** is defined in `docs/GLOSSARY.md` and is used across three repositories — `bridgelet-core`, `bridgelet-sdk`, and `bridgelet` — but each repo implements or refers to it differently. The product audit identified this divergence but was not able to fully reconcile the three implementations into a single coherent definition.
+The term **"Custodial Model"** is defined in `docs/GLOSSARY.md` and is used across three repositories (`bridgelet-core`, `bridgelet-sdk`, and `bridgelet`) but each repo implements or refers to it differently. The product audit identified this divergence but was not able to fully reconcile the three implementations into a single coherent definition.
 
 ## Why This Matters
 
@@ -54,10 +54,10 @@ The `bridgelet` repo is the end-user-facing application. It consumes `bridgelet-
 
 | Factor | Detail |
 |---|---|
-| Likelihood of divergence | Confirmed — the audit found differences across all three repos |
-| Impact of divergence | High — incorrect assumptions about custodial behavior can lead to security-relevant bugs |
-| Detection difficulty | Medium — requires cross-repo code review and integration testing |
-| Remediation effort | Medium — requires a reconciliation workshop and glossary update |
+| Likelihood of divergence | Confirmed: the audit found differences across all three repos |
+| Impact of divergence | High: incorrect assumptions about custodial behavior can lead to security-relevant bugs |
+| Detection difficulty | Medium: requires cross-repo code review and integration testing |
+| Remediation effort | Medium: requires a reconciliation workshop and glossary update |
 
 ## Recommended Actions
 
@@ -72,15 +72,15 @@ The `bridgelet` repo is the end-user-facing application. It consumes `bridgelet-
 
 ## Code / File References
 
-- `docs/GLOSSARY.md` — Canonical definition of "Custodial Model" (first 60 lines reviewed during audit).
-- `bridgelet-core/src/` — Core implementation of custodial model (specific files not enumerated in this audit).
-- `bridgelet-sdk/src/` — SDK abstraction of custodial model.
-- `bridgelet/src/` — Application-layer implementation.
-- `bridgelet-product-audit/glossary/custodial-model-in-practice.md` — Detailed notes on how the custodial model is implemented across repos (see Related Documents below).
+- `docs/GLOSSARY.md`: Canonical definition of "Custodial Model" (first 60 lines reviewed during audit).
+- `bridgelet-core/src/`: Core implementation of custodial model (specific files not enumerated in this audit).
+- `bridgelet-sdk/src/`: SDK abstraction of custodial model.
+- `bridgelet/src/`: Application-layer implementation.
+- `bridgelet-product-audit/glossary/custodial-model-in-practice.md`: Detailed notes on how the custodial model is implemented across repos (see Related Documents below).
 
 ## Related Documents
 
-- `bridgelet-product-audit/glossary/custodial-model-in-practice.md` — Companion document with a detailed breakdown of custodial model implementation differences across the three repos. This postmortem summarizes the findings; the glossary document provides the full analysis.
-- `bridgelet-product-audit/postmortems/frd-and-technical-spec-overlap-unverified.md` — Another instance of cross-document consistency issues within the bridgelet project.
-- `bridgelet-product-audit/postmortems/org-integration-auth-doc-gap.md` — Illustrates the broader pattern of documentation gaps in the project.
-- `bridgelet-product-audit/postmortems/claim-error-message-specificity-unverified.md` — Cross-repo consistency concern in error handling.
+- `bridgelet-product-audit/glossary/custodial-model-in-practice.md`: Companion document with a detailed breakdown of custodial model implementation differences across the three repos. This postmortem summarizes the findings; the glossary document provides the full analysis.
+- `bridgelet-product-audit/postmortems/frd-and-technical-spec-overlap-unverified.md`: Another instance of cross-document consistency issues within the bridgelet project.
+- `bridgelet-product-audit/postmortems/org-integration-auth-doc-gap.md`: Illustrates the broader pattern of documentation gaps in the project.
+- `bridgelet-product-audit/postmortems/claim-error-message-specificity-unverified.md`: Cross-repo consistency concern in error handling.

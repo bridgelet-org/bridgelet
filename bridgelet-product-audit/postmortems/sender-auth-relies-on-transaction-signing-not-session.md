@@ -10,7 +10,7 @@
 
 The Bridgelet sender authentication model (`/send` page) deliberately issues no
 session token, no JWT, and no cookie. Wallet ownership is proven at
-transaction-signing time — the signature itself is the credential. This post
+transaction-signing time: the signature itself is the credential. This post
 documents the design choice, its rationale, and its tradeoffs.
 
 ## The Design Choice
@@ -31,8 +31,8 @@ The rejection of alternatives is equally explicit:
 
 | Option | Rejected because |
 |--------|-----------------|
-| A — Static `X-API-Key` | Key would leak in the JS bundle when shipped as an env var to the browser. |
-| C — No auth (open send) | Unmitigated spam/abuse risk without rate-limiting. |
+| A: Static `X-API-Key` | Key would leak in the JS bundle when shipped as an env var to the browser. |
+| C: No auth (open send) | Unmitigated spam/abuse risk without rate-limiting. |
 
 ## Why This Is Deliberate
 
@@ -48,7 +48,7 @@ Concretely:
 3. When the sender creates a payment intent, the Bridgelet SDK calls
    `signFreighterTransaction()` in `frontend/lib/wallet.ts:73`, which delegates
    to the Freighter extension's `signTransaction` API.
-4. The signed XDR is sent to the server. The server verifies the signature — no
+4. The signed XDR is sent to the server. The server verifies the signature, no
    token is checked because there is none.
 
 This means there is **no session to manage, no token to refresh, and no
@@ -66,7 +66,7 @@ to revoke.**
 - There is no server-side session record, so a server-side "log out" or
   "revoke token" operation is inapplicable.
 - If a signing key is compromised, the attacker can sign transactions until the
-  Stellar key itself is rotated on-chain — the Bridgelet layer has no kill
+  Stellar key itself is rotated on-chain: the Bridgelet layer has no kill
   switch.
 
 This is an acceptable tradeoff for the current scope (a payment link creator),
@@ -76,15 +76,15 @@ or sensitive configuration.
 ## The Flip Side: No Session to Steal
 
 The corollary of "no session token" is that there is **no session token to
-steal.** Common session-hijack vectors — cookie theft, token exfiltration from
-`localStorage`, JWT replay — are structurally absent. The attacker needs the
+steal.** Common session-hijack vectors (cookie theft, token exfiltration from
+`localStorage`, JWT replay) are structurally absent. The attacker needs the
 actual signing key (held inside the Freighter extension or the Stellar SDK
 keypair), not a bearer credential.
 
 For the `generated` wallet path (`generateNewWallet()` at
 `frontend/lib/wallet.ts:127`), the secret key is returned to the caller as a
 plaintext string. If that path is ever wired into a UI, the custody question
-becomes acute — see `integration-notes/generated-wallet-key-custody.md`.
+becomes acute: see `integration-notes/generated-wallet-key-custody.md`.
 
 ## Implications for Future Work
 
@@ -103,17 +103,17 @@ becomes acute — see `integration-notes/generated-wallet-key-custody.md`.
 ## Verdict
 
 This is a sound design for the current product scope. The absence of sessions is
-a feature, not a gap — but the team should be aware that extending the sender
+a feature, not a gap, but the team should be aware that extending the sender
 role beyond "create a payment link" may require revisiting this assumption.
 
 ## Related Documents
 
-- [`docs/sender-auth-model.md`](../../docs/sender-auth-model.md) — The decision
+- [`docs/sender-auth-model.md`](../../docs/sender-auth-model.md): The decision
   record for Option B
 - [`glossary/sender-vs-recipient-auth-models.md`](../glossary/sender-vs-recipient-auth-models.md)
-  — How sender auth (wallet-based) differs from recipient auth (claim-token
+  - How sender auth (wallet-based) differs from recipient auth (claim-token
   bearer model)
-- [`frontend/lib/wallet.ts`](../../frontend/lib/wallet.ts) — `connectFreighter()`,
+- [`frontend/lib/wallet.ts`](../../frontend/lib/wallet.ts): `connectFreighter()`,
   `signFreighterTransaction()`, `persistWallet()` implementations
 - [`integration-notes/generated-wallet-key-custody.md`](../integration-notes/generated-wallet-key-custody.md)
-  — Key custody concerns for the unused `generated` wallet path
+  - Key custody concerns for the unused `generated` wallet path

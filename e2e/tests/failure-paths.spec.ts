@@ -8,12 +8,12 @@
  *
  *   MSW runs as a browser service worker and intercepts requests at the
  *   network level *before* Playwright's `page.route()` fulfills can run.
- *   For most tests we want page.route() to override MSW — this works for
+ *   For most tests we want page.route() to override MSW; this works for
  *   response overrides (fulfill with 401/409/400/500) because page.route()
  *   handlers are matched first when you install them before navigation.
  *
  *   For network abort ("request failed") tests we cannot use route.abort()
- *   against a URL that MSW would otherwise handle — MSW intercepts the
+ *   against a URL that MSW would otherwise handle; MSW intercepts the
  *   request and fulfills it with the happy-path mock, making the abort
  *   ineffective. Instead we intercept an unrelated URL pattern or navigate
  *   away from the dev server entirely (using a real network error). The
@@ -36,7 +36,7 @@ const DESTINATION_ADDRESS = 'GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZL
 test.describe('Expired claim token', () => {
   test('shows the expired state when the backend returns 401', async ({ page }) => {
     /**
-     * Override POST /claims/verify to return 401 — the SDK responds with
+     * Override POST /claims/verify to return 401; the SDK responds with
      * 401 when the claim token's expiry timestamp has passed.
      * ClaimPageClient maps HTTP 401 → AccountStatus.EXPIRED.
      *
@@ -69,7 +69,7 @@ test.describe('Expired claim token', () => {
     await expect(article).toBeVisible({ timeout: 10_000 });
     await expect(article).toContainText(/expired/i);
 
-    // The claim form should NOT be present — there is nothing to redeem.
+    // The claim form should NOT be present: there is nothing to redeem.
     await expect(page.getByRole('button', { name: /claim now/i })).not.toBeVisible();
   });
 
@@ -86,7 +86,7 @@ test.describe('Expired claim token', () => {
     await expect(page.getByText(/loading claim details/i)).not.toBeVisible({ timeout: 15_000 });
 
     // If a support email is configured the expired card renders a mailto link.
-    // The test is advisory — it passes regardless of env var.
+    // The test is advisory: it passes regardless of env var.
     const mailtoLink = page.locator('a[href^="mailto:"]');
     const count = await mailtoLink.count();
     if (count > 0) {

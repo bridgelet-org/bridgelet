@@ -1,12 +1,12 @@
 {/* security-model.mdx
-    Re-authored from security-model.pdf (Bridgelet — Security Model, January 2026).
+    Re-authored from security-model.pdf (Bridgelet: Security Model, January 2026).
     Includes threat model table and explicit MVP stub callouts.
 */}
 
 # Bridgelet Security Model
 
 **Version:** 1.1  
-**Status:** Draft — MVP Phase  
+**Status:** Draft: MVP Phase
 **Last Updated:** June 2026  
 **Derived from:** `security-model.pdf` (January 2026), `sender-auth-model.md`, `FRONTEND_TECHNICAL_SPEC.md`
 
@@ -21,7 +21,7 @@
 5. [Ephemeral Account Model](#ephemeral-account-model)
 6. [Transport & Data Security](#transport--data-security)
 7. [Threat Model](#threat-model)
-8. [MVP Stubs — Known Gaps](#mvp-stubs--known-gaps)
+8. [MVP Stubs: Known Gaps](#mvp-stubs--known-gaps)
 9. [Out of Scope (Post-MVP)](#out-of-scope-post-mvp)
 10. [References](#references)
 
@@ -33,9 +33,9 @@ Bridgelet lets a sender fund a one-time claimable payment link backed by an ephe
 
 The security model is designed around three principles:
 
-- **Non-custodial sender identity** — wallet signatures prove sender ownership; no credentials are stored.
-- **Single-use tokens** — claim tokens are consumed on redemption and cannot be replayed.
-- **Minimal trust surface** — recipients require no account; the claim flow is stateless from their perspective.
+- **Non-custodial sender identity**: wallet signatures prove sender ownership; no credentials are stored.
+- **Single-use tokens**: claim tokens are consumed on redemption and cannot be replayed.
+- **Minimal trust surface**: recipients require no account; the claim flow is stateless from their perspective.
 
 ---
 
@@ -76,7 +76,7 @@ Bridgelet uses wallet-signature authentication for senders. No passwords or API 
 
 **Flow:**
 
-1. Sender connects Freighter (desktop) or pastes a public key (LOBSTR / mobile fallback — see `lib/wallet.ts`).
+1. Sender connects Freighter (desktop) or pastes a public key (LOBSTR / mobile fallback, see `lib/wallet.ts`).
 2. Frontend calls `POST /api/auth/challenge` with the sender's public key.
 3. Backend returns a time-limited challenge string.
 4. Frontend asks the wallet to sign the challenge via `window.freighter.signAuthEntry()`.
@@ -101,7 +101,7 @@ Recipients are unauthenticated. The claim token embedded in the URL is the sole 
 
 ## Claim Token Security
 
-### Claim Token Placement — Path vs Fragment
+### Claim Token Placement: Path vs Fragment
 
 The claim credential is embedded in the URL **path segment** (`/claim/<token>`) rather than a URL fragment (`/claim#token=<token>`) or a query parameter (`/claim?token=<token>`). This placement was an explicit design choice with the following rationale and mitigations:
 
@@ -109,18 +109,18 @@ The claim credential is embedded in the URL **path segment** (`/claim/<token>`) 
 
 | Option | Pros | Cons |
 |--------|------|------|
-| Path segment — `/claim/<token>` (current) | Fully server-routable; SSR can validate/serve the correct page without JS; works reliably across all browsers, link-unfurlers, and QR codes | Token appears in `Referer` header sent to sub-resource origins; appears in server access logs; stored in browser history |
-| URL fragment — `/claim#token=<token>` | Never sent to the server or in `Referer` by spec; not stored in standard server logs | Requires client-side JS to extract before any API call; degrades badly without JS; many QR-code and messaging clients strip or mangle fragments; link previews break |
-| Query string — `/claim?token=<token>` | Fully server-routable | Same `Referer` exposure as path; additionally logged by many WAF/CDN products that strip fragments but preserve query strings |
+| Path segment: `/claim/<token>` (current) | Fully server-routable; SSR can validate/serve the correct page without JS; works reliably across all browsers, link-unfurlers, and QR codes | Token appears in `Referer` header sent to sub-resource origins; appears in server access logs; stored in browser history |
+| URL fragment: `/claim#token=<token>` | Never sent to the server or in `Referer` by spec; not stored in standard server logs | Requires client-side JS to extract before any API call; degrades badly without JS; many QR-code and messaging clients strip or mangle fragments; link previews break |
+| Query string: `/claim?token=<token>` | Fully server-routable | Same `Referer` exposure as path; additionally logged by many WAF/CDN products that strip fragments but preserve query strings |
 
-The **URL fragment approach offers stronger passive-leak protection** (the token is never transmitted to the server or in `Referer`) but has unacceptable reliability tradeoffs for a financial product: fragment stripping is common in SMS apps, email clients, and QR code readers — exactly the channels Bridgelet recipients use. A broken claim link for a non-technical user is a worse outcome than a mitigated-but-present referrer-leak risk.
+The **URL fragment approach offers stronger passive-leak protection** (the token is never transmitted to the server or in `Referer`) but has unacceptable reliability tradeoffs for a financial product: fragment stripping is common in SMS apps, email clients, and QR code readers (exactly the channels Bridgelet recipients use). A broken claim link for a non-technical user is a worse outcome than a mitigated-but-present referrer-leak risk.
 
 **Mitigations applied for the path-segment placement:**
 
-1. **`Referrer-Policy: no-referrer`** — Set via `next.config.js` `headers()` on the `/claim/:token` route. This instructs the browser not to send a `Referer` header for any navigation away from or sub-resource loaded on the claim page. This is the primary mitigation.
-2. **No third-party scripts or CDNs on the claim page** — The claim page must not load Google Fonts, analytics beacons, or any cross-origin sub-resource that would receive a `Referer`. Any future addition of such resources requires explicit security review.
-3. **Server-side access log redaction** — Production deployments of `bridgelet-sdk` and any proxy/CDN layer (e.g., CloudFront, Nginx, Vercel) must redact or exclude request path values that match `/claim/<token>` patterns from stored logs.
-4. **Short-lived tokens** — Default token expiry is 30 days. Reducing this window for high-value claims limits the exposure period if a token does leak.
+1. **`Referrer-Policy: no-referrer`**: Set via `next.config.js` `headers()` on the `/claim/:token` route. This instructs the browser not to send a `Referer` header for any navigation away from or sub-resource loaded on the claim page. This is the primary mitigation.
+2. **No third-party scripts or CDNs on the claim page**: The claim page must not load Google Fonts, analytics beacons, or any cross-origin sub-resource that would receive a `Referer`. Any future addition of such resources requires explicit security review.
+3. **Server-side access log redaction**: Production deployments of `bridgelet-sdk` and any proxy/CDN layer (e.g., CloudFront, Nginx, Vercel) must redact or exclude request path values that match `/claim/<token>` patterns from stored logs.
+4. **Short-lived tokens**: Default token expiry is 30 days. Reducing this window for high-value claims limits the exposure period if a token does leak.
 
 **Decision:** Keep path-segment placement with mitigations (1)–(4) above. Revisit fragment placement only if a reliable fragment-preservation guarantee can be provided end-to-end for the supported share channels.
 
@@ -189,8 +189,8 @@ Each payment intent creates a dedicated Stellar ephemeral account:
 | Layer | Requirement |
 |-------|-------------|
 | All API calls | HTTPS only; HTTP rejected |
-| JWT transmission | `Authorization: Bearer` header only — never in URL query params |
-| Claim token in URL | Path segment only (`/claim/[token]`), not query string — avoids leaking token in `Referer` headers |
+| JWT transmission | `Authorization: Bearer` header only: never in URL query params |
+| Claim token in URL | Path segment only (`/claim/[token]`), not query string: avoids leaking token in `Referer` headers |
 | Wallet private keys | Never transmitted; signing happens locally in the Freighter extension |
 | Recipient wallet address | Not stored by default; sent only in the claim redemption POST body |
 | PII in analytics | No PII in analytics payloads; wallet addresses excluded from most events (see `analytics-spec.md`) |
@@ -204,30 +204,30 @@ The table below covers threats identified in the original security model PDF, up
 
 | # | Threat | Attack Vector | Mitigation | Status |
 |---|--------|---------------|-----------|--------|
-| T-01 | **Claim token theft** — attacker intercepts the URL and claims before the intended recipient | Link forwarded/leaked (SMS, email, messaging apps) | Token is single-use; first valid redemption wins. Recommend end-to-end encrypted share channels (WhatsApp, Signal). | ✅ Mitigated (single-use) |
-| T-02 | **Claim token brute-force** — attacker enumerates valid tokens | Automated requests to `/api/claims/verify` | Rate limiting: 1,000 verify calls/hour/IP. Token entropy derived from UUID v4 (122 bits). | ✅ Mitigated |
-| T-03 | **Replay attack on claim** — attacker replays a valid but already-used token | POST `/api/claims/redeem` with a used token | Backend marks token consumed on first successful sweep. Repeated redemption attempts return HTTP 409. | ✅ Mitigated |
-| T-04 | **Sender impersonation** — attacker forges a wallet signature to authenticate as another sender | POST `/api/auth/verify` with invalid signature | Ed25519 signature verification on the backend. Challenge is time-limited (5 minutes). | ✅ Mitigated |
-| T-05 | **JWT forgery** — attacker crafts a JWT to gain sender API access | API calls with self-signed tokens | JWT verified with server-held ES256 secret. Unsigned/HS256 tokens rejected. | ✅ Mitigated |
-| T-06 | **Ephemeral account private key exposure** — attacker extracts the key from the backend to drain funds | Backend compromise / memory leak | Keys held only in backend process memory during signing; not persisted to DB. Full mitigation requires HSM/KMS. | ⚠️ Partial — HSM/KMS post-MVP |
-| T-07 | **Man-in-the-middle on API calls** — attacker intercepts traffic between browser and API | Network interception | HTTPS enforced; HSTS headers recommended. | ✅ Mitigated (HTTPS) |
-| T-08 | **XSS leading to JWT theft** — injected script reads token from `sessionStorage` | Malicious content in memo/recipient name fields | Output encoding on all user-supplied strings. CSP headers recommended. `sessionStorage` scope limits blast radius to same tab. | ⚠️ Partial — CSP not yet enforced |
-| T-09 | **Claim link enumeration via sender dashboard** — attacker accesses all claim URLs for a sender | GET `/api/sender/accounts` | Endpoint requires valid JWT for the matching sender public key. | ✅ Mitigated |
-| T-10 | **Spam account creation** — attacker floods the system with payment intents | POST `/api/accounts` | Rate limit: 100 account creations/hour/authenticated user. Requires valid wallet JWT. | ✅ Mitigated |
-| T-11 | **Recipient address substitution** — attacker intercepts the claim form and replaces the destination address | Client-side script injection / MITM | Destination address is submitted server-side in the POST body over HTTPS; the UI shows a confirmation screen. Full mitigation requires recipient to verify independently. | ⚠️ Partial — no address commit before sweep |
-| T-12 | **Expired funds not reclaimed** — sender loses funds due to expiry with no notification | Passive (time-based) | Backend should notify sender on expiry. Reclaim flow available in dashboard. | ⚠️ Partial — notification not implemented in MVP |
-| T-13 | **Sweep execution without authorization** — backend sweeps funds to wrong address or without valid claim | Backend logic error / compromised process | Sweep requires: (a) valid unexpired claim token, (b) server-side signature with ephemeral private key. No client-supplied authorization credential. | ⚠️ **MVP STUB — see §8** |
-| T-14 | **Stellar network outage** — funds locked in ephemeral account during network disruption | External (Stellar) | Graceful error UI with retry. Ephemeral account persists until claimed or expired; funds are recoverable once network resumes. | ✅ Mitigated (degraded mode) |
-| T-15 | **Private key leak from generated wallet** — `generateNewWallet()` exposes a raw secret key in-browser | Frontend code path | `generateNewWallet()` in `lib/wallet.ts` returns the secret key directly to the caller. This flow is not presented in the UI by default. | ⚠️ Partial — secret handling requires audit |
-| T-16 | **Claim token leaks via `Referer` header** — claim token in URL path forwarded to third-party sub-resources or CDN logs | `Referer` header on `/claim/<token>` page; browser history; server access logs | `Referrer-Policy: no-referrer` set in `next.config.js` for `/claim/:token`. No third-party scripts permitted on claim page. Log redaction required in production deployments. Token placement rationale documented in §Claim Token Security. | ✅ Mitigated (header set; see §Claim Token Security for full mitigation list) |
+| T-01 | **Claim token theft**: attacker intercepts the URL and claims before the intended recipient | Link forwarded/leaked (SMS, email, messaging apps) | Token is single-use; first valid redemption wins. Recommend end-to-end encrypted share channels (WhatsApp, Signal). | ✅ Mitigated (single-use) |
+| T-02 | **Claim token brute-force**: attacker enumerates valid tokens | Automated requests to `/api/claims/verify` | Rate limiting: 1,000 verify calls/hour/IP. Token entropy derived from UUID v4 (122 bits). | ✅ Mitigated |
+| T-03 | **Replay attack on claim**: attacker replays a valid but already-used token | POST `/api/claims/redeem` with a used token | Backend marks token consumed on first successful sweep. Repeated redemption attempts return HTTP 409. | ✅ Mitigated |
+| T-04 | **Sender impersonation**: attacker forges a wallet signature to authenticate as another sender | POST `/api/auth/verify` with invalid signature | Ed25519 signature verification on the backend. Challenge is time-limited (5 minutes). | ✅ Mitigated |
+| T-05 | **JWT forgery**: attacker crafts a JWT to gain sender API access | API calls with self-signed tokens | JWT verified with server-held ES256 secret. Unsigned/HS256 tokens rejected. | ✅ Mitigated |
+| T-06 | **Ephemeral account private key exposure**: attacker extracts the key from the backend to drain funds | Backend compromise / memory leak | Keys held only in backend process memory during signing; not persisted to DB. Full mitigation requires HSM/KMS. | ⚠️ Partial: HSM/KMS post-MVP |
+| T-07 | **Man-in-the-middle on API calls**: attacker intercepts traffic between browser and API | Network interception | HTTPS enforced; HSTS headers recommended. | ✅ Mitigated (HTTPS) |
+| T-08 | **XSS leading to JWT theft**: injected script reads token from `sessionStorage` | Malicious content in memo/recipient name fields | Output encoding on all user-supplied strings. CSP headers recommended. `sessionStorage` scope limits blast radius to same tab. | ⚠️ Partial: CSP not yet enforced |
+| T-09 | **Claim link enumeration via sender dashboard**: attacker accesses all claim URLs for a sender | GET `/api/sender/accounts` | Endpoint requires valid JWT for the matching sender public key. | ✅ Mitigated |
+| T-10 | **Spam account creation**: attacker floods the system with payment intents | POST `/api/accounts` | Rate limit: 100 account creations/hour/authenticated user. Requires valid wallet JWT. | ✅ Mitigated |
+| T-11 | **Recipient address substitution**: attacker intercepts the claim form and replaces the destination address | Client-side script injection / MITM | Destination address is submitted server-side in the POST body over HTTPS; the UI shows a confirmation screen. Full mitigation requires recipient to verify independently. | ⚠️ Partial: no address commit before sweep |
+| T-12 | **Expired funds not reclaimed**: sender loses funds due to expiry with no notification | Passive (time-based) | Backend should notify sender on expiry. Reclaim flow available in dashboard. | ⚠️ Partial: notification not implemented in MVP |
+| T-13 | **Sweep execution without authorization**: backend sweeps funds to wrong address or without valid claim | Backend logic error / compromised process | Sweep requires: (a) valid unexpired claim token, (b) server-side signature with ephemeral private key. No client-supplied authorization credential. | ⚠️ **MVP STUB: see §8** |
+| T-14 | **Stellar network outage**: funds locked in ephemeral account during network disruption | External (Stellar) | Graceful error UI with retry. Ephemeral account persists until claimed or expired; funds are recoverable once network resumes. | ✅ Mitigated (degraded mode) |
+| T-15 | **Private key leak from generated wallet**: `generateNewWallet()` exposes a raw secret key in-browser | Frontend code path | `generateNewWallet()` in `lib/wallet.ts` returns the secret key directly to the caller. This flow is not presented in the UI by default. | ⚠️ Partial: secret handling requires audit |
+| T-16 | **Claim token leaks via `Referer` header**: claim token in URL path forwarded to third-party sub-resources or CDN logs | `Referer` header on `/claim/<token>` page; browser history; server access logs | `Referrer-Policy: no-referrer` set in `next.config.js` for `/claim/:token`. No third-party scripts permitted on claim page. Log redaction required in production deployments. Token placement rationale documented in §Claim Token Security. | ✅ Mitigated (header set; see §Claim Token Security for full mitigation list) |
 
 ---
 
-## MVP Stubs — Known Gaps
+## MVP Stubs: Known Gaps
 
-> These are explicit limitations of the current MVP build. They are not bugs — they are deferred security hardening items. Each must be resolved before production launch.
+> These are explicit limitations of the current MVP build. They are not bugs: they are deferred security hardening items. Each must be resolved before production launch.
 
-### 🟡 STUB 1 — Sweep Authorization Is Not Real
+### 🟡 STUB 1: Sweep Authorization Is Not Real
 
 **Location:** `frontend/mocks/handlers/claims.ts`, `POST /claims/redeem`
 
@@ -260,12 +260,12 @@ await new Promise((res) => setTimeout(res, 800));
 
 ---
 
-### 🟡 STUB 2 — No Real Encryption at Rest
+### 🟡 STUB 2: No Real Encryption at Rest
 
 **Current behavior:**
 The security model PDF specifies that ephemeral account private keys should be encrypted at rest. The current implementation holds keys in backend process memory only, with no HSM, KMS, or encrypted persistence layer wired up.
 
-Claim tokens are signed JWTs (integrity protected) but the payload is **not encrypted** — the `accountId`, `amount`, and `assetCode` are readable by anyone with the token.
+Claim tokens are signed JWTs (integrity protected) but the payload is **not encrypted**: the `accountId`, `amount`, and `assetCode` are readable by anyone with the token.
 
 **Risk:**
 - If the backend process crashes and core is dumped, ephemeral keys could be recovered.
@@ -277,12 +277,12 @@ Claim tokens are signed JWTs (integrity protected) but the payload is **not encr
 
 ---
 
-### 🟡 STUB 3 — Claim Page Uses Demo Data Only
+### 🟡 STUB 3: Claim Page Uses Demo Data Only
 
 **Location:** `frontend/app/claim/[token]/page.tsx`
 
 ```ts
-// Demo data — replace with a real API fetch once /claim/:token is live.
+// Demo data: replace with a real API fetch once /claim/:token is live.
 const demoExpiresAt = new Date(Date.now() + 23 * 60 * 60 * 1000).toISOString();
 ```
 
@@ -297,7 +297,7 @@ The claim page does not call `GET /claim/:token` against the real API. It render
 
 ---
 
-### 🟡 STUB 4 — Content Security Policy Not Enforced
+### 🟡 STUB 4: Content Security Policy Not Enforced
 
 No `Content-Security-Policy` header is configured in `next.config.js`. This leaves the app exposed to XSS vectors that could exfiltrate JWTs from `sessionStorage`.
 

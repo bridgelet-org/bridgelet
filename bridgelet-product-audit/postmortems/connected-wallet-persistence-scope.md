@@ -8,8 +8,8 @@
 
 ## Summary
 
-`persistWallet()` in `frontend/lib/wallet.ts` stores exactly two fields —
-`publicKey` and `type` — in `localStorage`. This post documents what that
+`persistWallet()` in `frontend/lib/wallet.ts` stores exactly two fields,
+`publicKey` and `type`, in `localStorage`. This post documents what that
 persistence does and does not protect against, and clarifies that persistence is
 a UI convenience, not a security boundary.
 
@@ -41,8 +41,8 @@ returns `null` on any parse failure or missing key. Cleared by
 **No secret key material is written to `localStorage` by this path.**
 
 The `ConnectedWallet` type has no field for a secret key. Even in the
-`generated` wallet path — where `generateNewWallet()` returns a `secretKey`
-alongside the wallet — `persistWallet()` never receives the secret. It only
+`generated` wallet path, where `generateNewWallet()` returns a `secretKey`
+alongside the wallet, `persistWallet()` never receives the secret. It only
 receives `{ publicKey, type }`.
 
 This means:
@@ -65,13 +65,13 @@ However:
 
 - The UI showing "connected" does not grant signing capability. A Freighter
   connection still requires the Freighter extension to approve the transaction.
-- For a `generated` wallet, the public key display is cosmetic — without the
+- For a `generated` wallet, the public key display is cosmetic: without the
   secret key, no transaction can be signed.
-- For a `lobstr` wallet, the public key is display-only — there is no signing
+- For a `lobstr` wallet, the public key is display-only: there is no signing
   path at all.
 
 **Bottom line:** The persisted public key is a UX hint, not an authorization
-token. It answers "which account did I last use?" — not "can I act on behalf of
+token. It answers "which account did I last use?", not "can I act on behalf of
 this account?"
 
 ## Clearing Browser Data
@@ -80,7 +80,7 @@ Clearing `localStorage` (or just the `bridgelet_wallet` key) removes the public
 key association entirely. The user sees a disconnected state with no error
 explaining why.
 
-`loadPersistedWallet()` handles this gracefully — it returns `null` and the UI
+`loadPersistedWallet()` handles this gracefully: it returns `null` and the UI
 shows the connect button again. But the silent degradation is worth noting: a
 user who clears browser data may be confused about why their wallet "disappeared"
 without an error message.
@@ -105,9 +105,9 @@ The key takeaway: `persistWallet()` provides **UI convenience** (surviving page
 reloads), not **security** (authorizing actions). The actual security boundary
 lives in:
 
-- The Freighter extension (for `freighter` type) — which gates signing behind
+- The Freighter extension (for `freighter` type), which gates signing behind
   its own approval popup.
-- The server-side signature verification (for all types) — which checks that the
+- The server-side signature verification (for all types), which checks that the
   transaction was signed by the claimed public key.
 
 Persisting the public key in `localStorage` does not weaken or strengthen the
@@ -118,7 +118,7 @@ security model. It is orthogonal to it.
 - Document the `bridgelet_wallet` storage key in the security model so auditors
   know it exists and what it contains.
 - Consider adding a brief user-facing note when a wallet is shown as "connected"
-  from persistence — e.g., a subtle indicator that reconnection was automatic
+  from persistence, e.g., a subtle indicator that reconnection was automatic
   rather than explicitly approved in this session.
 - The unchecked cast in `loadPersistedWallet()` is low-risk but should be
   validated if the storage key is ever written to by other code paths.
@@ -126,10 +126,10 @@ security model. It is orthogonal to it.
 ## Related Documents
 
 - [`glossary/connected-wallet-persistence.md`](../glossary/connected-wallet-persistence.md)
-  — The canonical glossary entry for this persistence mechanism
-- [`frontend/lib/wallet.ts`](../../frontend/lib/wallet.ts) — `persistWallet()`,
+  - The canonical glossary entry for this persistence mechanism
+- [`frontend/lib/wallet.ts`](../../frontend/lib/wallet.ts): `persistWallet()`,
   `loadPersistedWallet()`, `clearPersistedWallet()` at lines 29, 34, 44
 - [`postmortems/sender-auth-relies-on-transaction-signing-not-session.md`](./sender-auth-relies-on-transaction-signing-not-session.md)
-  — Why there is no session token to persist in the first place
+  - Why there is no session token to persist in the first place
 - [`glossary/wallet-connection-types.md`](../glossary/wallet-connection-types.md)
-  — What each `WalletType` value means in practice
+  - What each `WalletType` value means in practice

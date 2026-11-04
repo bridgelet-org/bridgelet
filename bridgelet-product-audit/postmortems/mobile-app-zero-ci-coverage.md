@@ -39,7 +39,7 @@ mobile/
 This means:
 
 - **Lint regressions** in mobile TypeScript/TSX code merge uncaught.
-- **Type errors** ship to `main` without being flagged — mobile uses
+- **Type errors** ship to `main` without being flagged: mobile uses
   `tsc --noEmit` (note: the script is named `type-check`, not `typecheck`).
 - **Unit test failures** in mobile tests are invisible to CI.
 - **Dependency vulnerabilities** specific to `mobile/package-lock.json` are not
@@ -49,14 +49,14 @@ This means:
 
 | Risk | Impact | Likelihood |
 |---|---|---|
-| Broken mobile build merges to `main` | Users on mobile get a broken release | Medium — no guard rails exist |
-| Type errors accumulate silently | Refactors become increasingly dangerous in `mobile/` | High — no type-check CI means drift compounds |
-| Lint rules diverge between `frontend/` and `mobile/` | Inconsistent code style across the two apps | High — each enforces its own ESLint config independently |
-| A PR touching both `mobile/` and `frontend/` passes CI only on the frontend side | Reviewers may assume full coverage based on green CI | High — the workflow names suggest broader coverage than they provide |
+| Broken mobile build merges to `main` | Users on mobile get a broken release | Medium: no guard rails exist |
+| Type errors accumulate silently | Refactors become increasingly dangerous in `mobile/` | High: no type-check CI means drift compounds |
+| Lint rules diverge between `frontend/` and `mobile/` | Inconsistent code style across the two apps | High: each enforces its own ESLint config independently |
+| A PR touching both `mobile/` and `frontend/` passes CI only on the frontend side | Reviewers may assume full coverage based on green CI | High: the workflow names suggest broader coverage than they provide |
 
 ## Contributing factors
 
-1. **Workflow scoping is invisible.** `frontend-ci.yml` has no path filter — it
+1. **Workflow scoping is invisible.** `frontend-ci.yml` has no path filter: it
    runs on every push to `main` and every PR. A contributor unfamiliar with the
    `working-directory: frontend` default might reasonably assume it covers the
    whole repo.
@@ -88,6 +88,6 @@ This means:
 
 ## Related Documents
 
-- [`onboard-mobile-app-to-ci.md`](../runbooks/onboard-mobile-app-to-ci.md) — runbook for implementing the fix
-- [`mobile-app-services-logger.md`](../glossary/mobile-app-services-logger.md) — context on mobile app internals
-- [`mobile-app-contract-awareness.md`](../integration-notes/mobile-app-contract-awareness.md) — mobile app's awareness of the contract layer
+- [`onboard-mobile-app-to-ci.md`](../runbooks/onboard-mobile-app-to-ci.md): runbook for implementing the fix
+- [`mobile-app-services-logger.md`](../glossary/mobile-app-services-logger.md): context on mobile app internals
+- [`mobile-app-contract-awareness.md`](../integration-notes/mobile-app-contract-awareness.md): mobile app's awareness of the contract layer

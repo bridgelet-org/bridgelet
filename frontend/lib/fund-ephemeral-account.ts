@@ -106,7 +106,7 @@ export async function fundEphemeralAccount(
   if (!isNative && !params.assetIssuer) {
     throw new FundingError(
       'UNSUPPORTED_ASSET',
-      `${params.assetCode} is not supported yet — no issuer is configured for this network. Please send XLM.`,
+      `${params.assetCode} is not supported yet: no issuer is configured for this network. Please send XLM.`,
     );
   }
 

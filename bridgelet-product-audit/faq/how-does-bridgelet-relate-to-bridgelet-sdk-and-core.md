@@ -11,8 +11,8 @@ contracts on Stellar).
 
 ```
 bridgelet (this repo)
-  └─ frontend/   — Next.js web reference UI
-  └─ mobile/     — Expo React Native app
+  └─ frontend/  Next.js web reference UI
+  └─ mobile/    Expo React Native app
        │
        │  HTTP calls to bridgelet-sdk API
        ▼
@@ -52,8 +52,8 @@ Each layer has a distinct deployment model and consumer:
 
 ## Practical implication: a bug could originate in any layer
 
-When tracing a failure — say, a claim link that resolves as "already swept"
-when it shouldn't — the error may live at any of the three layers:
+When tracing a failure, say, a claim link that resolves as "already swept"
+when it shouldn't, the error may live at any of the three layers:
 
 | Stage | What could go wrong |
 |-------|---------------------|
@@ -86,10 +86,10 @@ counterpart in the others. For instance:
 ## Related documents
 
 - [`integration-notes/three-repo-error-surface-consistency.md`](../integration-notes/three-repo-error-surface-consistency.md)
-  — tracing an error from contract through SDK to frontend UI
-- [`README.md`](../../README.md) — top-level overview of all three repositories
+  - tracing an error from contract through SDK to frontend UI
+- [`README.md`](../../README.md): top-level overview of all three repositories
   with links to their GitHub locations
-- [`docs/architecture.mdx`](../../docs/architecture.mdx) — system design and
+- [`docs/architecture.mdx`](../../docs/architecture.mdx): system design and
   component interaction diagrams
 
 ---

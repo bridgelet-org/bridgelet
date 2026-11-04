@@ -20,7 +20,7 @@ export function ThemeToggle() {
       className="rounded-md p-2 text-slate-500 transition hover:bg-slate-100 hover:text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-100"
     >
       {isDark ? (
-        /* Sun icon — shown in dark mode to switch to light */
+        /* Sun icon: shown in dark mode to switch to light */
         <svg
           aria-hidden="true"
           className="h-5 w-5"
@@ -36,7 +36,7 @@ export function ThemeToggle() {
           />
         </svg>
       ) : (
-        /* Moon icon — shown in light mode to switch to dark */
+        /* Moon icon: shown in light mode to switch to dark */
         <svg
           aria-hidden="true"
           className="h-5 w-5"

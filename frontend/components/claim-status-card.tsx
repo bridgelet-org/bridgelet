@@ -49,7 +49,7 @@ export interface ClaimStatusCardProps {
 
 function stroopsToDisplay(stroops: string, assetCode = 'XLM'): string {
   const num = parseFloat(stroops);
-  if (Number.isNaN(num)) return `— ${assetCode}`;
+  if (Number.isNaN(num)) return `N/A ${assetCode}`;
   const xlm = num / 10_000_000;
   return `${xlm.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 7 })} ${assetCode}`;
 }
@@ -165,7 +165,7 @@ function AvailablePanel({
   // Matches the backend's Stellar public key validation (StrKey ed25519 public keys).
   const isValidAddress = /^G[A-Z2-7]{55}$/.test(destinationAddress);
 
-  // §6 Error Displayed — fires once when claimError first appears.
+  // §6 Error Displayed: fires once when claimError first appears.
   useEffect(() => {
     if (claimError && !errorDisplayedRef.current) {
       errorDisplayedRef.current = true;
@@ -211,7 +211,7 @@ function AvailablePanel({
     setClaiming(true);
     setRateLimit(undefined);
 
-    // §6 Retry Clicked — fires when the user re-submits after seeing an error.
+    // §6 Retry Clicked: fires when the user re-submits after seeing an error.
     if (claimError) {
       analytics.retryClicked({
         journey: 'recipient',
@@ -267,7 +267,7 @@ function AvailablePanel({
             {amountStroops ? (
               stroopsToDisplay(amountStroops, assetCode)
             ) : (
-              <span className="text-slate-400">—</span>
+              <span className="text-slate-400">N/A</span>
             )}
           </dd>
         </div>
@@ -390,7 +390,7 @@ function ClaimedPanel({
   'claimId' | 'assetCode' | 'sweepDestination' | 'claimedByMe' | 'sweepTxHash'
 >) {
   const explorerUrl = explorerTxUrl(sweepTxHash);
-  // §5.4 Claim Success Viewed — fires once when this session's successful
+  // §5.4 Claim Success Viewed: fires once when this session's successful
   // claim result is displayed. Guarded by claimedByMe to avoid firing when
   // the panel shows because someone else already claimed.
   useEffect(() => {
@@ -434,7 +434,7 @@ function ClaimedPanel({
 
       {claimedByMe && claimId && explorerUrl && (
         <div className="space-y-2">
-          {/* §5.4 Explorer Link Clicked — Stellar block explorer link */}
+          {/* §5.4 Explorer Link Clicked: Stellar block explorer link */}
           <a
             href={explorerUrl}
             target="_blank"
@@ -451,7 +451,7 @@ function ClaimedPanel({
             View transaction on Stellar Explorer ↗
           </a>
 
-          {/* §5.4 Sender Signup CTA Clicked — viral growth loop */}
+          {/* §5.4 Sender Signup CTA Clicked: viral growth loop */}
           <a
             href="/send"
             onClick={() => analytics.senderSignupCtaClicked({ claimId })}
@@ -570,7 +570,7 @@ function FailedPanel({ supportEmail }: Pick<ClaimStatusCardProps, 'supportEmail'
 
 /**
  * Renders the correct UI for a claim token based on its current account
- * status. Every value of AccountStatus is handled explicitly — there is no
+ * status. Every value of AccountStatus is handled explicitly; there is no
  * silent "unknown status" fallback.
  */
 export function ClaimStatusCard({

@@ -11,7 +11,7 @@ The `integration-notes/three-repo-error-surface-consistency.md` document reveals
 
 ## Why This Matters
 
-When a claim transaction fails on-chain, the failure reason is often highly specific — insufficient funds, contract revert with a reason string, nonce collision, slippage exceeded, etc. These specific reasons are critical for:
+When a claim transaction fails on-chain, the failure reason is often highly specific: insufficient funds, contract revert with a reason string, nonce collision, slippage exceeded, etc. These specific reasons are critical for:
 
 - **User debugging:** End users need to know *why* their claim failed so they can take corrective action (e.g., add funds, retry later, adjust parameters).
 - **Support triage:** Support teams rely on error message specificity to diagnose issues without requiring users to provide transaction hashes and chain-level traces.
@@ -50,11 +50,11 @@ The audit identified the pattern but did not perform the following:
 
 | Factor | Detail |
 |---|---|
-| Likelihood of specificity loss | High — the `??` pattern guarantees fallback when upstream does not set `.message` |
-| Impact on users | Medium — users see generic errors and cannot self-service |
-| Impact on support | Medium — support tickets increase because users cannot diagnose issues |
-| Detection difficulty | Low — an end-to-end test with a deliberate failure would confirm or deny |
-| Remediation effort | Medium — requires establishing a structured error contract and updating each layer |
+| Likelihood of specificity loss | High: the `??` pattern guarantees fallback when upstream does not set `.message` |
+| Impact on users | Medium: users see generic errors and cannot self-service |
+| Impact on support | Medium: support tickets increase because users cannot diagnose issues |
+| Detection difficulty | Low: an end-to-end test with a deliberate failure would confirm or deny |
+| Remediation effort | Medium: requires establishing a structured error contract and updating each layer |
 
 ## Recommended Actions
 
@@ -74,15 +74,15 @@ The audit identified the pattern but did not perform the following:
 
 ## Code / File References
 
-- `bridgelet-product-audit/integration-notes/three-repo-error-surface-consistency.md` — The document that identified the `??` fallback pattern and its impact on error message specificity.
-- `bridgelet-core/src/` — Core claim logic that produces initial error objects.
-- `bridgelet-sdk/src/` — SDK layer that receives and propagates (or degrades) errors.
-- `bridgelet/src/` — Application layer that renders error messages to end users.
+- `bridgelet-product-audit/integration-notes/three-repo-error-surface-consistency.md`: The document that identified the `??` fallback pattern and its impact on error message specificity.
+- `bridgelet-core/src/`: Core claim logic that produces initial error objects.
+- `bridgelet-sdk/src/`: SDK layer that receives and propagates (or degrades) errors.
+- `bridgelet/src/`: Application layer that renders error messages to end users.
 - Specific line numbers and file paths were not captured during the audit; a follow-up grep for `??` in error paths is recommended.
 
 ## Related Documents
 
-- `bridgelet-product-audit/integration-notes/three-repo-error-surface-consistency.md` — The source document for this finding. It contains the detailed analysis of how errors flow across the three repos. This postmortem summarizes the finding and adds recommended actions.
-- `bridgelet-product-audit/postmortems/custodial-model-terminology-scope.md` — Another cross-repo consistency issue, focused on terminology rather than error handling.
-- `bridgelet-product-audit/postmortems/org-integration-auth-doc-gap.md` — A documentation gap issue that, like this one, was identified during the same audit cycle.
-- `bridgelet-product-audit/postmortems/frd-and-technical-spec-overlap-unverified.md` — A documentation overlap issue from the same audit.
+- `bridgelet-product-audit/integration-notes/three-repo-error-surface-consistency.md`: The source document for this finding. It contains the detailed analysis of how errors flow across the three repos. This postmortem summarizes the finding and adds recommended actions.
+- `bridgelet-product-audit/postmortems/custodial-model-terminology-scope.md`: Another cross-repo consistency issue, focused on terminology rather than error handling.
+- `bridgelet-product-audit/postmortems/org-integration-auth-doc-gap.md`: A documentation gap issue that, like this one, was identified during the same audit cycle.
+- `bridgelet-product-audit/postmortems/frd-and-technical-spec-overlap-unverified.md`: A documentation overlap issue from the same audit.

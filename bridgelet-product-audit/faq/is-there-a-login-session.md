@@ -1,7 +1,7 @@
 # FAQ: Is there a login session or account system for senders?
 
 **Short answer:** No. Bridgelet deliberately has no session tokens, cookies, or
-server-side accounts. Wallet ownership is proved at transaction-signing time —
+server-side accounts. Wallet ownership is proved at transaction-signing time,
 the signature is the credential.
 
 ---
@@ -19,8 +19,8 @@ The alternatives were rejected explicitly:
 
 | Option | Rejected because |
 |--------|-----------------|
-| A — Static `X-API-Key` | Key would leak in the JS bundle shipped to the browser. |
-| C — No auth (open send) | Unmitigated spam/abuse risk. |
+| A: Static `X-API-Key` | Key would leak in the JS bundle shipped to the browser. |
+| C: No auth (open send) | Unmitigated spam/abuse risk. |
 
 This design maps naturally to Stellar's mental model: you own a key, you prove
 ownership by signing. There is no separate auth step because signing *is* the
@@ -35,7 +35,7 @@ For the full design rationale, see
 
 When you connect Freighter in the `/send` flow, the frontend writes your public
 key and wallet type to `localStorage` under the key `bridgelet_wallet`. This is
-a **UI convenience** — it lets the form pre-populate on reload so you don't have
+a **UI convenience**: it lets the form pre-populate on reload so you don't have
 to reconnect every time.
 
 It is **not** an authenticated session:
@@ -43,7 +43,7 @@ It is **not** an authenticated session:
 - No token is issued to the server.
 - No server-side record is created.
 - Clearing `localStorage` (or clicking "Disconnect") removes only the
-  auto-reconnect shortcut — it does not "log you out" of anything.
+  auto-reconnect shortcut: it does not "log you out" of anything.
 
 See [`glossary/connected-wallet-persistence.md`](../glossary/connected-wallet-persistence.md)
 for the exact storage key, shape, and what is (and is not) stored.
@@ -63,15 +63,15 @@ payment creations.
 
 ## Related documents
 
-- [`docs/sender-auth-model.md`](../../docs/sender-auth-model.md) — decision
+- [`docs/sender-auth-model.md`](../../docs/sender-auth-model.md): decision
   record for Option B
 - [`postmortems/sender-auth-relies-on-transaction-signing-not-session.md`](../postmortems/sender-auth-relies-on-transaction-signing-not-session.md)
-  — full design analysis, tradeoffs, and implications
+  - full design analysis, tradeoffs, and implications
 - [`glossary/sender-vs-recipient-auth-models.md`](../glossary/sender-vs-recipient-auth-models.md)
-  — how sender auth (wallet-based) differs from recipient auth (claim-token
+  - how sender auth (wallet-based) differs from recipient auth (claim-token
   bearer model)
 - [`glossary/connected-wallet-persistence.md`](../glossary/connected-wallet-persistence.md)
-  — what is actually stored in `localStorage`
+  - what is actually stored in `localStorage`
 
 ---
 

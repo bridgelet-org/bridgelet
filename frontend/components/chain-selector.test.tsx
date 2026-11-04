@@ -23,21 +23,21 @@ describe('ChainSelector', () => {
 
   it('renders Ethereum as a disabled Coming Soon stub', () => {
     render(<ChainSelector selectedChainId="stellar" />);
-    const option = screen.getByRole('option', { name: /Ethereum \(ETH\) — \[Coming Soon\]/i });
+    const option = screen.getByRole('option', { name: /Ethereum \(ETH\) \[Coming Soon\]/i });
     expect(option).toBeInTheDocument();
     expect(option).toBeDisabled();
   });
 
   it('renders Polygon as a disabled Coming Soon stub', () => {
     render(<ChainSelector selectedChainId="stellar" />);
-    const option = screen.getByRole('option', { name: /Polygon \(MATIC\) — \[Coming Soon\]/i });
+    const option = screen.getByRole('option', { name: /Polygon \(MATIC\) \[Coming Soon\]/i });
     expect(option).toBeInTheDocument();
     expect(option).toBeDisabled();
   });
 
   it('renders Soroban as a disabled Coming Soon stub', () => {
     render(<ChainSelector selectedChainId="stellar" />);
-    const option = screen.getByRole('option', { name: /Soroban Smart Contracts \(XLM\) — \[Coming Soon\]/i });
+    const option = screen.getByRole('option', { name: /Soroban Smart Contracts \(XLM\) \[Coming Soon\]/i });
     expect(option).toBeInTheDocument();
     expect(option).toBeDisabled();
   });
@@ -61,7 +61,7 @@ describe('ChainSelector', () => {
     const user = userEvent.setup();
     render(<ChainSelector selectedChainId="stellar" onSelectChain={onSelectChain} />);
 
-    // Attempt to change — only Stellar is actually enabled, but the event still fires.
+    // Attempt to change: only Stellar is actually enabled, but the event still fires.
     await user.selectOptions(screen.getByRole('combobox'), 'stellar');
     expect(onSelectChain).toHaveBeenCalledWith('stellar');
   });

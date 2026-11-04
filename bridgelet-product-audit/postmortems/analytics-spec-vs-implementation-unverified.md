@@ -36,7 +36,7 @@ any tracking code.
 
 ## The Verification Gap
 
-During this audit, the spec was reviewed at a high level — checking naming
+During this audit, the spec was reviewed at a high level: checking naming
 conventions, payload structure, funnel logic, and the critical distinction
 between intent-based events and on-chain confirmation events. That review
 confirmed the spec is internally sound.
@@ -93,7 +93,7 @@ diverge. Common drift scenarios:
 - **Events removed from code.** An event is deprecated in the frontend but still
   listed in the spec. Dashboards that reference it show flat zeros.
 
-None of these are hypothetical — they are the standard failure mode of any spec
+None of these are hypothetical: they are the standard failure mode of any spec
 that is not mechanically checked against its implementation.
 
 ## What Verification Would Look Like
@@ -119,20 +119,20 @@ This could be partially automated but requires human judgment for step 4
   rather than a source of truth.
 - **Short-term:** Perform the event-name diff (steps 1–3 above) as a lightweight
   compliance check. This is largely automatable.
-- **Medium-term:** Establish a process for keeping the spec in sync — either
+- **Medium-term:** Establish a process for keeping the spec in sync, either
   require spec updates with every tracking PR, or add a CI check that extracts
   event names from code and compares them to the spec.
-- **Ongoing:** The `Payment Confirmed` naming issue should be resolved — either
+- **Ongoing:** The `Payment Confirmed` naming issue should be resolved, either
   rename the event to `Payment Signed` (matching its actual semantics) or add a
    prominent note to the dashboard layer that `Payment Confirmed` ≠ on-chain
    settlement.
 
 ## Related Documents
 
-- [`docs/analytics-spec.md`](../../docs/analytics-spec.md) — The full 919-line
+- [`docs/analytics-spec.md`](../../docs/analytics-spec.md): The full 919-line
   event tracking specification
 - [`integration-notes/analytics-events-vs-onchain-outcomes.md`](../integration-notes/analytics-events-vs-onchain-outcomes.md)
-  — The `Payment Confirmed` naming trap and on-chain vs intent distinction
+  - The `Payment Confirmed` naming trap and on-chain vs intent distinction
 - [`postmortems/sender-auth-relies-on-transaction-signing-not-session.md`](./sender-auth-relies-on-transaction-signing-not-session.md)
-  — Auth model that determines how sender identity is established (affects
+  - Auth model that determines how sender identity is established (affects
   analytics payload for sender-identifying events)

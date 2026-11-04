@@ -1,11 +1,11 @@
-# Multi-Chain Evaluation — Summary
+# Multi-Chain Evaluation: Summary
 
 A high-level pointer to `docs/multi-chain-evaluation.md`. All reasoning and detail
 stays in that document; this is orientation only.
 
 ## Current direction
 
-The document is an **evaluation**, not a commitment — it scopes what supporting
+The document is an **evaluation**, not a commitment: it scopes what supporting
 chains beyond Stellar would require, rather than announcing that Bridgelet is
 becoming multi-chain. Read alongside `ROADMAP.md`, whose current status is MVP
 implementation focused on Stellar ephemeral accounts, it reads as forward-looking
@@ -17,12 +17,12 @@ simultaneously.
 
 ## Areas it identifies
 
-1. **Send flow changes** — chain selection becomes part of the sending decision.
-2. **Claim flow changes** — the biggest conceptual jump. Claiming on a chain
+1. **Send flow changes**: chain selection becomes part of the sending decision.
+2. **Claim flow changes**: the biggest conceptual jump. Claiming on a chain
    other than the one funds were sent on requires actual cross-chain bridging
    infrastructure, and recipients must connect a wallet compatible with their
    chosen target chain.
-3. **Database and API schema** — today's schema is Stellar-specific in ways that
+3. **Database and API schema**: today's schema is Stellar-specific in ways that
    don't generalise: Stellar-denominated amount fields, and asset identifiers
    that carry no chain qualifier.
 
@@ -30,7 +30,7 @@ simultaneously.
 
 This is important background for anyone reading
 [`wallet-connection-types.md`](./wallet-connection-types.md). All three
-connection types documented there — Freighter, LOBSTR, and generated keypairs —
+connection types documented there: Freighter, LOBSTR, and generated keypairs,
 are **Stellar-specific assumptions baked into the frontend**. Freighter is a
 Stellar extension; `generateNewWallet()` calls `Keypair.random()` from
 `@stellar/stellar-sdk`; address validation elsewhere in the app assumes the

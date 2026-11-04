@@ -3,8 +3,8 @@
 ## The deferral
 
 `docs/sender-auth-model.md` evaluates three sender-auth options and picks Option B
-(wallet-based). Option A — a static API key supplied via an `X-API-Key` header
-from the environment — is **rejected for the browser UI**, on the grounds that any
+(wallet-based). Option A (a static API key supplied via an `X-API-Key` header
+from the environment) is **rejected for the browser UI**, on the grounds that any
 key shipped to a browser would leak in the JS bundle.
 
 But the same document does not discard Option A entirely. Its Security Notes
@@ -17,7 +17,7 @@ This entry exists to track whether that separate documentation now exists.
 ## Does the integration guide cover it?
 
 `docs/integration-guide.mdx` (with a paired `integration-guide.pdf`) does exist,
-and it **does** reference an API key — it shows SDK construction as
+and it **does** reference an API key: it shows SDK construction as
 `new BridgeletSDK({ apiKey: process.env.BRIDGELET_API_KEY })` and lists
 `BRIDGELET_API_KEY` in its environment-variable table.
 
@@ -32,7 +32,7 @@ during this review documents:
 
 - How an org **obtains** an API key, or who issues it.
 - Key **rotation** or revocation.
-- What **scope or authority** a key carries — can it create payment intents on
+- What **scope or authority** a key carries: can it create payment intents on
   behalf of arbitrary senders?
 - How the key-based path relates to the wallet-signature proof that Option B
   relies on, given the two establish authority very differently.

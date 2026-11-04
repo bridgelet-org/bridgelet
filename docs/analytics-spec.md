@@ -25,7 +25,7 @@
 
 ## 1. Overview
 
-This document defines the analytics and product event tracking specification for Bridgelet — a crypto onboarding solution that allows senders to create claimable crypto links for recipients who do not yet have wallets.
+This document defines the analytics and product event tracking specification for Bridgelet, a crypto onboarding solution that allows senders to create claimable crypto links for recipients who do not yet have wallets.
 
 The purpose of this spec is to:
 - Define every trackable user interaction across both journeys
@@ -114,7 +114,7 @@ Every event includes a **base payload** of common properties. Event-specific pro
 }
 ```
 
-> **Privacy note:** No PII (name, email, phone) should ever appear in an analytics payload. Wallet addresses are pseudonymous — include them only where explicitly specified below. Recipient wallet addresses must never be logged in sender-journey events.
+> **Privacy note:** No PII (name, email, phone) should ever appear in an analytics payload. Wallet addresses are pseudonymous: include them only where explicitly specified below. Recipient wallet addresses must never be logged in sender-journey events.
 
 ### 3.2 Conditional Properties
 
@@ -895,10 +895,10 @@ These are lower-level metrics derived from event data to monitor system health a
 ### 9.1 Recommended Analytics Platforms
 
 This spec is platform-agnostic and compatible with:
-- **[Segment](https://segment.com)** — recommended as a routing layer to downstream tools
-- **[PostHog](https://posthog.com)** — open-source; suitable for self-hosted analytics
-- **[Mixpanel](https://mixpanel.com)** — strong funnel analysis
-- **[Amplitude](https://amplitude.com)** — strong for product metrics
+- **[Segment](https://segment.com)**: recommended as a routing layer to downstream tools
+- **[PostHog](https://posthog.com)**: open-source; suitable for self-hosted analytics
+- **[Mixpanel](https://mixpanel.com)**: strong funnel analysis
+- **[Amplitude](https://amplitude.com)**: strong for product metrics
 
 ### 9.2 Client-Side vs. Server-Side
 
@@ -929,5 +929,5 @@ Respect browser-level `DNT` headers. If `DNT: 1`, suppress all analytics events.
 
 ---
 
-*Document version 1.0 — Analytics & Product Event Tracking Specification for Bridgelet*
+*Document version 1.0: Analytics & Product Event Tracking Specification for Bridgelet*
 *Author: See git history*

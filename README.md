@@ -96,9 +96,9 @@ npm run dev
 The application will be available at `http://localhost:3000`. 
 
 #### Core Pages:
-- `/` — Homepage & animated How It Works explainer
-- `/send` — Sender Flow (Create ephemeral account)
-- `/claim/[token]` — Recipient Flow (Direct claim redemption)
+- `/`: Homepage & animated How It Works explainer
+- `/send`: Sender Flow (Create ephemeral account)
+- `/claim/[token]`: Recipient Flow (Direct claim redemption)
 
 ### SDK & Core Setup
 
@@ -112,7 +112,7 @@ For backend or smart contract development, please refer to the specific reposito
 - **[bridgelet-core](https://github.com/bridgelet-org/bridgelet-core)** - Smart contracts (Soroban + Rust)
 - **bridgelet** - Reference UI implementation and documentation (This repository)
 
-Each repo is versioned and released independently — see the
+Each repo is versioned and released independently: see the
 [Compatibility Matrix](./docs/compatibility.md) for which combinations of
 frontend / `bridgelet-sdk` / `bridgelet-core` versions are known to work
 together, and [`.github/workflows/compatibility.yml`](./.github/workflows/compatibility.yml)

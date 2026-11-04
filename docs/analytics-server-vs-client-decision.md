@@ -12,7 +12,7 @@
 
 This is a **decision record, not an implementation**. No emitter was moved, no
 event was renamed, no spec was edited. Every "current emitter" claim below was
-read from the call site at commit `faeb0b6`, not inferred from the event name —
+read from the call site at commit `faeb0b6`, not inferred from the event name,
 several events in this table would be misclassified by their name alone.
 
 **Nothing here has been built, type-checked, linted, or executed.** No query was
@@ -39,7 +39,7 @@ Plus one sentence that carries most of the engineering weight:
 
 §9.2 is explicitly labelled implementation guidance ("This section is guidance
 for the engineering team… It does not constitute part of the spec definition",
-line 883), so deviating from it is legitimate — but deviating *silently* is what
+line 883), so deviating from it is legitimate, but deviating *silently* is what
 produced the naming trap, so the deviation and its cost are recorded below.
 
 ---
@@ -48,30 +48,30 @@ produced the naming trap, so the deviation and its cost are recorded below.
 
 | Event | Current emitter (verified) | §9.2 says | Verdict |
 |-------|----------------------------|-----------|---------|
-| `Page Viewed` | client — `components/page-view-tracker.tsx:37` (`useEffect`), rendered only on the homepage (`app/page.tsx:15`, `page="homepage"`) | client | **Keep client.** Correct as-is. See the coverage note below. |
-| `Send Form Viewed` | client — `components/send-form/index.tsx:57` | client | Keep client. |
-| `Send Form Completed` | client — `components/send-form/index.tsx:70` | client | Keep client. |
-| `Payment Confirmation Viewed` | client — `components/send-form/steps/confirm-step.tsx:80` | client | Keep client. |
-| `Payment Confirmed` | client — `confirm-step.tsx:154`, inside `handleConfirm()` before any request is sent | client (as "UI interaction") | **Keep client, rename** — see §3. |
-| `Claim Link Copied` | client — `confirm-step.tsx:172` | client | Keep client. |
-| `Claim Link Shared` | client — `confirm-step.tsx:180` | client | Keep client. |
-| `Payment Details Viewed` | client — `confirm-step.tsx:138` | client | Keep client. |
-| `Claim Page Opened` | client — `app/claim/[token]/claim-page-client.tsx:64` | client | Keep client. |
-| `Claim Confirmation Viewed` | client — `claim-page-client.tsx:80` | client | Keep client. |
-| `Claim CTA Clicked` | client — `claim-page-client.tsx:165` | client | Keep client. |
-| `Claim Submitted` | client — `claim-page-client.tsx:174` | client (intent) | Keep client. |
-| `Claim Success Viewed` | client — `components/claim-status-card.tsx:390` | client | Keep client. |
-| `Sender Signup CTA Clicked` | client — `claim-status-card.tsx:449` | client | Keep client. |
-| `Explorer Link Clicked` | client — `claim-status-card.tsx:435` | client | Keep client. |
-| `Retry Clicked` | client — `claim-status-card.tsx:213` | client | Keep client. |
-| `Wallet Address Validation Failed` | client — `claim-status-card.tsx:188` (inside a `useEffect` on the address field) | client | Keep client, but see the #628 finding — it does not fire on submit. |
-| **`Payment Created`** | **client** — `confirm-step.tsx:132`, immediately after `createEphemeralAccount()` resolves | **server preferred** | **Move server-side.** See §3. |
-| **`Claim Verified`** | **client** — `claim-page-client.tsx:73`, after `loadClaimView()` resolves with `PENDING_CLAIM` | **server preferred** | **Move server-side**; keep a client UX-latency proxy under a distinct name if the UX number is still wanted. |
-| **`Claim Succeeded`** | **client** — `claim-page-client.tsx:191` (direct submit) and `:317` (background poll) | **server preferred** | **Move server-side.** See §4 for the client-context cost. |
-| **`Claim Failed`** | **client** — `claim-page-client.tsx:222` (`safeToRetry`) and `:261` (`terminal`) | **server preferred** | **Move server-side**, and close the coverage gap in §3.3. |
-| `Payment Creation Failed` | **absent** — zero references in `frontend/` | not in the §9.2 table | **Implement server-side.** Without it the sender funnel has no failure stage. |
-| `Wallet Connected` / `Wallet Connection Failed` | **absent** — zero references each in `frontend/` | client | Client by nature; unimplemented. §8.3 derives a rate from them. |
-| `Send Form Started` | **absent** — zero references in `frontend/` | client | Client by nature; unimplemented (funnel stage 2). |
+| `Page Viewed` | client: `components/page-view-tracker.tsx:37` (`useEffect`), rendered only on the homepage (`app/page.tsx:15`, `page="homepage"`) | client | **Keep client.** Correct as-is. See the coverage note below. |
+| `Send Form Viewed` | client: `components/send-form/index.tsx:57` | client | Keep client. |
+| `Send Form Completed` | client: `components/send-form/index.tsx:70` | client | Keep client. |
+| `Payment Confirmation Viewed` | client: `components/send-form/steps/confirm-step.tsx:80` | client | Keep client. |
+| `Payment Confirmed` | client: `confirm-step.tsx:154`, inside `handleConfirm()` before any request is sent | client (as "UI interaction") | **Keep client, rename**: see §3. |
+| `Claim Link Copied` | client: `confirm-step.tsx:172` | client | Keep client. |
+| `Claim Link Shared` | client: `confirm-step.tsx:180` | client | Keep client. |
+| `Payment Details Viewed` | client: `confirm-step.tsx:138` | client | Keep client. |
+| `Claim Page Opened` | client: `app/claim/[token]/claim-page-client.tsx:64` | client | Keep client. |
+| `Claim Confirmation Viewed` | client: `claim-page-client.tsx:80` | client | Keep client. |
+| `Claim CTA Clicked` | client: `claim-page-client.tsx:165` | client | Keep client. |
+| `Claim Submitted` | client: `claim-page-client.tsx:174` | client (intent) | Keep client. |
+| `Claim Success Viewed` | client: `components/claim-status-card.tsx:390` | client | Keep client. |
+| `Sender Signup CTA Clicked` | client: `claim-status-card.tsx:449` | client | Keep client. |
+| `Explorer Link Clicked` | client: `claim-status-card.tsx:435` | client | Keep client. |
+| `Retry Clicked` | client: `claim-status-card.tsx:213` | client | Keep client. |
+| `Wallet Address Validation Failed` | client: `claim-status-card.tsx:188` (inside a `useEffect` on the address field) | client | Keep client, but see the #628 finding: it does not fire on submit. |
+| **`Payment Created`** | **client**: `confirm-step.tsx:132`, immediately after `createEphemeralAccount()` resolves | **server preferred** | **Move server-side.** See §3. |
+| **`Claim Verified`** | **client**: `claim-page-client.tsx:73`, after `loadClaimView()` resolves with `PENDING_CLAIM` | **server preferred** | **Move server-side**; keep a client UX-latency proxy under a distinct name if the UX number is still wanted. |
+| **`Claim Succeeded`** | **client**: `claim-page-client.tsx:191` (direct submit) and `:317` (background poll) | **server preferred** | **Move server-side.** See §4 for the client-context cost. |
+| **`Claim Failed`** | **client**: `claim-page-client.tsx:222` (`safeToRetry`) and `:261` (`terminal`) | **server preferred** | **Move server-side**, and close the coverage gap in §3.3. |
+| `Payment Creation Failed` | **absent**: zero references in `frontend/` | not in the §9.2 table | **Implement server-side.** Without it the sender funnel has no failure stage. |
+| `Wallet Connected` / `Wallet Connection Failed` | **absent**: zero references each in `frontend/` | client | Client by nature; unimplemented. §8.3 derives a rate from them. |
+| `Send Form Started` | **absent**: zero references in `frontend/` | client | Client by nature; unimplemented (funnel stage 2). |
 
 Three of the four §9.2 "server-side preferred" events are emitted **only** by the
 client today, so the §9.2 table describes an intent the codebase has not
@@ -120,9 +120,9 @@ definitive 'payment exists' event" is really "the API accepted the request".
 
 The same applies to the two sibling events in the §9.2 table:
 
-- `Claim Verified` fires after `loadClaimView()` returns `PENDING_CLAIM` — the
+- `Claim Verified` fires after `loadClaimView()` returns `PENDING_CLAIM`: the
   client is reporting the backend's verdict, not validating a token.
-- `Claim Succeeded` fires when a poll returns `CLAIMED` / `PARTIAL_SWEEP` — again
+- `Claim Succeeded` fires when a poll returns `CLAIMED` / `PARTIAL_SWEEP`: again
   a backend-reported status, not a chain read.
 
 This is not necessarily *wrong*: a backend that only reports `CLAIMED` after its
@@ -210,11 +210,11 @@ causes the event, and echoed by the server onto the emitted event:
 
 | Field | Source in this repo | Required? |
 |-------|--------------------|-----------|
-| `session_id` | `sessionStorage` via `getSessionId()` (`analytics.ts:123`); the 30-minute inactivity window in `lib/analytics-session.ts` is **not yet wired in** | Yes — §9.2 names it. Without it, server events cannot be attributed to a visit. |
-| `device_type` | `detectDeviceType()` (`analytics.ts:51`), `mobile`/`tablet`/`desktop` | Yes — §9.2 names it. |
-| `anonymous_id` | `localStorage` via `getAnonymousId()` (`analytics.ts:102`) | Strongly recommended — it is the only identifier that stitches a server event to a sender's earlier client events across sessions. Without it, the sender funnel breaks at the first server-side step. |
+| `session_id` | `sessionStorage` via `getSessionId()` (`analytics.ts:123`); the 30-minute inactivity window in `lib/analytics-session.ts` is **not yet wired in** | Yes: §9.2 names it. Without it, server events cannot be attributed to a visit. |
+| `device_type` | `detectDeviceType()` (`analytics.ts:51`), `mobile`/`tablet`/`desktop` | Yes: §9.2 names it. |
+| `anonymous_id` | `localStorage` via `getAnonymousId()` (`analytics.ts:102`) | Strongly recommended: it is the only identifier that stitches a server event to a sender's earlier client events across sessions. Without it, the sender funnel breaks at the first server-side step. |
 | `claim_id` | Account id on the sender, route token on the recipient | Required as the join key, and see the privacy note below. |
-| `app_version` | `appVersion()` (`analytics.ts:40`), from `NEXT_PUBLIC_APP_VERSION` | Recommended — needed to attribute server events to a release. |
+| `app_version` | `appVersion()` (`analytics.ts:40`), from `NEXT_PUBLIC_APP_VERSION` | Recommended: needed to attribute server events to a release. |
 | `referrer`, `platform` | `buildBasePayload()` (`analytics.ts:65`) | Optional. `referrer` is `null` on most direct claim-link opens, so it adds little here. |
 | `user_agent` | `buildBasePayload()` (`analytics.ts:69`) | **Recommend not forwarding.** `device_type` is the field dashboards actually use; forwarding the raw UA string to a server-side collector widens the fingerprinting surface for no analytical gain. If a spec change (§3.1) is in scope, drop `user_agent` from server-emitted events rather than mirroring it. |
 
@@ -224,7 +224,7 @@ This is not a frontend-only change, and pretending otherwise would be the easy
 mistake:
 
 - `Payment Created` / `Payment Creation Failed` are caused by the
-  `createEphemeralAccount()` call in `lib/bridgelet.ts` — the context would ride
+  `createEphemeralAccount()` call in `lib/bridgelet.ts`: the context would ride
   on that request, so `bridgelet-sdk` has to read it and re-emit.
 - `Claim Verified` is caused by `loadClaimView()` in `lib/claim-view.ts`.
 - `Claim Succeeded` / `Claim Failed` are caused by `submitClaimWithRetry()` and
@@ -238,7 +238,7 @@ and it should be tracked as its own issue, not folded into a frontend PR.
 `claim_id` is not an opaque correlation id. On the recipient side it is the claim
 token from the URL path (`claimId={token}`, `claim-page-client.tsx:383`), and
 `claim-url-security-properties.md` is explicit that the token is a **bearer
-credential** — "the token is the sole proof of entitlement" — and that it is
+credential** ("the token is the sole proof of entitlement") and that it is
 "readable by anyone holding the token, including link-preview services and
 analytics pipelines".
 

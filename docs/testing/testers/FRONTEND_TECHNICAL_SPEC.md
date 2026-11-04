@@ -97,11 +97,11 @@ Authorization: Bearer {wallet_signature_token}
 ```
 
 **Error Responses:**
-- `400` — Invalid request body
-- `401` — Unauthorized (invalid/missing token)
-- `402` — Insufficient balance in funding account
-- `429` — Rate limit exceeded
-- `500` — Server error
+- `400`: Invalid request body
+- `401`: Unauthorized (invalid/missing token)
+- `402`: Insufficient balance in funding account
+- `429`: Rate limit exceeded
+- `500`: Server error
 
 ---
 
@@ -138,8 +138,8 @@ Authorization: Bearer {wallet_signature_token}
 ```
 
 **Error Responses:**
-- `401` — Unauthorized
-- `404` — Account not found
+- `401`: Unauthorized
+- `404`: Account not found
 
 ---
 
@@ -228,10 +228,10 @@ Content-Type: application/json
 ```
 
 **Error Responses:**
-- `400` — Invalid token format
-- `401` — Token expired or invalid signature
-- `404` — Account not found
-- `409` — Already claimed
+- `400`: Invalid token format
+- `401`: Token expired or invalid signature
+- `404`: Account not found
+- `409`: Already claimed
 
 ---
 
@@ -267,11 +267,11 @@ Content-Type: application/json
 ```
 
 **Error Responses:**
-- `400` — Invalid destination address
-- `401` — Invalid or expired claim token
-- `409` — Already claimed
-- `410` — Account expired
-- `500` — Sweep execution failed
+- `400`: Invalid destination address
+- `401`: Invalid or expired claim token
+- `409`: Already claimed
+- `410`: Account expired
+- `500`: Sweep execution failed
 
 ---
 
@@ -567,11 +567,11 @@ function logout() {
 
 ### Security Best Practices
 
-1. **Never store private keys** — Only store public keys and signatures
-2. **Use sessionStorage by default** — More secure than localStorage
-3. **Validate token expiration client-side** — Prevent unnecessary API calls
-4. **Handle 401 responses** — Auto-logout and redirect to login
-5. **Use HTTPS only** — Tokens must never be sent over HTTP
+1. **Never store private keys**: Only store public keys and signatures
+2. **Use sessionStorage by default**: More secure than localStorage
+3. **Validate token expiration client-side**: Prevent unnecessary API calls
+4. **Handle 401 responses**: Auto-logout and redirect to login
+5. **Use HTTPS only**: Tokens must never be sent over HTTP
 
 ---
 
@@ -745,7 +745,7 @@ function detectAvailableWallets(): WalletProvider[] {
 Recipients only provide an address string:
 
 ```typescript
-// Recipient input — NO wallet connection needed
+// Recipient input: NO wallet connection needed
 interface ClaimFormData {
   destinationAddress: string; // Just a string input
 }
@@ -1070,7 +1070,7 @@ function extractClaimToken(): string | null {
 }
 ```
 
-**Decode Token (Client-Side — for display only):**
+**Decode Token (Client-Side: for display only):**
 
 ```typescript
 import jwt_decode from 'jwt-decode';
@@ -1989,7 +1989,7 @@ const claimUrl = `${config.claimBaseUrl}/c/${token}`;
 // ❌ BAD
 <div dangerouslySetInnerHTML={{ __html: userMessage }} />
 
-// ✅ GOOD — React escapes by default
+// ✅ GOOD: React escapes by default
 <div>{userMessage}</div>
 
 // Sanitize if you MUST render HTML
@@ -2035,11 +2035,11 @@ fetch('/api/accounts', {
 localStorage.setItem('privateKey', privateKey);
 localStorage.setItem('seedPhrase', seedPhrase);
 
-// ✅ GOOD — Only store non-sensitive data
+// ✅ GOOD: Only store non-sensitive data
 sessionStorage.setItem('walletAddress', publicKey);
 sessionStorage.setItem('authToken', token);
 
-// Even better — use secure, httpOnly cookies (set by backend)
+// Even better: use secure, httpOnly cookies (set by backend)
 ```
 
 ### Input Validation

@@ -1,11 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 /**
- * Issue #765 — issued-asset funding pre-checks.
+ * Issue #765: issued-asset funding pre-checks.
  *
  * `fundEphemeralAccount` must refuse to prompt the wallet for an issued asset
  * the sender cannot pay (no trustline / too little balance), and must refuse an
- * issued asset with no configured issuer at all — before any signing happens.
+ * issued asset with no configured issuer at all, before any signing happens.
  */
 const { loadAccountMock } = vi.hoisted(() => ({ loadAccountMock: vi.fn() }));
 

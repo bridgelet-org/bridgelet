@@ -7,7 +7,7 @@
 
 ## Summary
 
-The `docs/sender-auth-model.md` document explicitly describes two authentication paths — Option A (API key based) and Option B (OAuth / token based) — and states that Option A should be "documented separately in an integration guide." As of this audit, **that integration guide does not exist.** The auth model document itself is the only authoritative source for Option A, and it was written as a design document, not a step-by-step integration guide.
+The `docs/sender-auth-model.md` document explicitly describes two authentication paths, Option A (API key based) and Option B (OAuth / token based), and states that Option A should be "documented separately in an integration guide." As of this audit, **that integration guide does not exist.** The auth model document itself is the only authoritative source for Option A, and it was written as a design document, not a step-by-step integration guide.
 
 ## Why This Matters
 
@@ -47,10 +47,10 @@ The following content would be expected in an Option A integration guide but doe
 
 | Factor | Detail |
 |---|---|
-| Likelihood of impact | High — any integrator choosing Option A will hit this gap |
-| Impact of gap | Medium — developers can still reverse-engineer from source, but at significant cost |
-| Detection difficulty | Low — the auth model document explicitly calls out the gap |
-| Remediation effort | Medium — requires authoring a standalone guide from existing code and design docs |
+| Likelihood of impact | High: any integrator choosing Option A will hit this gap |
+| Impact of gap | Medium: developers can still reverse-engineer from source, but at significant cost |
+| Detection difficulty | Low: the auth model document explicitly calls out the gap |
+| Remediation effort | Medium: requires authoring a standalone guide from existing code and design docs |
 
 ## Downstream Impact
 
@@ -72,13 +72,13 @@ The missing guide does not exist in a vacuum. Its absence ripples into several a
 
 ## Code / File References
 
-- `docs/sender-auth-model.md` — The auth model document that defines both Option A and Option B, and that explicitly calls for a separate Option A guide.
-- `bridgelet/src/auth/` or `bridgelet-core/src/auth/` — Likely location of the API key authentication implementation (exact path not confirmed during audit).
-- `bridgelet-product-audit/glossary/org-integration-api-key-model.md` — Detailed notes on the API key authentication model (see Related Documents below).
+- `docs/sender-auth-model.md`: The auth model document that defines both Option A and Option B, and that explicitly calls for a separate Option A guide.
+- `bridgelet/src/auth/` or `bridgelet-core/src/auth/`: Likely location of the API key authentication implementation (exact path not confirmed during audit).
+- `bridgelet-product-audit/glossary/org-integration-api-key-model.md`: Detailed notes on the API key authentication model (see Related Documents below).
 
 ## Related Documents
 
-- `bridgelet-product-audit/glossary/org-integration-api-key-model.md` — Companion document analyzing the API key authentication model in detail. This postmortem summarizes the documentation gap; the glossary document provides the full technical analysis.
-- `bridgelet-product-audit/postmortems/frd-and-technical-spec-overlap-unverified.md` — Another documentation consistency issue identified in the same audit.
-- `bridgelet-product-audit/postmortems/custodial-model-terminology-scope.md` — A cross-repo terminology gap that, like this issue, stems from documentation not keeping pace with implementation.
-- `bridgelet-product-audit/postmortems/claim-error-message-specificity-unverified.md` — A cross-repo consistency issue that, like this one, was identified but not fully resolved during the audit.
+- `bridgelet-product-audit/glossary/org-integration-api-key-model.md`: Companion document analyzing the API key authentication model in detail. This postmortem summarizes the documentation gap; the glossary document provides the full technical analysis.
+- `bridgelet-product-audit/postmortems/frd-and-technical-spec-overlap-unverified.md`: Another documentation consistency issue identified in the same audit.
+- `bridgelet-product-audit/postmortems/custodial-model-terminology-scope.md`: A cross-repo terminology gap that, like this issue, stems from documentation not keeping pace with implementation.
+- `bridgelet-product-audit/postmortems/claim-error-message-specificity-unverified.md`: A cross-repo consistency issue that, like this one, was identified but not fully resolved during the audit.

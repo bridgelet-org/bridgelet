@@ -2,7 +2,7 @@
 
 **Issue:** [#329](https://github.com/bridgelet-org/bridgelet/issues/329)
 **Category:** Structural finding
-**Severity:** Low — affects developer experience and dependency management
+**Severity:** Low, affecting developer experience and dependency management
 
 ## Summary
 
@@ -31,7 +31,7 @@ independently.
 
 ```
 bridgelet/
-├── package.json          (root — no workspaces)
+├── package.json          (root: no workspaces)
 ├── package-lock.json     (root lockfile, minimal deps)
 ├── frontend/
 │   ├── package.json      (independent)
@@ -90,7 +90,7 @@ run all tests across both sub-projects with a single command. Workspaces provide
 
 ## Related Documents
 
-- [`package.json`](../../package.json) — the root package file
-- `frontend/package.json` — frontend's independent dependency tree
-- `mobile/package.json` — mobile's independent dependency tree
-- [`postmortems/mobile-app-zero-ci-coverage.md`](./mobile-app-zero-ci-coverage.md) — related mobile CI gap
+- [`package.json`](../../package.json): the root package file
+- `frontend/package.json`: frontend's independent dependency tree
+- `mobile/package.json`: mobile's independent dependency tree
+- [`postmortems/mobile-app-zero-ci-coverage.md`](./mobile-app-zero-ci-coverage.md): related mobile CI gap

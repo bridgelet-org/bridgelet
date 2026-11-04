@@ -1,4 +1,4 @@
-# Claim URL — Security Properties
+# Claim URL: Security Properties
 
 What makes a claim URL safe (or unsafe) to share, from the frontend's view.
 
@@ -9,11 +9,11 @@ securely claim funds, and a **Claim URL** as the link carrying it.
 `docs/security-model.mdx` is more specific:
 
 - Claim tokens are **JWTs signed by the backend**, using a secret the frontend
-  never sees — integrity-protected.
-- **Single-use** — consumed on redemption, cannot be replayed.
+  never sees; they are integrity-protected.
+- **Single-use**: consumed on redemption, cannot be replayed.
 - **Entropy:** derived from a UUID v4 `accountId` (122 bits). Brute-force
   enumeration is not feasible, and verify calls are rate-limited (1,000/hour/IP).
-- **Path segment, not query string** (`/claim/[token]`) — deliberately, to avoid
+- **Path segment, not query string** (`/claim/[token]`), deliberately, to avoid
   leaking the token in `Referer` headers.
 - **Recipients are unauthenticated.** The token "is the sole proof of
   entitlement. No login, no session."
@@ -25,16 +25,16 @@ claim.** There is no identity check binding the token to an intended recipient, 
 a forwarded, screenshotted, or intercepted link is as good as the original.
 
 `security-model.mdx` logs this as **T-01 (claim token theft)** and rates it
-mitigated — but read the mitigation precisely: single-use means an attacker cannot
+mitigated, but read the mitigation precisely: single-use means an attacker cannot
 replay a *spent* token, and "first valid redemption wins." That protects against
 reuse, **not against a thief redeeming first.** If an attacker gets the link
 before the recipient acts, they claim the funds and the legitimate recipient finds
-a spent token. The document's own recommendation — share via end-to-end encrypted
-channels — is the real control.
+a spent token. The document's own recommendation (share via end-to-end encrypted
+channels) is the real control.
 
 **The payload is not encrypted.** Signed JWTs are integrity-protected, not
 confidential: `accountId`, `amount` and `assetCode` are readable by anyone holding
-the token — including link-preview services and analytics pipelines. JWE is future work.
+the token, including link-preview services and analytics pipelines. JWE is future work.
 
 ## Practical consequences
 

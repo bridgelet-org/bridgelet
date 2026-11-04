@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { BridgeletClient } from '@/lib/create-bridgelet-client';
 
 /**
- * Issue #764 — sender history.
+ * Issue #764: sender history.
  *
  * `listAccounts` wraps the app's own `/api/accounts` proxy (which attaches the
  * SDK token server-side) and forwards `limit`/`offset` as query params.

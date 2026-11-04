@@ -32,25 +32,25 @@ undetectable in code review.
 The root `package.json` has no `docs:pdf` script. No CI step was found that
 regenerates PDFs from `.mdx`. The existing runbook
 (`runbooks/rebuild-docs-pdf-from-mdx.md`) documents the manual procedure and
-notes that the toolchain is undocumented — the team must ask `git log` who last
+notes that the toolchain is undocumented: the team must ask `git log` who last
 touched a PDF to figure out what produced it.
 
 ## Why This Matters
 
-### Paired files — silent drift
+### Paired files: silent drift
 
 A contributor edits `security-model.mdx`, commits it, and opens a PR. The
 reviewer sees the markdown diff and approves. But `security-model.pdf` is never
 regenerated, so anyone who opens the PDF gets the **old** security guidance with
 no indicator it is stale. The security documentation specifically carries this
-risk — see
+risk: see
 [`glossary/docs-mdx-vs-pdf-pairs.md`](../glossary/docs-mdx-vs-pdf-pairs.md).
 
-- PDFs are binary blobs in git diffs — changes are invisible to reviewers.
-- PDFs are not greppable — terminology updates can miss them entirely.
+- PDFs are binary blobs in git diffs, changes are invisible to reviewers.
+- PDFs are not greppable, terminology updates can miss them entirely.
 - Nothing fails when the two diverge.
 
-### PDF-only files — no source at all
+### PDF-only files: no source at all
 
 `getting-started.pdf`, `mvp-specification.pdf`, and `use-cases.pdf` have no
 editable source. Updating them requires reproducing the document from scratch in
@@ -71,7 +71,7 @@ a manual-only process with no audit trail.
 
 ### For PDF-only files (priority: medium)
 
-1. **Recover or recreate the source** — identify the original authoring tool,
+1. **Recover or recreate the source**: identify the original authoring tool,
    extract or rewrite the content into `.mdx`, and add it to the repo.
 2. **Remove the orphan PDFs** once authoritative sources exist.
 3. If the content is genuinely archived (not meant to be maintained), move the
@@ -80,9 +80,9 @@ a manual-only process with no audit trail.
 
 ## Related Documents
 
-- [`glossary/docs-mdx-vs-pdf-pairs.md`](../glossary/docs-mdx-vs-pdf-pairs.md) —
+- [`glossary/docs-mdx-vs-pdf-pairs.md`](../glossary/docs-mdx-vs-pdf-pairs.md):
   canonical inventory of paired and orphan PDFs
-- [`runbooks/rebuild-docs-pdf-from-mdx.md`](../runbooks/rebuild-docs-pdf-from-mdx.md) —
+- [`runbooks/rebuild-docs-pdf-from-mdx.md`](../runbooks/rebuild-docs-pdf-from-mdx.md):
   the manual regeneration procedure
-- `docs/architecture.mdx`, `docs/security-model.mdx`, `docs/integration-guide.mdx` —
+- `docs/architecture.mdx`, `docs/security-model.mdx`, `docs/integration-guide.mdx`:
   the three authoritative sources

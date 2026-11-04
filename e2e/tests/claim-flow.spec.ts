@@ -1,5 +1,5 @@
 /**
- * Issue #456 — Playwright E2E suite for the claim flow.
+ * Issue #456: Playwright E2E suite for the claim flow.
  *
  * Tests the recipient's claim journey in isolation:
  *   1. Navigate to /claim/:token

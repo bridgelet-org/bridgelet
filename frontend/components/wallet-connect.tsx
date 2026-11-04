@@ -47,7 +47,7 @@ export function WalletConnect({ onConnected }: WalletConnectProps) {
       </button>
       {status === 'error' && error && <p className="text-sm text-red-600">{error}</p>}
       <p className="text-xs text-slate-500">
-        Auth is wallet-based — signing a transaction with your Freighter key proves you control this
+        Auth is wallet-based: signing a transaction with your Freighter key proves you control this
         address. No password or JWT is required.{' '}
         <a
           href="https://docs.freighter.app"

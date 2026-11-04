@@ -17,7 +17,7 @@ Before starting, confirm you have access to:
 3. A text editor or markdown viewer to compare with the `.mdx` sources
 4. The postmortem template (create this if it doesn't exist yet) for flagging any drift found
 
-## Step 1 — Select a paired file at random
+## Step 1: Select a paired file at random
 
 From the list of verified paired files (per [`docs-mdx-vs-pdf-pairs.md`](../glossary/docs-mdx-vs-pdf-pairs.md)), choose **one file at random** for this spot check:
 - `architecture.mdx` ↔ `architecture.pdf`
@@ -26,7 +26,7 @@ From the list of verified paired files (per [`docs-mdx-vs-pdf-pairs.md`](../glos
 
 Example: Random selection might pick `security-model.mdx` and its matching `security-model.pdf`.
 
-## Step 2 — High-level content comparison
+## Step 2: High-level content comparison
 
 Open both the `.mdx` source and the `.pdf` export side-by-side. Perform a spot check across these key areas, not a line-by-line diff (that's what regeneration is for):
 
@@ -47,7 +47,7 @@ Pick 3-5 high-risk sections to compare in detail:
 - Check that internal links between documents work in the PDF if they're implemented
 - Confirm page numbering or section numbering is consistent between versions
 
-## Step 3 — What to do if you find drift
+## Step 3: What to do if you find drift
 
 If you identify **any discrepancy** between the `.mdx` source and its `.pdf` export:
 
@@ -57,7 +57,7 @@ If you identify **any discrepancy** between the `.mdx` source and its `.pdf` exp
 - Note when the `.mdx` was last updated vs. when the PDF was last committed (using `git log`)
 
 ### B. Create a postmortem entry
-Flag the drift using the standard postmortem template. **Do not fix it silently as part of this spot check** — the postmortem process ensures:
+Flag the drift using the standard postmortem template. **Do not fix it silently as part of this spot check**: the postmortem process ensures:
 - The drift is visible to the entire team
 - Root cause analysis can identify why the PDF wasn't regenerated when the source was updated
 - Preventative measures can be added to avoid recurrence
@@ -74,7 +74,7 @@ The postmortem must include:
 ### C. Escalate to the documentation owner
 Add the postmortem to the team's tracking board and assign it to the current documentation owner to coordinate the fix.
 
-## Step 4 — Complete the check if no drift is found
+## Step 4: Complete the check if no drift is found
 
 If your spot check finds no discrepancies:
 1. Log the completion date and which file you checked in the team's audit log
@@ -82,5 +82,5 @@ If your spot check finds no discrepancies:
 3. No further action is needed until the next cycle
 
 ## Related Resources
-- [`docs-mdx-vs-pdf-pairs.md`](../glossary/docs-mdx-vs-pdf-pairs.md) — List of all paired PDF/mdx files
-- [`rebuild-docs-pdf-from-mdx.md`](./rebuild-docs-pdf-from-mdx.md) — Runbook for regenerating PDFs after source changes
+- [`docs-mdx-vs-pdf-pairs.md`](../glossary/docs-mdx-vs-pdf-pairs.md): List of all paired PDF/mdx files
+- [`rebuild-docs-pdf-from-mdx.md`](./rebuild-docs-pdf-from-mdx.md): Runbook for regenerating PDFs after source changes

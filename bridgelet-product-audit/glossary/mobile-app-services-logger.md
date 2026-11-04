@@ -1,6 +1,6 @@
 # `mobile/services/logger`
 
-The single populated module under `mobile/services/` — the directory contains just
+The single populated module under `mobile/services/`: the directory contains just
 `logger/index.ts`. That makes it the de facto starting point for the mobile app's
 observability story.
 
@@ -37,7 +37,7 @@ const MIN_LEVEL: LogLevel = isProd ? 'warn' : 'debug';
 `tag` is the caller's own label, giving log output a consistent, greppable shape
 across modules.
 
-**Transport.** None beyond the console — each method delegates to the matching
+**Transport.** None beyond the console: each method delegates to the matching
 `console.*` call. No remote sink, no buffering, no structured/JSON output. Extra
 `args` pass through to `console` unchanged.
 
@@ -45,6 +45,6 @@ across modules.
 
 Console-only logging means production diagnostics on mobile are only as good as
 whatever captures the device console. Anyone extending mobile observability should
-start here, since every existing call site already routes through this one module
-— adding a transport is a single-file change. See the checklist entry on mobile
+start here, since every existing call site already routes through this one module,
+adding a transport is a single-file change. See the checklist entry on mobile
 CI/observability gaps, and [`../runbooks/onboard-mobile-app-to-ci.md`](../runbooks/onboard-mobile-app-to-ci.md).

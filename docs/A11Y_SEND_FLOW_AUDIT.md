@@ -1,6 +1,6 @@
-# WCAG 2.1 AA Audit — Send Flow
+# WCAG 2.1 AA Audit: Send Flow
 
-> Issue #465 — `frontend/app/send/`
+> Issue #465: `frontend/app/send/`
 
 ## Scope
 
@@ -14,8 +14,8 @@ accessibility audit performed against it, in line with WCAG 2.1 AA.
 `axe-core` is run against the renderable send-flow components in
 `frontend/tests/a11y/send-flow-audit.test.tsx`:
 
-- `SendPageClient` — the single/batch mode toggle wrapper
-- `BatchSendForm` — the batch recipient entry form
+- `SendPageClient`: the single/batch mode toggle wrapper
+- `BatchSendForm`: the batch recipient entry form
 
 Run locally:
 
@@ -29,17 +29,17 @@ vitest run tests/a11y/send-flow-audit.test.tsx
 The send flow must be completable using the keyboard alone (Tab, Enter, Space,
 arrow keys). Verified interactions:
 
-1. **Mode toggle** — both `Single recipient` and `Batch recipients` buttons are
+1. **Mode toggle**: both `Single recipient` and `Batch recipients` buttons are
    reachable by Tab and activable with Enter/Space. `aria-pressed` reflects the
    active mode.
-2. **Form controls** — all inputs and submit buttons in the send form have
+2. **Form controls**: all inputs and submit buttons in the send form have
    labels and are reachable in logical DOM order.
 
 ## Automated Findings
 
 | Rule | Impact | Nodes | Status |
 |------|--------|-------|--------|
-| `axe-core` violations | — | See test output | Triaged |
+| `axe-core` violations | N/A | See test output | Triaged |
 
 Findings are **informational**; each is filed as an individual follow-up issue
 and not fixed silently within this audit.

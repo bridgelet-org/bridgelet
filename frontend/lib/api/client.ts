@@ -71,7 +71,7 @@ function sleep(ms: number): Promise<void> {
  * `POST /claims/redeem`).
  *
  * Both endpoints are open to the public on the backend so the browser can
- * call them directly against `baseUrl` — no bearer token is involved.
+ * call them directly against `baseUrl`: no bearer token is involved.
  */
 export class BridgeletClient {
   private baseUrl: string;
@@ -142,7 +142,7 @@ export class BridgeletClient {
     await sleep(delay + jitter);
   }
 
-  /** Verify a claim token — resolves when the token is claimable. */
+  /** Verify a claim token: resolves when the token is claimable. */
   verifyClaim(claimToken: string): Promise<VerifyClaimResponse> {
     return this.request<VerifyClaimResponse>('/claims/verify', {
       method: 'POST',

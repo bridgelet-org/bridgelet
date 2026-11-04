@@ -4,7 +4,7 @@ const SDK_URL = process.env.BRIDGELET_SDK_URL;
 const SDK_TOKEN = process.env.BRIDGELET_SDK_TOKEN;
 
 // POST /accounts creates the Horizon account, initialises the Soroban contract and
-// polls for confirmation — routinely >10s on testnet (and Render cold starts add more).
+// polls for confirmation: routinely >10s on testnet (and Render cold starts add more).
 const UPSTREAM_TIMEOUT_MS = 55_000;
 
 const FORWARDABLE_RESPONSE_HEADERS = ['content-type', 'retry-after'];

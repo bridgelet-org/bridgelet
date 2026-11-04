@@ -2,7 +2,7 @@
 
 **Issue:** [#325](https://github.com/bridgelet-org/bridgelet/issues/325)
 **Category:** Open verification task
-**Severity:** Medium — runtime failures possible if package and extension drift apart
+**Severity:** Medium, because runtime failures are possible if the package and extension drift apart
 
 ## Summary
 
@@ -14,13 +14,13 @@ but the extension version is controlled entirely by the end user.
 
 ## Why This Matters
 
-Most npm dependencies are self-contained — the installed version is the code that
+Most npm dependencies are self-contained: the installed version is the code that
 runs. `@stellar/freighter-api` is different. It is a **client library for a
 browser extension** the user installs and updates independently. Nothing in the
 build pipeline keeps the two aligned.
 
 When package and extension drift apart, failures surface **at runtime, on the
-user's machine** — not at build time. A method the package expects may be missing
+user's machine**, not at build time. A method the package expects may be missing
 from an older extension; a response shape it relies on may have changed in a
 newer one. Neither `tsc` nor CI catches this, because the extension isn't present
 in either environment.
@@ -37,7 +37,7 @@ signResult['signedTxXdr'] || signResult['signedTxXDR'] || signResult['xdr']
 
 And `isFreighterTransactionSigningAvailable()` feature-detects `signTransaction`
 at runtime rather than assuming it exists. These are not over-engineered
-defenses — they reflect actual variation across extension versions.
+defenses: they reflect actual variation across extension versions.
 
 ## What Was and Wasn't Checked
 
@@ -63,6 +63,6 @@ defenses — they reflect actual variation across extension versions.
 
 ## Related Documents
 
-- [`integration-notes/freighter-api-version-pinning.md`](../integration-notes/freighter-api-version-pinning.md) — detailed analysis of the coupling risk
-- [`checklists/dependency-version-review-checklist.md`](../checklists/dependency-version-review-checklist.md) — review checklist for dependency versions
-- [`glossary/wallet-connection-types.md`](../glossary/wallet-connection-types.md) — how Freighter connection works
+- [`integration-notes/freighter-api-version-pinning.md`](../integration-notes/freighter-api-version-pinning.md), detailed analysis of the coupling risk
+- [`checklists/dependency-version-review-checklist.md`](../checklists/dependency-version-review-checklist.md), review checklist for dependency versions
+- [`glossary/wallet-connection-types.md`](../glossary/wallet-connection-types.md): how Freighter connection works

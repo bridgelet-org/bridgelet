@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 /**
- * Issue #765 — issued-asset configuration.
+ * Issue #765: issued-asset configuration.
  *
  * USDC must stay hidden until an issuer is configured for the active network,
  * so the send form never offers an asset the ephemeral account cannot receive.
