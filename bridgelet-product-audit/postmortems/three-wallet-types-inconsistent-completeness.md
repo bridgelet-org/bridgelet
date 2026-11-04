@@ -57,7 +57,7 @@ that:
 - Returns `{ wallet: { publicKey, type: 'generated' }, secretKey }`.
 
 **However, it has zero callers anywhere in `frontend/`.** The function is
-exported, typed, and documented — but nothing invokes it. The `secretKey` is
+exported, typed, and documented, but nothing invokes it. The `secretKey` is
 returned as a plaintext string to browser JavaScript, raising custody questions
 that are documented in `integration-notes/generated-wallet-key-custody.md` but
 unresolved.
@@ -73,7 +73,7 @@ These are not answered because no code path reaches `generateNewWallet()`.
 
 ## LOBSTR: Partially Implemented (Sentinel Only)
 
-`connectLobstr()` at `frontend/lib/wallet.ts:119` has exactly one behaviour — it
+`connectLobstr()` at `frontend/lib/wallet.ts:119` has exactly one behaviour: it
 throws a sentinel:
 
 ```ts
@@ -90,7 +90,7 @@ render a paste-your-public-key step. But the other half never landed:
 - No component, hook, or error boundary catches it.
 - `connectLobstr()` has **no callers** in `frontend/`.
 - `docs/sender-auth-model.md` states LOBSTR "is supported via a paste-your-public-key
-  fallback already wired in `lib/wallet.ts`" — this is half-true in a misleading
+  fallback already wired in `lib/wallet.ts`", this is half-true in a misleading
   way.
 
 If a user were somehow routed to the LOBSTR option, they would see the raw
@@ -100,11 +100,11 @@ mitigation is that the failure is currently unreachable because nothing calls
 
 ## The Documentation Mismatch
 
-The inconsistency is not just in code — it extends to documentation:
+The inconsistency is not just in code; it extends to documentation:
 
 - `sender-auth-model.md` Security Notes claim LOBSTR "is supported via a
   paste-your-public-key fallback already wired in `lib/wallet.ts`." The function
-  exists, but it implements no paste flow — it implements a *request* for one.
+  exists, but it implements no paste flow: it implements a *request* for one.
 - `docs/security-model.mdx` logs `generateNewWallet()` as threat T-15, noting
   the secret handling requires audit. This is accurate but reads as if the flow
   is live, when it is unused.
@@ -126,7 +126,7 @@ is complete without the other.
 - **Immediate:** Update `sender-auth-model.md` to reflect that LOBSTR paste flow
   is *planned* but not implemented, not "already wired."
 - **Before wiring `generated`:** Resolve the key custody design (storage,
-  transmission, recovery, lifetime) — see `generated-wallet-key-custody.md`.
+  transmission, recovery, lifetime): see `generated-wallet-key-custody.md`.
 - **Before wiring LOBSTR:** Decide whether the paste flow is the right UX or
   whether a deeplink/QR approach is preferable. If paste, implement the UI
   handler for `USE_PASTE_FLOW`.
@@ -137,13 +137,13 @@ is complete without the other.
 ## Related Documents
 
 - [`glossary/wallet-connection-types.md`](../glossary/wallet-connection-types.md)
-  — Canonical definition of each `WalletType` value
+  - Canonical definition of each `WalletType` value
 - [`integration-notes/lobstr-paste-flow-not-implemented.md`](../integration-notes/lobstr-paste-flow-not-implemented.md)
-  — Detailed trace of the `USE_PASTE_FLOW` sentinel and its missing handler
+  - Detailed trace of the `USE_PASTE_FLOW` sentinel and its missing handler
 - [`integration-notes/generated-wallet-key-custody.md`](../integration-notes/generated-wallet-key-custody.md)
-  — Open custody questions for the unused `generated` path
-- [`frontend/lib/wallet.ts`](../../frontend/lib/wallet.ts) — All three connection
+  - Open custody questions for the unused `generated` path
+- [`frontend/lib/wallet.ts`](../../frontend/lib/wallet.ts): All three connection
   functions: `connectFreighter()` (line 49), `connectLobstr()` (line 119),
   `generateNewWallet()` (line 127)
-- [`docs/sender-auth-model.md`](../../docs/sender-auth-model.md) — The decision
+- [`docs/sender-auth-model.md`](../../docs/sender-auth-model.md): The decision
   record that claims LOBSTR support is "already wired"

@@ -19,7 +19,7 @@ export function SharePrompt({ appUrl }: SharePromptProps) {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      // clipboard API unavailable - no-op
+      // clipboard API unavailable: no-op
     }
   }
 
@@ -35,7 +35,7 @@ export function SharePrompt({ appUrl }: SharePromptProps) {
           Do you send payments to your team or community?
         </p>
         <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
-          Bridgelet lets anyone send funds to recipients who have no crypto wallet — they claim
+          Bridgelet lets anyone send funds to recipients who have no crypto wallet: they claim
           directly from a link. Share it with employers, payroll managers, or community leaders.
         </p>
       </div>
@@ -66,7 +66,7 @@ export function SharePrompt({ appUrl }: SharePromptProps) {
             Share on WhatsApp
           </a>
           <a
-            href={`https://twitter.com/intent/tweet?text=${encodeURIComponent('Just received a crypto payment via Bridgelet — the recipient needed no wallet. Check it out:')}&url=${encodeURIComponent(resolvedAppUrl)}`}
+            href={`https://twitter.com/intent/tweet?text=${encodeURIComponent('Just received a crypto payment via Bridgelet: the recipient needed no wallet. Check it out:')}&url=${encodeURIComponent(resolvedAppUrl)}`}
             target="_blank"
             rel="noopener noreferrer"
             className="text-xs text-slate-500 underline underline-offset-2 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200"

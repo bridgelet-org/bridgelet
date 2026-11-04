@@ -2,7 +2,7 @@
 
 **Issue:** [#327](https://github.com/bridgelet-org/bridgelet/issues/327)
 **Category:** Open verification task
-**Severity:** Low-Medium — planning documents that may mislead contributors
+**Severity:** Low-Medium, because planning documents may mislead contributors
 
 ## Summary
 
@@ -64,6 +64,6 @@ may be misleading.
 
 ## Related Documents
 
-- [`ROADMAP.md`](../../ROADMAP.md) — the development roadmap
-- [`CONTRIBUTING.md`](../../CONTRIBUTING.md) — contribution guidelines
-- [`GOVERNANCE.md`](../../GOVERNANCE.md) — governance model (if exists)
+- [`ROADMAP.md`](../../ROADMAP.md): the development roadmap
+- [`CONTRIBUTING.md`](../../CONTRIBUTING.md): contribution guidelines
+- [`GOVERNANCE.md`](../../GOVERNANCE.md): governance model (if exists)

@@ -1,6 +1,6 @@
 # Runbook: Security Disclosure Triage (Product)
 
-For triaging security reports that land in the product team's inbox — typically
+For triaging security reports that land in the product team's inbox: typically
 from external researchers or internal QA. This runbook determines whether a report
 falls within the frontend/mobile scope, distinguishes it from SDK or core issues,
 and routes it to the right channel.
@@ -8,7 +8,7 @@ and routes it to the right channel.
 **Do not investigate the vulnerability yourself.** Triage means classify and
 route, not reproduce or fix.
 
-## Step 1 — Cross-reference SECURITY.md for the documented disclosure process
+## Step 1: Cross-reference SECURITY.md for the documented disclosure process
 
 Before anything else, confirm the report arrived through an approved channel.
 [SECURITY.md](../../SECURITY.md) defines:
@@ -23,7 +23,7 @@ message:
 1. **Do not discuss details publicly.**
 2. Ask the reporter to resend via the private email.
 3. If the issue is already public, treat it as an **active disclosure** and
-   escalate immediately to the security lead — the coordinated disclosure
+   escalate immediately to the security lead: the coordinated disclosure
    timeline in SECURITY.md is already breached.
 
 Check the **response timeline** commitments:
@@ -38,7 +38,7 @@ Check the **response timeline** commitments:
 If the initial acknowledgment window has passed without a response, flag this to
 the security lead.
 
-## Step 2 — Distinguish frontend-only vs SDK/core issues
+## Step 2: Distinguish frontend-only vs SDK/core issues
 
 The Bridgelet ecosystem spans three repos with different security profiles:
 
@@ -61,9 +61,9 @@ The Bridgelet ecosystem spans three repos with different security profiles:
 - The reporter mentions Rust, Soroban, or on-chain transactions
 
 **If unclear**, ask the reporter which component they believe is affected and
-note the answer — do not assume.
+note the answer: do not assume.
 
-## Step 3 — Check if the issue is client-side
+## Step 3: Check if the issue is client-side
 
 For issues within frontend scope, classify the attack surface:
 
@@ -80,7 +80,7 @@ For issues within frontend scope, classify the attack surface:
 
 - Does the UI display information that should be hidden (e.g. other users'
   addresses, internal error details)?
-- Check `localStorage` usage — `bridgelet_wallet` stores `{ publicKey, type }`
+- Check `localStorage` usage: `bridgelet_wallet` stores `{ publicKey, type }`
   but no secrets. If the reporter claims secret material is stored, verify
   against `frontend/lib/wallet.ts`.
 
@@ -88,7 +88,7 @@ For issues within frontend scope, classify the attack surface:
 
 - Does the issue involve connecting, signing, or submitting transactions?
 - Is the reporter's secret key ever requested or displayed? If so, this is
-  critical — Bridgelet should never handle secret keys.
+  critical: Bridgelet should never handle secret keys.
 - Check the wallet connection flow in `frontend/lib/wallet.ts` for any path
   that touches secret material.
 
@@ -96,7 +96,7 @@ For issues within frontend scope, classify the attack surface:
 > Exposure" as a core feature. Any report suggesting otherwise is high-severity
 > until proven otherwise.
 
-## Step 4 — Assess impact scope
+## Step 4: Assess impact scope
 
 Determine whether the issue affects all users or a subset:
 
@@ -108,15 +108,15 @@ Determine whether the issue affects all users or a subset:
 | Requires physical device      | Low             | Local-only dev tools exposure               |
 
 **Claim page issues are high-scope by default.** The claim URL is a bearer
-credential — anyone with the link can reach the page. If an attacker can craft
+credential: anyone with the link can reach the page. If an attacker can craft
 a URL that triggers XSS on the claim page, every recipient who clicks the link
 is affected.
 
 **Check network scope.** The config may behave differently on Testnet vs
-Mainnet. Ask the reporter which network they tested on — Testnet-only issues
+Mainnet. Ask the reporter which network they tested on: Testnet-only issues
 are lower severity but still in scope if the same code path exists on Mainnet.
 
-## Step 5 — Escalate to the appropriate channel
+## Step 5: Escalate to the appropriate channel
 
 Based on the triage above, route the report:
 
@@ -142,7 +142,7 @@ channels. Attach those as private files or link to a private document.
 
 ## Related Documents
 
-- [SECURITY.md](../../SECURITY.md) — full security policy, disclosure process, and response timelines
-- [`.github/BRANCH_PROTECTION.md`](../../.github/BRANCH_PROTECTION.md) — CI gates that prevent merging vulnerable code
-- [`verify-claim-url-before-support-escalation.md`](./verify-claim-url-before-support-escalation.md) — if the security report is claim-URL-related
-- [`three-repo-error-surface-consistency.md`](../integration-notes/three-repo-error-surface-consistency.md) — understanding which repo owns which error path
+- [SECURITY.md](../../SECURITY.md): full security policy, disclosure process, and response timelines
+- [`.github/BRANCH_PROTECTION.md`](../../.github/BRANCH_PROTECTION.md): CI gates that prevent merging vulnerable code
+- [`verify-claim-url-before-support-escalation.md`](./verify-claim-url-before-support-escalation.md): if the security report is claim-URL-related
+- [`three-repo-error-surface-consistency.md`](../integration-notes/three-repo-error-surface-consistency.md): understanding which repo owns which error path

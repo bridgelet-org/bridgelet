@@ -16,15 +16,15 @@ frontend/test-result/     (singular)
 frontend/test-results/    (plural)
 ```
 
-They contain entirely different kinds of content. The naming inversion — the
-singular name holds **source files**, the plural holds **generated output** — is
+They contain entirely different kinds of content. The naming inversion (the
+singular name holds **source files**, the plural holds **generated output**) is
 a footgun that will cause confusion and potentially destructive cleanup.
 
 ## What each directory contains
 
 ### `frontend/test-result/` (singular)
 
-Contains **committed test source files** — Vitest specs that run in CI:
+Contains **committed test source files**: Vitest specs that run in CI:
 
 ```
 test-result/tests/app/claim-page-client.test.tsx
@@ -41,7 +41,7 @@ elsewhere in `frontend/`.
 
 ### `frontend/test-results/` (plural)
 
-Contains **Playwright run output** — generated artifacts, not sources:
+Contains **Playwright run output**: generated artifacts, not sources:
 
 ```
 test-results/.last-run.json
@@ -69,7 +69,7 @@ A stale failure record for a spec that no longer exists in the repo.
 | Scenario | What happens |
 |---|---|
 | "Cleaning up test output" by pattern-matching `test-result*` | Could delete **six live Vitest spec files** |
-| A script or CI step references `test-results/` expecting source tests | Gets Playwright artifacts instead — silent failure |
+| A script or CI step references `test-results/` expecting source tests | Gets Playwright artifacts instead: silent failure |
 | A developer `git rm`s `test-results/` thinking it is stale output | `.gitignore` already excludes it, but the confusion wastes time |
 | New contributor searches for tests by name | Finds Playwright output first, assumes tests are gone |
 
@@ -94,7 +94,7 @@ The confusion runs in the **wrong direction**: the name that reads like output
 
 ## Recommendations
 
-1. **Rename `frontend/test-result/`** to something unambiguous — e.g.
+1. **Rename `frontend/test-result/`** to something unambiguous: e.g.
    `frontend/tests/` or `frontend/__tests__/`. This eliminates the singular/plural
    ambiguity and aligns with Vitest conventions.
 
@@ -112,5 +112,5 @@ The confusion runs in the **wrong direction**: the name that reads like output
 
 ## Related Documents
 
-- [`test-result-directories.md`](../glossary/test-result-directories.md) — glossary entry documenting the two directories
-- [`docs-mdx-vs-pdf-pairs.md`](../glossary/docs-mdx-vs-pdf-pairs.md) — another example of similarly-named paired artifacts in this repo
+- [`test-result-directories.md`](../glossary/test-result-directories.md): glossary entry documenting the two directories
+- [`docs-mdx-vs-pdf-pairs.md`](../glossary/docs-mdx-vs-pdf-pairs.md): another example of similarly-named paired artifacts in this repo

@@ -1,5 +1,5 @@
 /**
- * Issue #455 — Playwright E2E suite for the send flow.
+ * Issue #455: Playwright E2E suite for the send flow.
  *
  * Exercises the multi-step send form in isolation:
  *   1. Navigate to /send

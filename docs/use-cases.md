@@ -6,7 +6,7 @@ description: Real-world Bridgelet use cases with concrete, runnable code samples
 # Bridgelet Use Cases
 
 **Version:** 1.1 (MVP)  
-**Status:** Draft — MVP Phase  
+**Status:** Draft, MVP Phase
 **Last Updated:** August 2026  
 **Derived from:** `use-cases.pdf` (January 2025)
 
@@ -67,7 +67,7 @@ one.
 Every sample below imports this small client (save it as `bridgelet.ts`):
 
 ```ts
-// bridgelet.ts — shared helpers for the samples in this document
+// bridgelet.ts: shared helpers for the samples in this document
 const API_BASE = process.env.BRIDGELET_API_URL ?? 'http://localhost:4000';
 const API_KEY = process.env.BRIDGELET_API_KEY ?? '';
 
@@ -122,17 +122,17 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   return res.json() as Promise<T>;
 }
 
-/** POST /accounts — create an ephemeral account and get its claim link. */
+/** POST /accounts: create an ephemeral account and get its claim link. */
 export function createEphemeralAccount(input: CreateAccountInput): Promise<AccountResponse> {
   return request<AccountResponse>('/accounts', { method: 'POST', body: JSON.stringify(input) });
 }
 
-/** GET /accounts/{id} — poll claim status (pending_payment, pending_claim, claimed, expired, ...). */
+/** GET /accounts/{id}: poll claim status (pending_payment, pending_claim, claimed, expired, ...). */
 export function getAccount(accountId: string): Promise<AccountResponse> {
   return request<AccountResponse>(`/accounts/${encodeURIComponent(accountId)}`);
 }
 
-/** POST /claims/redeem — sweep funds to a recipient's wallet. */
+/** POST /claims/redeem: sweep funds to a recipient's wallet. */
 export function redeemClaim(claimToken: string, destinationAddress: string) {
   return request('/claims/redeem', {
     method: 'POST',
@@ -146,7 +146,7 @@ export async function notifyRecipient(phoneOrEmail: string, claimUrl: string): P
 }
 ```
 
-> **Note:** `/claims/verify` and `/claims/redeem` are unguarded on the SDK — the
+> **Note:** `/claims/verify` and `/claims/redeem` are unguarded on the SDK: the
 > claim token is the bearer credential for that single claim. `/accounts` routes
 > require the API key; in the reference UI the browser never holds that key
 > (account creation is proxied server-side).
@@ -159,7 +159,7 @@ eat 2–5% of wages. With Bridgelet the employer creates one ephemeral account p
 worker at the end of the month, each worker receives an SMS with a claim link,
 and funds are swept to their wallet (or a newly created one) within minutes.
 
-**Runnable sample — batch payroll:**
+**Runnable sample (batch payroll):**
 
 ```ts
 import { createEphemeralAccount, notifyRecipient, type CreateAccountInput } from './bridgelet';
@@ -212,7 +212,7 @@ and cash distribution is dangerous. Bridgelet lets the NGO create thousands of
 ephemeral accounts in minutes, notify recipients by SMS, and publish a fully
 verifiable on-chain audit trail for donors.
 
-**Runnable sample — batch aid distribution with long expiry and reminders:**
+**Runnable sample (batch aid distribution with long expiry and reminders):**
 
 ```ts
 import { createEphemeralAccount, getAccount, notifyRecipient } from './bridgelet';
@@ -267,7 +267,7 @@ channels charge 3–7% plus forex markup and can take days. With Bridgelet the
 sender's app creates an ephemeral account and SMSes a claim link; the recipient
 claims in minutes for a fraction of a cent in network fees.
 
-**Runnable sample — single remittance:**
+**Runnable sample (single remittance):**
 
 ```ts
 import { createEphemeralAccount, notifyRecipient } from './bridgelet';
@@ -304,7 +304,7 @@ testers, most of whom have no wallet. Traditional airdrops lose 60–80% of user
 at the wallet-creation step. With Bridgelet, claim links arrive by email/SMS and
 the claim flow doubles as guided wallet onboarding.
 
-**Runnable sample — campaign airdrop with 14-day expiry:**
+**Runnable sample (campaign airdrop with 14-day expiry):**
 
 ```ts
 import { createEphemeralAccount, notifyRecipient } from './bridgelet';
@@ -339,7 +339,7 @@ runAirdrop().catch((err) => {
 
 **Sybil resistance:** because each claim requires the recipient's own wallet
 signature and the campaign controls distribution, the on-chain sweep is
-per-account single-use — a claimed link cannot be replayed.
+per-account single-use: a claimed link cannot be replayed.
 
 ## Use Case 5: E-Commerce Refunds
 
@@ -348,7 +348,7 @@ quickly. Card refunds take days, international wires are expensive, and PayPal i
 not available everywhere. Bridgelet turns an approved refund into an instant
 claimable payment.
 
-**Runnable sample — refund on approval:**
+**Runnable sample (refund on approval):**
 
 ```ts
 import { createEphemeralAccount, notifyRecipient } from './bridgelet';
@@ -384,7 +384,7 @@ many of whom are unbanked. Traditional weekly payout cycles have high minimums
 and bank fees. Bridgelet enables daily (or even per-ride) payouts with no
 minimum withdrawal.
 
-**Runnable sample — end-of-day payout per driver:**
+**Runnable sample (end-of-day payout per driver):**
 
 ```ts
 import { createEphemeralAccount, notifyRecipient } from './bridgelet';
@@ -420,7 +420,7 @@ payDrivers().catch((err) => {
 withdrawal, drivers access earnings the same day instead of waiting for a
 weekly bank cycle.
 
-## Webhooks — know when a claim succeeds
+## Webhooks: know when a claim succeeds
 
 Instead of polling `GET /accounts/{id}`, subscribe to the SDK's webhook events
 (e.g. `claim.success`) to reconcile payments, trigger follow-up emails, or mark
@@ -428,7 +428,7 @@ a payroll run as settled. Webhook payloads carry the account/claim identifiers
 and the swept amount.
 
 ```ts
-// Concept — exact webhook shape is defined by your bridgelet-sdk deployment.
+// Concept: exact webhook shape is defined by your bridgelet-sdk deployment.
 app.post('/webhooks/claims', (req, res) => {
   const { event, accountId, claimToken, destinationAddress, amountSwept } = req.body;
   if (event === 'claim.success') {
@@ -454,11 +454,11 @@ Use Bridgelet when:
 
 **Not ideal for:**
 
-- **Frequent micro-payments to the same users** — better served by direct wallet
+- **Frequent micro-payments to the same users**: better served by direct wallet
   payments after the first onboarding.
-- **Recipients who already have wallets** — a standard Stellar transaction is simpler.
-- **Amounts under ~$5** — the onboarding effort is not justified.
-- **No way to reach recipients** — a claim link is useless without SMS, email, or
+- **Recipients who already have wallets**: a standard Stellar transaction is simpler.
+- **Amounts under ~$5**: the onboarding effort is not justified.
+- **No way to reach recipients**: a claim link is useless without SMS, email, or
   an in-app notification channel.
 
 ## Appendix: Implementation Checklist

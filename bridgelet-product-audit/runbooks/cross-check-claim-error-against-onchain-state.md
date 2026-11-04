@@ -2,19 +2,19 @@
 
 For verifying whether the error message shown to a user matches the actual on-chain
 failure reason. This is the product-side counterpart to bridgelet-sdk-audit's
-`error-mapping-completeness-checklist.md` — it confirms that error identity
+`error-mapping-completeness-checklist.md`: it confirms that error identity
 survives the three-repo chain from contract to UI.
 
 See [`three-repo-error-surface-consistency.md`](../integration-notes/three-repo-error-surface-consistency.md)
 for background on where error identity is lost.
 
-## Step 1 — Note the exact error message shown to the user
+## Step 1: Note the exact error message shown to the user
 
 Capture the **exact text** the user sees. Do not paraphrase. The distinction
 between a specific error and a generic one is the entire point:
 
-- **Specific:** "This claim has already been swept" — the user should stop trying.
-- **Generic:** "Claim could not be completed. Please try again." — ambiguous; the
+- **Specific:** "This claim has already been swept": the user should stop trying.
+- **Generic:** "Claim could not be completed. Please try again.": ambiguous; the
   user retries something that may be irreversible.
 
 Ask the user for:
@@ -27,12 +27,12 @@ Ask the user for:
 > The claim URL is a bearer credential. Handle it in a private channel, not a
 > public ticket body.
 
-## Step 2 — Use bridgelet-sdk's API to check on-chain account state
+## Step 2: Use bridgelet-sdk's API to check on-chain account state
 
 The SDK exposes account state that mirrors what the contract holds. Use it to
 establish ground truth independent of what the frontend displays:
 
-**Option A — SDK method (if you have SDK access):**
+**Option A: SDK method (if you have SDK access):**
 
 ```ts
 import { BridgeletClient } from 'bridgelet-sdk';
@@ -42,7 +42,7 @@ const info = await client.getAccountInfo(destinationAddress);
 console.log(JSON.stringify(info, null, 2));
 ```
 
-**Option B — Horizon / Stellar Explorer:**
+**Option B: Horizon / Stellar Explorer:**
 
 1. Look up the destination address on
    [Stellar Expert](https://stellar.expert) or the Horizon API.
@@ -54,23 +54,23 @@ console.log(JSON.stringify(info, null, 2));
 
 | On-chain state        | Expected error (specific)   | Generic "try again" is wrong? |
 | --------------------- | --------------------------- | ----------------------------- |
-| Account exists, funds present | "Invalid token" or "Wrong address" | Yes — user likely mistyped  |
-| Account exists, already swept | "Already swept"              | **Yes — critical mismatch**   |
-| Account expired, reclaimed    | "Claim expired"             | **Yes — user can't retry**    |
+| Account exists, funds present | "Invalid token" or "Wrong address" | Yes: user likely mistyped  |
+| Account exists, already swept | "Already swept"              | **Yes: critical mismatch**   |
+| Account expired, reclaimed    | "Claim expired"             | **Yes: user can't retry**    |
 | Account not found             | "Invalid claim URL"         | Depends on context            |
 
-## Step 3 — Compare displayed error against actual failure reason
+## Step 3: Compare displayed error against actual failure reason
 
 Map what the user sees (Step 1) against what the chain says (Step 2):
 
 1. **Is the error specific?** If the user sees "Already swept" and the chain
-   confirms the account is swept — the error is accurate. No action needed.
+   confirms the account is swept: the error is accurate. No action needed.
 2. **Is the error generic?** If the user sees "Claim could not be completed.
-   Please try again." but the chain shows the account was already swept — this
+   Please try again." but the chain shows the account was already swept; this
    is a **mismatch**. The user is being told to retry something that cannot
    succeed.
 3. **Is the error missing entirely?** If the page shows no error but the
-   transaction failed — check the browser console for thrown errors that were
+   transaction failed: check the browser console for thrown errors that were
    not rendered to the UI.
 
 **The critical case** (per `three-repo-error-surface-consistency.md`): a genuine
@@ -78,7 +78,7 @@ Map what the user sees (Step 1) against what the chain says (Step 2):
 message. This is the most user-harmful mismatch because it actively encourages
 retrying an irreversible state.
 
-## Step 4 — Check if the `??` fallback collapsed a specific error
+## Step 4: Check if the `??` fallback collapsed a specific error
 
 The claim path in the frontend throws:
 
@@ -108,9 +108,9 @@ The `??` (nullish coalescing) operator falls back to the generic message when
 **Also check the SDK layer.** The SDK identifies contract errors by **string
 matching** (per `error-string-matching.md` in bridgelet-sdk-audit). If the
 contract error text was reworded, the match silently stops firing and the error
-degrades to an unrecognised variant — nothing fails loudly.
+degrades to an unrecognised variant: nothing fails loudly.
 
-## Step 5 — Document the discrepancy if found
+## Step 5: Document the discrepancy if found
 
 If you confirmed a mismatch between on-chain state and the displayed error:
 
@@ -136,7 +136,7 @@ If you confirmed a mismatch between on-chain state and the displayed error:
 
 ## Related Documents
 
-- [`three-repo-error-surface-consistency.md`](../integration-notes/three-repo-error-surface-consistency.md) — the full chain from contract error to UI message
-- [`verify-claim-url-before-support-escalation.md`](./verify-claim-url-before-support-escalation.md) — first-line triage for claim failures
-- [`diagnose-lobstr-connection-confusion.md`](./diagnose-lobstr-connection-confusion.md) — LOBSTR-specific claim issues (paste flow)
-- [`security-disclosure-triage-product.md`](./security-disclosure-triage-product.md) — if the discrepancy has security implications
+- [`three-repo-error-surface-consistency.md`](../integration-notes/three-repo-error-surface-consistency.md): the full chain from contract error to UI message
+- [`verify-claim-url-before-support-escalation.md`](./verify-claim-url-before-support-escalation.md): first-line triage for claim failures
+- [`diagnose-lobstr-connection-confusion.md`](./diagnose-lobstr-connection-confusion.md): LOBSTR-specific claim issues (paste flow)
+- [`security-disclosure-triage-product.md`](./security-disclosure-triage-product.md): if the discrepancy has security implications

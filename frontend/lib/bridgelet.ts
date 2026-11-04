@@ -116,11 +116,11 @@ function defaultClient(): BridgeletClient {
  * endpoint.
  *
  * Auth: the request is routed through this app's own `/api/accounts` route
- * handler, which attaches the `Authorization: Bearer` header server-side —
+ * handler, which attaches the `Authorization: Bearer` header server-side;
  * the SDK token is never exposed to the browser.
  *
  * Errors: non-2xx responses are parsed into typed errors by the underlying
- * client — `RateLimitError` on 429 (with `retryAfter`) and
+ * client: `RateLimitError` on 429 (with `retryAfter`) and
  * `BridgeletApiError` (with `statusCode` and error code) otherwise.
  * Transient network failures and 5xx responses are retried with backoff.
  */

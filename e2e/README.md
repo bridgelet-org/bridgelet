@@ -2,9 +2,9 @@
 
 End-to-end tests covering the full **send → claim → sweep** user journey across all three Bridgelet components:
 
-- **bridgelet** (this repo) — Next.js frontend
-- **[bridgelet-sdk](https://github.com/bridgelet-org/bridgelet-sdk)** — NestJS backend
-- **[bridgelet-core](https://github.com/bridgelet-org/bridgelet-core)** — Soroban smart contracts (Stellar testnet)
+- **bridgelet** (this repo): Next.js frontend
+- **[bridgelet-sdk](https://github.com/bridgelet-org/bridgelet-sdk)**: NestJS backend
+- **[bridgelet-core](https://github.com/bridgelet-org/bridgelet-core)**: Soroban smart contracts (Stellar testnet)
 
 ---
 
@@ -74,7 +74,7 @@ If you already have the dev server running on port 3000, it will be reused.
 
 For full cross-layer testing with the smart contracts:
 
-1. Deploy `bridgelet-core` contracts to Stellar testnet — see [bridgelet-core README](https://github.com/bridgelet-org/bridgelet-core).
+1. Deploy `bridgelet-core` contracts to Stellar testnet: see [bridgelet-core README](https://github.com/bridgelet-org/bridgelet-core).
 2. Configure `bridgelet-sdk` with the deployed contract address in its `.env`.
 3. The e2e tests exercise the same HTTP API surface regardless of whether the SDK is backed by real contracts or its own internal logic.
 

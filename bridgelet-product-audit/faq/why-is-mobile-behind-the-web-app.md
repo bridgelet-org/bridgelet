@@ -16,7 +16,7 @@ The `.github/workflows/` directory contains two workflow files:
 | `lighthouse-ci.yml` | Lighthouse performance audit | `frontend/` |
 
 Neither workflow references `mobile/` in any way. This means lint regressions,
-type errors, and unit test failures in the mobile codebase merge uncaught —
+type errors, and unit test failures in the mobile codebase merge uncaught,
 there is no automated gate.
 
 This is documented in full in
@@ -28,8 +28,8 @@ including the risk assessment and a recommended fix (creating
 
 ## Signal 2: Only one `services/` subdirectory is populated
 
-The `mobile/services/` directory — the layer that would connect the mobile UI
-to the Bridgelet backend SDK — contains only a `logger/` subdirectory. The
+The `mobile/services/` directory, the layer that would connect the mobile UI
+to the Bridgelet backend SDK, contains only a `logger/` subdirectory. The
 services needed to create accounts, validate claim tokens, or execute sweeps
 are not yet implemented there.
 
@@ -65,14 +65,14 @@ audit knowledge base. The key categories are:
 ## Related documents
 
 - [`postmortems/mobile-app-zero-ci-coverage.md`](../postmortems/mobile-app-zero-ci-coverage.md)
-  — full analysis of the missing CI coverage and recommendations
+  - full analysis of the missing CI coverage and recommendations
 - [`glossary/mobile-app-services-logger.md`](../glossary/mobile-app-services-logger.md)
-  — what exists today in `mobile/services/`
+  - what exists today in `mobile/services/`
 - [`integration-notes/mobile-app-contract-awareness.md`](../integration-notes/mobile-app-contract-awareness.md)
-  — how the mobile app relates to the Soroban contract layer
+  - how the mobile app relates to the Soroban contract layer
 - [`runbooks/onboard-mobile-app-to-ci.md`](../runbooks/onboard-mobile-app-to-ci.md)
-  — step-by-step runbook for adding mobile CI
-- [`ROADMAP.md`](../../ROADMAP.md) — planned work across both clients
+  - step-by-step runbook for adding mobile CI
+- [`ROADMAP.md`](../../ROADMAP.md): planned work across both clients
 
 ---
 

@@ -9,8 +9,8 @@
 
 During the bridgelet product audit, two documents were identified by name as potentially covering overlapping scope for the bridgelet frontend:
 
-1. `bridgelet-frd-ui-ux.md` — appears to be a functional requirements document (FRD) focused on UI/UX.
-2. `FRONTEND_TECHNICAL_SPEC.md` — appears to be a technical specification for the frontend.
+1. `bridgelet-frd-ui-ux.md`: appears to be a functional requirements document (FRD) focused on UI/UX.
+2. `FRONTEND_TECHNICAL_SPEC.md`: appears to be a technical specification for the frontend.
 
 These documents were **not compared or cross-referenced** during the audit. Their relationship, scope boundaries, and degree of overlap remain unverified. This postmortem records the finding as an open question for follow-up.
 
@@ -62,10 +62,10 @@ This finding is recorded as an open question to be resolved in a follow-up pass.
 
 | Factor | Detail |
 |---|---|
-| Likelihood of drift | High — two living documents with no enforced synchronization |
-| Impact of drift | Medium — frontend devs may implement against stale or conflicting specs |
-| Detection difficulty | Low — a side-by-side comparison would surface issues quickly |
-| Remediation effort | Low — a single reconciliation pass, then establishing ownership rules |
+| Likelihood of drift | High: two living documents with no enforced synchronization |
+| Impact of drift | Medium: frontend devs may implement against stale or conflicting specs |
+| Detection difficulty | Low: a side-by-side comparison would surface issues quickly |
+| Remediation effort | Low: a single reconciliation pass, then establishing ownership rules |
 
 ## Recommended Actions
 
@@ -77,14 +77,14 @@ This finding is recorded as an open question to be resolved in a follow-up pass.
 
 ## Code / File References
 
-- `bridgelet-frd-ui-ux.md` — FRD for bridgelet UI/UX (location: unconfirmed, likely under `docs/` or `bridgelet/docs/`).
-- `FRONTEND_TECHNICAL_SPEC.md` — Frontend technical spec (location: unconfirmed).
+- `bridgelet-frd-ui-ux.md`: FRD for bridgelet UI/UX (location: unconfirmed, likely under `docs/` or `bridgelet/docs/`).
+- `FRONTEND_TECHNICAL_SPEC.md`: Frontend technical spec (location: unconfirmed).
 - No commit hashes or line-level references available since document contents were not read during the audit.
 - The audit tooling did not flag these two documents as duplicates or related; the identification was manual based on filename heuristics.
 - If these documents live in different directories or repos, the risk of drift increases further since there is no single directory listing that surfaces both.
 
 ## Related Documents
 
-- `bridgelet-product-audit/postmortems/custodial-model-terminology-scope.md` — Another instance where cross-document terminology needs reconciliation.
-- `bridgelet-product-audit/postmortems/org-integration-auth-doc-gap.md` — A case where a documented need for a separate guide was never fulfilled, illustrating the broader pattern of documentation gaps.
-- `bridgelet-product-audit/postmortems/claim-error-message-specificity-unverified.md` — A related case where cross-repo consistency was not verified end-to-end.
+- `bridgelet-product-audit/postmortems/custodial-model-terminology-scope.md`: Another instance where cross-document terminology needs reconciliation.
+- `bridgelet-product-audit/postmortems/org-integration-auth-doc-gap.md`: A case where a documented need for a separate guide was never fulfilled, illustrating the broader pattern of documentation gaps.
+- `bridgelet-product-audit/postmortems/claim-error-message-specificity-unverified.md`: A related case where cross-repo consistency was not verified end-to-end.

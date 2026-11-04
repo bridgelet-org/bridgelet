@@ -15,11 +15,11 @@ export type SubmitClaimOutcome =
   | { kind: 'success'; response: { isPartial: boolean; message?: string; txHash?: string } }
   /** The token was already redeemed (HTTP 409). */
   | { kind: 'alreadyClaimed' }
-  /** The request never reached the server — safe to resubmit. */
+  /** The request never reached the server: safe to resubmit. */
   | { kind: 'safeToRetry'; error?: { message?: string } }
   /** The submission may or may not have been received; poll for truth. */
   | { kind: 'ambiguous' }
-  /** The server explicitly rejected the submission — do not retry. */
+  /** The server explicitly rejected the submission; do not retry. */
   | { kind: 'terminal'; error?: { message?: string; statusCode?: number; code?: string } };
 
 export interface SubmitClaimResult {
@@ -46,15 +46,15 @@ function backoffDelay(attempt: number, baseDelayMs: number, maxDelayMs: number):
  * There are no hidden retries by default: a failed claim makes exactly one
  * request. Callers that genuinely want retries can raise `maxAttempts`, but a
  * contract/validation error cannot succeed on retry and burns the backend's
- * 5 requests/min budget — so the default is a single attempt and only the
+ * 5 requests/min budget, so the default is a single attempt and only the
  * explicit "Try again" button re-submits.
  *
  * Retries, when enabled, are limited to failures that are safe to retry
  * (network errors and 5xx responses). A 4xx rejection is terminal. A 429 is
  * rethrown as a `RateLimitError` so the UI can show the rate-limit message.
  * When retries are exhausted on an ambiguous failure (a request that may have
- * reached the server), we probe with the idempotent `verifyClaim` call — the
- * backend has no per-token status endpoint — and report `alreadyClaimed` if
+ * reached the server), we probe with the idempotent `verifyClaim` call. The
+ * backend has no per-token status endpoint, so we report `alreadyClaimed` if
  * the token has been consumed, otherwise `ambiguous`.
  */
 export async function submitClaimWithRetry(

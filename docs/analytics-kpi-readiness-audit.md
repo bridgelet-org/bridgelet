@@ -1,4 +1,4 @@
-# Analytics KPI Readiness Audit — §8.2 Engagement Metrics
+# Analytics KPI Readiness Audit: §8.2 Engagement Metrics
 
 > A readiness audit of the six `docs/analytics-spec.md` §8.2 engagement KPIs
 > against the code as it exists, focused on the two assigned in #628
@@ -38,22 +38,22 @@ That gate cites the `analytics-spec-vs-implementation-unverified` postmortem:
 
 **Every KPI below fails the gate, including the two with working queries.**
 "Composable" in the verdict column means the numerator and denominator events
-exist and carry the right payload keys — it is a necessary condition, never a
+exist and carry the right payload keys: it is a necessary condition, never a
 sufficient one. No KPI in this table may be reported until its row is re-checked
 against a live export.
 
 ---
 
-## 2. Readiness table — all six §8.2 engagement KPIs
+## 2. Readiness table: all six §8.2 engagement KPIs
 
 | KPI | Spec formula | Numerator | Denominator | Verdict |
 |-----|--------------|-----------|-------------|---------|
-| **Wallet Address Validation Failure Rate** *(#628)* | `Wallet Address Validation Failed ÷ Wallet Address Screen Viewed × 100` (§8.2, lines 843–847) | `Wallet Address Validation Failed` — **implemented**, 1 call site `claim-status-card.tsx:188` | `Wallet Address Screen Viewed` (§5.2 line 437) — **absent, zero references in `frontend/`** | ⛔ **Not computable.** Denominator event does not exist. See §3. |
-| **Share Method Distribution** *(#624)* | `% per share_method = Claim Link Shared ÷ total sharing actions × 100` (§8.2 line 786) | `Claim Link Shared` — **implemented**, 1 call site `confirm-step.tsx:180` | Same event (the distribution is a self-breakdown) — **implemented** | ⚠️ **Composable, degenerate.** Query works; the only emitted value is `whatsapp`. See §4. |
-| Recipient Entry Channel Distribution *(context)* | `% per entry_channel = Claim Page Opened ÷ total Claim Page Opened × 100` (§8.2 line 801) | `Claim Page Opened` — **implemented**, `claim-page-client.tsx:64` | Same event — **implemented** | ⚠️ Composable, gated. `entry_channel` is a client-side guess from URL params/referrer (`claimEntryChannel()`, `claim-page-client.tsx:25`); the `direct`/`unknown` split is heuristic, not measured. |
-| Asset Distribution *(context)* | `% per asset_type = Payment Created ÷ total Payment Created × 100` (§8.2 line 816) | `Payment Created` — **implemented**, `confirm-step.tsx:132` | Same event — **implemented** | ⚠️ Composable, gated. `asset_type` is spread conditionally (`analytics.ts:395`), so a row with no `asset_type` is possible and must be reported as its own bucket, not dropped. |
-| Claim Failure Rate *(context)* | `Claim Failed ÷ Claim Submitted × 100` (§8.2 line 830) | `Claim Failed` — **implemented but incomplete**, 2 call sites `claim-page-client.tsx:222`, `:261` | `Claim Submitted` — **implemented**, `claim-page-client.tsx:174` | ⚠️ Composable, **numerator under-counts.** See §5.1. |
-| Viral K-Factor *(context)* | `Sender Signup CTA Clicked ÷ Claim Succeeded` (§8.2 line 858) | `Sender Signup CTA Clicked` — **implemented**, `claim-status-card.tsx:449` | `Claim Succeeded` — **implemented**, `claim-page-client.tsx:191`, `:317` | ⚠️ Composable, gated. The spec's own note (line 862) says this measures intent only, not a real K-factor. |
+| **Wallet Address Validation Failure Rate** *(#628)* | `Wallet Address Validation Failed ÷ Wallet Address Screen Viewed × 100` (§8.2, lines 843–847) | `Wallet Address Validation Failed`: **implemented**, 1 call site `claim-status-card.tsx:188` | `Wallet Address Screen Viewed` (§5.2 line 437): **absent, zero references in `frontend/`** | ⛔ **Not computable.** Denominator event does not exist. See §3. |
+| **Share Method Distribution** *(#624)* | `% per share_method = Claim Link Shared ÷ total sharing actions × 100` (§8.2 line 786) | `Claim Link Shared`: **implemented**, 1 call site `confirm-step.tsx:180` | Same event (the distribution is a self-breakdown): **implemented** | ⚠️ **Composable, degenerate.** Query works; the only emitted value is `whatsapp`. See §4. |
+| Recipient Entry Channel Distribution *(context)* | `% per entry_channel = Claim Page Opened ÷ total Claim Page Opened × 100` (§8.2 line 801) | `Claim Page Opened`: **implemented**, `claim-page-client.tsx:64` | Same event: **implemented** | ⚠️ Composable, gated. `entry_channel` is a client-side guess from URL params/referrer (`claimEntryChannel()`, `claim-page-client.tsx:25`); the `direct`/`unknown` split is heuristic, not measured. |
+| Asset Distribution *(context)* | `% per asset_type = Payment Created ÷ total Payment Created × 100` (§8.2 line 816) | `Payment Created`: **implemented**, `confirm-step.tsx:132` | Same event: **implemented** | ⚠️ Composable, gated. `asset_type` is spread conditionally (`analytics.ts:395`), so a row with no `asset_type` is possible and must be reported as its own bucket, not dropped. |
+| Claim Failure Rate *(context)* | `Claim Failed ÷ Claim Submitted × 100` (§8.2 line 830) | `Claim Failed`: **implemented but incomplete**, 2 call sites `claim-page-client.tsx:222`, `:261` | `Claim Submitted`: **implemented**, `claim-page-client.tsx:174` | ⚠️ Composable, **numerator under-counts.** See §5.1. |
+| Viral K-Factor *(context)* | `Sender Signup CTA Clicked ÷ Claim Succeeded` (§8.2 line 858) | `Sender Signup CTA Clicked`: **implemented**, `claim-status-card.tsx:449` | `Claim Succeeded`: **implemented**, `claim-page-client.tsx:191`, `:317` | ⚠️ Composable, gated. The spec's own note (line 862) says this measures intent only, not a real K-factor. |
 
 Two of the six cannot be computed at all. That is the headline: §8.2 is the
 section a dashboard is most likely to be built from, and a third of it has no
@@ -61,7 +61,7 @@ valid denominator.
 
 ---
 
-## 3. #628 — Wallet Address Validation Failure Rate
+## 3. #628: Wallet Address Validation Failure Rate
 
 ### 3.1 Blocking finding
 
@@ -77,7 +77,7 @@ spec line 845. It has zero references in `frontend/`.
 > **Wallet Address Entered**". The spec's own formula (§8.2, line 845) uses
 > **`Wallet Address Screen Viewed`**. `Wallet Address Entered` is a *different*
 > §5.2 event (line 449), and it is the one that appears in the §7.2 funnel. Both
-> are unimplemented, so the blocking finding survives either reading — but the
+> are unimplemented, so the blocking finding survives either reading, but the
 > spec needs an explicit decision on which denominator it means before the KPI
 > can be closed. See §3.4.
 
@@ -92,7 +92,7 @@ git grep -n --fixed-strings "walletAddressScreenViewed"   -- frontend   → 0 ma
 git grep -n --fixed-strings "walletAddressEntered"        -- frontend   → 0 matches
 ```
 
-Both literal event names and both camelCase method names are absent — the events
+Both literal event names and both camelCase method names are absent: the events
 are not emitted under a different spelling either.
 
 Repo-wide, the two names appear only in prose:
@@ -156,7 +156,7 @@ confusion about address format.
 
 ### 3.4 Remediation options
 
-**Option 1 — implement the event, and move the numerator onto submit. Recommended.**
+**Option 1: implement the event, and move the numerator onto submit. Recommended.**
 
 §5.2 line 449 already defines `Wallet Address Entered` with exactly the semantics
 the issue assumes: *"Fired when the recipient submits a wallet address and it
@@ -167,49 +167,49 @@ not appear in the payload. The call site is unambiguous:
 `if (!isValidAddress)` early return at line 198; the valid branch beside it is
 where `Wallet Address Entered` belongs. Emitting it there, and moving
 `walletAddressValidationFailed()` from the `useEffect` to the same handler,
-produces numerator and denominator from the same interaction — so the rate is
+produces numerator and denominator from the same interaction, so the rate is
 bounded by 100% and means "share of submissions that failed client-side
 validation", which is what §8.2 line 841 describes.
 
 Privacy note for whoever implements it: the §5.2 payload is
 `journey` / `claim_id` / `used_previous_address` only. The address must never
-enter the payload, and `used_previous_address` is currently unobtainable anyway —
+enter the payload, and `used_previous_address` is currently unobtainable anyway,
 the product has no previously-suggested-address feature (nothing in the repo
 persists a recipient address; the only `localStorage` keys are `bridgelet_wallet`,
 `bridgelet-theme`, and `bridgelet_anonymous_id`). Either ship it as `false` with
 a comment, or raise a separate issue for the suggestion feature.
 
-**Option 2 — redefine the KPI against an event that exists today. Not recommended.**
+**Option 2: redefine the KPI against an event that exists today. Not recommended.**
 
 `Error Displayed` where `error_type = 'invalid_wallet_address'` does fire on
 submit, so `count(errorDisplayed/invalid_wallet_address) ÷ count(Claim Submitted)`
 is computable immediately. It is a different quantity: the denominator spans the
 whole claim page rather than the address screen, and it mixes in the
 `§5.2`-adjacent error surfaces. Acceptable as an interim operational signal if it
-is labelled as *not* the spec's KPI — it should not silently become the KPI.
+is labelled as *not* the spec's KPI: it should not silently become the KPI.
 
-**Option 3 — derive a denominator from `claim_id` counts. Rejected.**
+**Option 3: derive a denominator from `claim_id` counts. Rejected.**
 
 There is no denominator event to pair with, so this reduces to Option 1 with more
 machinery. It would also invent a denominator the spec does not sanction.
 
 **Recommendation: Option 1**, plus a one-line spec decision on whether the
 denominator is `Wallet Address Screen Viewed` (current spec text) or
-`Wallet Address Entered` (the issue's reading, and the stronger denominator —
+`Wallet Address Entered` (the issue's reading, and the stronger denominator,
 attempts that *passed* validation, which makes the rate a share of real
 submissions). `docs/analytics-spec.md` is not edited here.
 
 ### 3.5 Explicitly: no query is provided for the current state
 
 A query of the form `count('Wallet Address Validation Failed') ÷ <anything
-available>` would compile and return a number. That number would be wrong — it is
-a typing-episode rate with no denominator — and a dashboard would display it as a
+available>` would compile and return a number. That number would be wrong: it is
+a typing-episode rate with no denominator, and a dashboard would display it as a
 failure percentage. No such query is written in this document, and none should be
 written until a denominator event exists.
 
 ---
 
-## 4. #624 — Share Method Distribution
+## 4. #624: Share Method Distribution
 
 ### 4.1 What the implementation actually provides
 
@@ -220,14 +220,14 @@ Read from the code, not the spec prose:
 | Event name | `Claim Link Shared` | `analytics.ts:13` (union), `analytics.ts:412` (`track`) |
 | Property key | `share_method` | `analytics.ts:415` |
 | Allowed values | `sms`, `email`, `whatsapp`, `qr_code` | `analytics.ts:188` (`export type ShareMethod`) |
-| Only value ever emitted | `whatsapp` | `confirm-step.tsx:180` — `analytics.claimLinkShared({ claimId: createdAccountId, shareMethod: 'whatsapp' })`, one call site, on the WhatsApp anchor's `onClick` |
+| Only value ever emitted | `whatsapp` | `confirm-step.tsx:180`: `analytics.claimLinkShared({ claimId: createdAccountId, shareMethod: 'whatsapp' })`, one call site, on the WhatsApp anchor's `onClick` |
 | Related real event | `Claim Link Copied` with `copy_location` (`success_screen` \| `dashboard_detail`) | `analytics.ts:399`; only `success_screen` is emitted, `confirm-step.tsx:172` |
 
 ### 4.2 Two mismatches with the spec's formula
 
 1. **`copy_only` does not exist in the implementation.** §8.2 line 787 enumerates
    `{sms, email, whatsapp, qr_code, copy_only}`. `copy_only` appears nowhere in
-   `frontend/` — it is not a member of `ShareMethod`, and `analytics.ts` never
+   `frontend/`: it is not a member of `ShareMethod`, and `analytics.ts` never
    emits it. The real counterpart is the separate `Claim Link Copied` event, so a
    "copied but never shared" bucket cannot be produced by filtering
    `Claim Link Shared`; it requires combining two events.
@@ -284,10 +284,10 @@ ORDER BY claims_sharing_via DESC;
   the `share_method` property on the event itself. There is no cross-event join
   and no `claim_id` join required for the action basis.
 - **Filter:** `name = 'Claim Link Shared'` and nothing else. Do **not** add a
-  `journey` filter, a `device_type` filter, or a `session_id` filter — any of
+  `journey` filter, a `device_type` filter, or a `session_id` filter: any of
   those silently changes the denominator. If a segment is wanted, apply it to
   numerator and denominator together and label the result as a segment.
-- **Denominator:** `sum(count(*)) OVER ()` — every `Claim Link Shared` event in
+- **Denominator:** `sum(count(*)) OVER ()`, every `Claim Link Shared` event in
   the window, so the action-basis rows sum to exactly 100%. `NULLIF(..., 0)`
   guards the empty-export case, which should surface as `NULL` (unknown), never
   as 0%.
@@ -307,7 +307,7 @@ ORDER BY claims_sharing_via DESC;
   them; use the action basis for the KPI as written, and report the per-claim
   basis beside it as a sanity check, as counts rather than percentages.
 - **Expected shape on today's code:** exactly one row, `whatsapp` at 100%. That
-  is a real result, not a bug in the query — it is what a single hard-coded
+  is a real result, not a bug in the query: it is what a single hard-coded
   emitter produces. Report it as "one channel instrumented", not as "senders
   prefer WhatsApp".
 
@@ -342,7 +342,7 @@ recommended as the default.
 
 Composable today, gated like everything else: the query has not been run, and
 the instrumentation is one channel wide. Two pieces of work stand between this
-KPI and being meaningful — instrument the remaining `ShareMethod` values (or
+KPI and being meaningful: instrument the remaining `ShareMethod` values (or
 narrow the type to `whatsapp` and amend the spec), and decide whether
 `SharePrompt`'s recipient-side share link counts as a sender share action.
 
@@ -350,7 +350,7 @@ narrow the type to `whatsapp` and amend the spec), and decide whether
 
 ## 5. Context-row findings
 
-### 5.1 Claim Failure Rate — the numerator under-counts
+### 5.1 Claim Failure Rate: the numerator under-counts
 
 `Claim Failed` is in the §5.3 taxonomy with five `error_type` values
 (`analytics.ts:256-270`), but only three are reachable from the two call sites:
@@ -393,7 +393,7 @@ read `entry_channel` from `Claim Page Opened`, not from `Claim Succeeded`.
 
 Related: `time_to_claim_hours` is never populated by any call site either, so
 Time to Claim must be computed by joining `Payment Created` to `Claim Succeeded`
-on `claim_id` — which is what `docs/analytics-kpi-definitions.md` already
+on `claim_id`, which is what `docs/analytics-kpi-definitions.md` already
 specifies. No change needed, but the payload property is currently dead weight
 and should not be mistaken for a working field.
 
@@ -424,17 +424,17 @@ make the "signed → settled" step uncomputable.
 
 ## 7. Cross-references
 
-- `docs/analytics-kpi-definitions.md` — companion query document for the §8.1
+- `docs/analytics-kpi-definitions.md`: companion query document for the §8.1
   core KPIs, and the source of the readiness gate applied above. Its rows remain
   accurate for §8.1; this document covers §8.2, which it does not.
-- `docs/analytics-funnel-tracker.md` — per-event blocking status for the §7.1
+- `docs/analytics-funnel-tracker.md`: per-event blocking status for the §7.1
   and §7.2 funnels. Its stage-4 row already records the `Wallet Address Entered`
   blocker.
-- `docs/analytics-spec.md` — §5.2 event definitions, §8.2 formulas, §9.2
+- `docs/analytics-spec.md`: §5.2 event definitions, §8.2 formulas, §9.2
   emission guidance. Not edited by this work.
-- `docs/analytics-server-vs-client-decision.md` — which events should move
+- `docs/analytics-server-vs-client-decision.md`: which events should move
   server-side, and what client context must travel with them.
 - `bridgelet-product-audit/postmortems/analytics-spec-vs-implementation-unverified.md`
-  — the postmortem behind the readiness gate.
-- `bridgelet-product-audit/runbooks/review-analytics-spec-before-new-event.md` —
+  - the postmortem behind the readiness gate.
+- `bridgelet-product-audit/runbooks/review-analytics-spec-before-new-event.md`:
   the pre-flight a new or renamed event must pass.

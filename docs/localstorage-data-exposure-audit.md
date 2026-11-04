@@ -42,7 +42,7 @@ only `cookie` matches are transitive entries in `package-lock.json`),
 
 ## Core Wallet Storage Verification (`bridgelet_wallet`)
 
-### 1. Only `publicKey` and `type` are stored, never secret key material — ⚠️ PASS on the writer, FAIL on the reader
+### 1. Only `publicKey` and `type` are stored, never secret key material: ⚠️ PASS on the writer, FAIL on the reader
 
 `ConnectedWallet` is `{ publicKey: string; type: WalletType }` and nothing else
 (`lib/wallet.ts:5-8`). `persistWallet()` stringifies exactly that object
@@ -55,7 +55,7 @@ return JSON.parse(raw) as ConnectedWallet;   // lib/wallet.ts:38
 ```
 
 An unchecked cast. Whatever shape is in the key is returned and handed to calling
-code as a `ConnectedWallet` — extra properties included. Nothing validates
+code as a `ConnectedWallet`: extra properties included. Nothing validates
 `typeof publicKey === 'string'` or that `type` is one of
 `freighter | lobstr | generated`. "Only ever stores `publicKey` and `type`" is
 therefore enforced by the writer's type signature, not by anything at read time.
@@ -66,7 +66,7 @@ injected script before app code reads it all flow through untouched.
 This is a one-function change in a file this PR does not touch; raising it here
 so it is tracked.
 
-### 2. `persistWallet()` only accepts and stringifies `ConnectedWallet` — ✅ PASS
+### 2. `persistWallet()` only accepts and stringifies `ConnectedWallet`: ✅ PASS
 
 Signature is `persistWallet(wallet: ConnectedWallet): void` and the body is a
 single `JSON.stringify(wallet)` (`lib/wallet.ts:29-31`). No spread, no
@@ -78,28 +78,28 @@ Secondary observation: unlike `loadPersistedWallet()` (`lib/wallet.ts:35-42`) an
 is currently unreachable because the function has no callers (item 5), so it is
 a latent rather than a live defect.
 
-### 3. Generated wallets' secret keys are never persisted — ✅ PASS
+### 3. Generated wallets' secret keys are never persisted: ✅ PASS
 
 `generateNewWallet()` (`lib/wallet.ts:127-138`) returns
 `{ wallet: { publicKey, type: 'generated' }, secretKey }` to its caller and
 performs no storage write of any kind. There is no `setItem` call anywhere in the
-function, and no other function in the repo handles `secretKey` — the only two
+function, and no other function in the repo handles `secretKey`: the only two
 occurrences in `frontend/` are the property in the return type and
 `keypair.secret()`.
 
 Note the path is also unreachable: `generateNewWallet()` has no callers in
 `frontend/`. That matches the existing entry in `docs/security-model.mdx` (T-15):
-*"This flow is not presented in the UI by default. ⚠️ Partial — secret handling
+*"This flow is not presented in the UI by default. ⚠️ Partial: secret handling
 requires audit."* The pass is real but the exposure surface is theoretical today.
 
-### 4. No other code writes additional properties to `bridgelet_wallet` — ✅ PASS
+### 4. No other code writes additional properties to `bridgelet_wallet`: ✅ PASS
 
 The key literal `'bridgelet_wallet'` appears exactly once, as
 `STORAGE_KEY` (`lib/wallet.ts:21`), and is used only inside `lib/wallet.ts`
 (lines 30, 36, 45). No other module in `frontend/`, `e2e/`, or `mobile/` can be
 writing to that key without going through `persistWallet()`.
 
-### 5. `clearPersistedWallet()` removes the entry on disconnect — ❌ NOT SATISFIED
+### 5. `clearPersistedWallet()` removes the entry on disconnect: ❌ NOT SATISFIED
 
 The function itself is correct: `localStorage.removeItem(STORAGE_KEY)`
 (`lib/wallet.ts:44-46`).
@@ -115,8 +115,8 @@ frontend/components/wallet-connect.tsx:4                  import { connectFreigh
 frontend/lib/freighter-sender-signing.ts:11              (signing helpers, not persistence)
 ```
 
-There is no disconnect UI, so the behaviour this item asks about — "removes the
-entry when a wallet is disconnected" — describes a flow that does not exist. The
+There is no disconnect UI, so the behaviour this item asks about ("removes the
+entry when a wallet is disconnected") describes a flow that does not exist. The
 connected wallet lives in React state and dies with the tab.
 
 **Finding:** this item cannot be ticked, and the more useful conclusion is that
@@ -130,7 +130,7 @@ meant to prevent.
 
 ## Other localStorage Usage Inventory
 
-### 6. `bridgelet-theme` stores only the theme selection — ✅ PASS
+### 6. `bridgelet-theme` stores only the theme selection: ✅ PASS
 
 `STORAGE_KEY = 'bridgelet-theme'` (`components/theme-provider.tsx:14`) is written
 in exactly one place, `toggleTheme()`, with `next` typed as `Theme =
@@ -138,7 +138,7 @@ in exactly one place, `toggleTheme()`, with `next` typed as `Theme =
 through that path. The pre-hydration script in `app/layout.tsx:22-32` only
 *reads* the key inside a `try`/`catch` to set a CSS class. No sensitive data.
 
-### 7. Full scan for undocumented localStorage keys — ❌ FAIL (the checklist is stale)
+### 7. Full scan for undocumented localStorage keys: ❌ FAIL (the checklist is stale)
 
 The complete set of `localStorage` keys in `frontend/` is the three in the
 inventory table above. Two are documented by the checklist
@@ -150,45 +150,45 @@ codebase to ensure no other localStorage keys are being used beyond the ones
 documented here") and against the re-run item in the maintenance section, which
 says the checklist must be completed "after any change to … what data is
 persisted to localStorage". PR #728 added a new persistent, cross-session
-identifier and the checklist was not updated. The scan itself passes — the surface
-is small and fully enumerable — but the *documentation* of it is now wrong, and
+identifier and the checklist was not updated. The scan itself passes: the surface
+is small and fully enumerable, but the *documentation* of it is now wrong, and
 the checklist is the artefact a future reviewer will trust.
 
 **Recommendation:** add `bridgelet_anonymous_id` and `bridgelet_session_id` to the
 checklist, with the retention question in item 15 answered. Not done in this
 change because `bridgelet-product-audit/**` is out of scope here.
 
-### 8. All localStorage usage is intentional and necessary — ⚠️ PASS with one exception
+### 8. All localStorage usage is intentional and necessary: ⚠️ PASS with one exception
 
 | Key | Intentional? | Necessary today? |
 |---|---|---|
-| `bridgelet-theme` | Yes — prevents a dark-mode flash (`app/layout.tsx:18-32`) | Yes |
-| `bridgelet_anonymous_id` | Yes — §9.3 requires a `localStorage`-persisted primary identifier that is not a cookie | Yes, once analytics identity is used |
-| `bridgelet_wallet` | Intended (survives refresh, per the comment at `lib/wallet.ts:28`) | **No** — nothing writes or reads it (item 5) |
+| `bridgelet-theme` | Yes: prevents a dark-mode flash (`app/layout.tsx:18-32`) | Yes |
+| `bridgelet_anonymous_id` | Yes: §9.3 requires a `localStorage`-persisted primary identifier that is not a cookie | Yes, once analytics identity is used |
+| `bridgelet_wallet` | Intended (survives refresh, per the comment at `lib/wallet.ts:28`) | **No**: nothing writes or reads it (item 5) |
 
 The exception is `bridgelet_wallet`: it is the only key in the file with PII
 potential, and it is the one that no code path exercises.
 
-### 9. No third-party library writes unexpected data — ⚠️ NOT VERIFIABLE BY INSPECTION
+### 9. No third-party library writes unexpected data: ⚠️ NOT VERIFIABLE BY INSPECTION
 
 No first-party code writes cookies or `indexedDB`, and the only storage APIs used
 are the five writes in the inventory table. Whether any dependency writes to
 browser storage cannot be determined by reading `frontend/` source; `node_modules`
-was not inspected and the app was not run. This item stays **unverified** — it is
+was not inspected and the app was not run. This item stays **unverified**: it is
 not a pass, and it should not be reported as one.
 
 ---
 
 ## Security Validation
 
-### 10. No localStorage entries contain PII beyond what is strictly necessary — ⚠️ MIXED
+### 10. No localStorage entries contain PII beyond what is strictly necessary: ⚠️ MIXED
 
-- **`bridgelet-theme`** — not personal data. ✅
-- **`bridgelet_wallet.publicKey`** — a Stellar address. Pseudonymous, but
+- **`bridgelet-theme`**: not personal data. ✅
+- **`bridgelet_wallet.publicKey`**: a Stellar address. Pseudonymous, but
   linkable to a public chain account and therefore personal data under GDPR. It
   is *not* strictly necessary today, because nothing persists or reads it
   (item 5). ⚠️
-- **`bridgelet_anonymous_id`** — a random UUID v4 with nothing about the person
+- **`bridgelet_anonymous_id`**: a random UUID v4 with nothing about the person
   in the value. This is the right shape: no email, no address, no wallet, no
   name. ✅ for the value itself.
   The open question is the *lifetime*, covered in item 15: a stable identifier
@@ -212,7 +212,7 @@ configuration emit `anonymous_id: ''` on every event and are unjoinable. That is
 the correct privacy-first failure mode and the right trade, but dashboards should
 expect a non-trivial `''` cohort rather than assuming it away.
 
-### 11. All localStorage data is cleared when the user logs out / disconnects — ❌ FAIL
+### 11. All localStorage data is cleared when the user logs out / disconnects: ❌ FAIL
 
 Two separate gaps:
 
@@ -223,7 +223,7 @@ Two separate gaps:
    no documented retention period. A recipient who opens a claim link and leaves
    leaves a persistent identifier behind indefinitely.
 
-The obvious fix — clear it on wallet disconnect — would **break the sender
+The obvious fix (clear it on wallet disconnect) would **break the sender
 funnel**, because §9.3 makes `anonymous_id` the cross-session primary identifier
 and the sender's later steps would land in a new anonymous cohort. That tension is
 real and should be decided deliberately by the maintainers, not resolved by
@@ -234,12 +234,12 @@ days), plus a documented manual erase path.
 Related: `docs/GDPR_COMPLIANCE.md` claims *"Data erasure rights: Users can request
 deletion of address history records"*. No code path implementing erasure exists
 in this repository, and the same file's claim that *"Session Cookies only:
-Transient localStorage tokens are encrypted"* is inaccurate on both counts —
+Transient localStorage tokens are encrypted"* is inaccurate on both counts,
 there are no cookies in application code, and the `localStorage` values are
 plaintext (a UUID and a JSON wallet object), not encrypted. Flagged for the
 owner of that document; not edited here.
 
-### 12. No sensitive cryptographic material in any client-side persistent storage — ✅ PASS (by inspection)
+### 12. No sensitive cryptographic material in any client-side persistent storage: ✅ PASS (by inspection)
 
 No private key, secret key, seed phrase, or mnemonic is written to
 `localStorage` or `sessionStorage` anywhere in `frontend/`. The only `secretKey`
@@ -257,16 +257,16 @@ checklist's scope; cross-referenced in item 10.
 | # | Checklist item | Verdict |
 |---|----------------|---------|
 | 1 | `bridgelet_wallet` stores only `publicKey` / `type` | ⚠️ Writer passes; `loadPersistedWallet()` casts without validating |
-| 2 | `persistWallet()` accepts only `ConnectedWallet` | ✅ Pass (no `try`/`catch` — latent only) |
+| 2 | `persistWallet()` accepts only `ConnectedWallet` | ✅ Pass (no `try`/`catch`; latent only) |
 | 3 | Generated secret keys never persisted | ✅ Pass (path has no callers) |
 | 4 | No other code writes to `bridgelet_wallet` | ✅ Pass |
-| 5 | `clearPersistedWallet()` clears on disconnect | ❌ **Not satisfied** — no disconnect path exists; all three persistence functions are dead code |
+| 5 | `clearPersistedWallet()` clears on disconnect | ❌ **Not satisfied**: no disconnect path exists; all three persistence functions are dead code |
 | 6 | `bridgelet-theme` stores only theme | ✅ Pass |
-| 7 | No undocumented localStorage keys | ❌ **Fail** — `bridgelet_anonymous_id` (and `bridgelet_session_id`) are missing from the checklist |
+| 7 | No undocumented localStorage keys | ❌ **Fail**: `bridgelet_anonymous_id` (and `bridgelet_session_id`) are missing from the checklist |
 | 8 | All usage intentional and necessary | ⚠️ Pass except `bridgelet_wallet`, which is unnecessary today |
-| 9 | No third-party writes | ⚠️ **Unverified** — not determinable without running the app |
-| 10 | No PII beyond strict necessity | ⚠️ Mixed — values are clean; the wallet public key is unused-but-PII, the anonymous id's lifetime is undocumented |
-| 11 | Data cleared on logout / disconnect | ❌ **Fail** — no disconnect path; `bridgelet_anonymous_id` is never cleared |
+| 9 | No third-party writes | ⚠️ **Unverified**: not determinable without running the app |
+| 10 | No PII beyond strict necessity | ⚠️ Mixed: values are clean; the wallet public key is unused-but-PII, the anonymous id's lifetime is undocumented |
+| 11 | Data cleared on logout / disconnect | ❌ **Fail**: no disconnect path; `bridgelet_anonymous_id` is never cleared |
 | 12 | No key material in persistent storage | ✅ Pass (by inspection) |
 
 Maintenance items 10–13 of the checklist (re-run triggers, PR gates, quarterly
@@ -288,7 +288,7 @@ requirements" item is not met by any file in this repository.
 3. **Delete or justify `bridgelet_wallet` persistence.** It is the highest-sensitivity
    key in the file and no code path uses it.
 4. **Validate the shape read from `bridgelet_wallet`** instead of casting.
-5. **Fix `docs/GDPR_COMPLIANCE.md`** — the "Session Cookies only … encrypted"
+5. **Fix `docs/GDPR_COMPLIANCE.md`**: the "Session Cookies only … encrypted"
    claim is wrong on both counts, and the erasure-rights claim has no
    implementation in this repository.
 6. **Add a localStorage line to the `CONTRIBUTING.md` pull request checklist** so

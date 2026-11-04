@@ -54,7 +54,7 @@ export async function connectFreighter(): Promise<ConnectedWallet> {
     );
   }
 
-  // Request access — this opens the Freighter popup
+  // Request access: this opens the Freighter popup
   await freighter.requestAccess();
 
   const { address } = await freighter.getAddress();
@@ -119,7 +119,7 @@ export async function signFreighterTransaction(
 export async function connectLobstr(): Promise<ConnectedWallet> {
   // LOBSTR doesn't have a JS SDK for web connection like Freighter does.
   // The flow here is: open LOBSTR, the user copies their public key, pastes it back.
-  // This function returns a placeholder — the UI handles the paste step.
+  // This function returns a placeholder: the UI handles the paste step.
   throw new Error('USE_PASTE_FLOW');
 }
 

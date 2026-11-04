@@ -45,7 +45,7 @@ may be shipped.
 | 1 | `Claim Page Opened` | §5.1 | #577 | ⬜ open |
 | 2 | `Claim Verified` | §5.1 | (constituent issues closed by #713) | ✔ implemented (PR #713) |
 | 3 | `Claim CTA Clicked` | §5.1 | (constituent issues closed by #713) | ✔ implemented (PR #713) |
-| 4 | `Wallet Address Entered` | §5.2 | — no open per-event issue | ⬜ blocked (needs tracking issue) |
+| 4 | `Wallet Address Entered` | §5.2 | N/A: no open per-event issue | ⬜ blocked (needs tracking issue) |
 | 5 | `Claim Submitted` | §5.3 | #584 | ⬜ open |
 | 6 | `Claim Succeeded` | §5.3 | #585 | ⬜ open |
 

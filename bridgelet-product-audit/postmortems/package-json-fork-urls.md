@@ -7,7 +7,7 @@
 ## Summary
 
 The root `package.json` contains `repository`, `bugs`, and `homepage` URLs that
-point to `https://github.com/okekefrancis112/bridgelet` — a personal fork —
+point to `https://github.com/okekefrancis112/bridgelet`, a personal fork,
 rather than the canonical `amberly-d/bridgelet` repository.
 
 ## Evidence
@@ -53,7 +53,7 @@ repo root inherits these incorrect URLs. This includes:
 - `npm info bridgelet` (registry lookups)
 - `npm repo bridgelet` (opening the repo from the CLI)
 
-This is not a runtime issue — no build or test breaks. But it means the public
+This is not a runtime issue: no build or test breaks. But it means the public
 metadata surface of the package is misdirected, and any contributor who runs
 `npm repo` or `npm home` lands on the wrong fork.
 
@@ -88,5 +88,5 @@ Verification steps:
 
 ## Related Documents
 
-- [`package.json`](../../package.json) — the file containing the fork URLs
+- [`package.json`](../../package.json): the file containing the fork URLs
 - [`glossary/governance-and-roadmap-cross-reference.md`](../glossary/governance-and-roadmap-cross-reference.md)

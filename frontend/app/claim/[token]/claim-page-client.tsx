@@ -137,7 +137,7 @@ export function ClaimPageClient({ token, supportEmail, initialView }: ClaimPageC
     };
   }, [token]);
 
-  // §6 Error Displayed — fires once when the load-error panel becomes visible.
+  // §6 Error Displayed: fires once when the load-error panel becomes visible.
   useEffect(() => {
     if (loadError && !loadErrorFiredRef.current) {
       loadErrorFiredRef.current = true;
@@ -219,7 +219,7 @@ export function ClaimPageClient({ token, supportEmail, initialView }: ClaimPageC
 
           case "safeToRetry": {
             // The request never reached the server. Safe to retry.
-            // §5.3 Claim Failed — network_error, safe-to-retry path.
+            // §5.3 Claim Failed: network_error, safe-to-retry path.
             analytics.claimFailed({
               claimId: token,
               assetType: view?.assetCode,
@@ -265,7 +265,7 @@ export function ClaimPageClient({ token, supportEmail, initialView }: ClaimPageC
             const userMessage = mappedCode
               ? getClaimErrorMessage(mappedCode)
               : apiErr?.message ?? getClaimErrorMessage('SUBMISSION_FAILED_FINAL');
-            // §5.3 Claim Failed — transaction_failed, terminal rejection path.
+            // §5.3 Claim Failed: transaction_failed, terminal rejection path.
             analytics.claimFailed({
               claimId: token,
               assetType: view?.assetCode,

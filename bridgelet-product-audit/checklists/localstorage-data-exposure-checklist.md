@@ -11,7 +11,7 @@ This checklist covers all frontend localStorage usage to ensure no sensitive dat
 
 ## Other localStorage Usage Inventory
 - [ ] Document and verify all non-wallet localStorage usage in the frontend:
-  - [ ] `bridgelet-theme`: Stores theme preference ('light'/'dark') in `frontend/components/theme-provider.tsx` and `frontend/app/layout.tsx` — confirm this only stores theme selection, no sensitive data
+  - [ ] `bridgelet-theme`: Stores theme preference ('light'/'dark') in `frontend/components/theme-provider.tsx` and `frontend/app/layout.tsx`, confirm this only stores theme selection, no sensitive data
 - [ ] Scan entire frontend codebase to ensure no other localStorage keys are being used beyond the ones documented here
 - [ ] Verify all localStorage usage is intentional and necessary for application functionality
 - [ ] Confirm no third-party libraries are writing unexpected data to localStorage that hasn't been accounted for

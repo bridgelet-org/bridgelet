@@ -127,7 +127,7 @@ export function DetailsStep({ state, onChange, onBack, onNext }: DetailsStepProp
           }`}
         />
         <p id="recipient-email-hint" className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-          We&apos;ll email the claim link to this address. Optional — send to anyone and share the
+          We&apos;ll email the claim link to this address. Optional: send to anyone and share the
           link yourself instead.
         </p>
         {errors.recipientEmail && (
@@ -175,14 +175,14 @@ export function DetailsStep({ state, onChange, onBack, onNext }: DetailsStepProp
             ))}
             {!usdcAvailable && (
               <option value="USDC" disabled>
-                USDC — unavailable
+                USDC: unavailable
               </option>
             )}
           </select>
         </div>
         {!usdcAvailable && (
           <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-            USDC isn&apos;t available on this network yet — send XLM for now.
+            USDC isn&apos;t available on this network yet: send XLM for now.
           </p>
         )}
         {errors.amountXlm && (

@@ -54,7 +54,7 @@ function classifyError(err: unknown): AccountCreationErrorInfo {
           ? AccountCreationErrorCode.STELLAR_CREATION_FAILURE
           : AccountCreationErrorCode.INVALID_REQUEST,
       userMessage: err.message,
-      // The account already exists — retrying only re-sends the payment.
+      // The account already exists: retrying only re-sends the payment.
       retryable:
         err.code === 'USER_REJECTED' ||
         err.code === 'SUBMIT_FAILED' ||
@@ -69,7 +69,7 @@ function classifyError(err: unknown): AccountCreationErrorInfo {
               ? 'Top up your wallet balance, then try again.'
               : err.code === 'UNSUPPORTED_ASSET'
                 ? 'Go back and choose XLM.'
-                : 'Try again — your claim link is kept until the payment goes through.',
+                : 'Try again: your claim link is kept until the payment goes through.',
     };
   }
   if (err instanceof RateLimitError) {
@@ -243,7 +243,7 @@ export function ConfirmStep({ state, onBack }: ConfirmStepProps) {
         }
         if (latest.status !== 'pending_payment' && latest.status !== 'initializing') return;
       } catch {
-        // transient — keep polling until the deadline
+        // transient: keep polling until the deadline
       }
     }
   }
@@ -302,7 +302,7 @@ export function ConfirmStep({ state, onBack }: ConfirmStepProps) {
       await navigator.clipboard.writeText(claimUrl);
       analytics.claimLinkCopied({ claimId: createdAccountId, copyLocation: 'success_screen' });
     } catch {
-      // Clipboard API unavailable — no-op.
+      // Clipboard API unavailable: no-op.
     }
   }
 
@@ -336,13 +336,13 @@ export function ConfirmStep({ state, onBack }: ConfirmStepProps) {
         </p>
         {accountStatus === 'pending_payment' && (
           <p role="status" className="text-xs text-green-700 dark:text-green-300">
-            Confirming your payment on the network — the link becomes claimable in about a
+            Confirming your payment on the network: the link becomes claimable in about a
             minute.
           </p>
         )}
         {accountStatus === 'pending_claim' && (
           <p role="status" className="text-xs font-medium text-green-800 dark:text-green-200">
-            Payment confirmed — the link is ready to claim.
+            Payment confirmed: the link is ready to claim.
           </p>
         )}
 
@@ -363,9 +363,9 @@ export function ConfirmStep({ state, onBack }: ConfirmStepProps) {
             {emailStatus === 'sent' &&
               `Claim link emailed to ${state.recipientEmail.trim()}.`}
             {emailStatus === 'failed' &&
-              'Email could not be sent — share the link manually below.'}
+              'Email could not be sent: share the link manually below.'}
             {emailStatus === 'not-configured' &&
-              'Email is not configured — share the link manually below.'}
+              'Email is not configured: share the link manually below.'}
           </p>
         )}
 
@@ -451,7 +451,7 @@ export function ConfirmStep({ state, onBack }: ConfirmStepProps) {
         <div className="flex justify-between py-1.5">
           <dt className="font-medium text-slate-700 dark:text-slate-300">Recipient</dt>
           <dd className="text-slate-600 dark:text-slate-400">
-            {[state.recipientName, state.recipientEmail].filter(Boolean).join(' — ') ||
+            {[state.recipientName, state.recipientEmail].filter(Boolean).join(', ') ||
               'Not specified'}
           </dd>
         </div>

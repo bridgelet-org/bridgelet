@@ -2,7 +2,7 @@
 
 **Issue:** [#326](https://github.com/bridgelet-org/bridgelet/issues/326)
 **Category:** Open verification task (prioritized)
-**Severity:** Medium — stale security claims create false confidence
+**Severity:** Medium, because stale security claims create false confidence
 
 ## Summary
 
@@ -29,7 +29,7 @@ This is not a theoretical concern. During the three-repo audit:
   that the audit contradicted.
 
 If both sibling repos had stale security documentation, it would be surprising if
-this repo's `security-model.mdx` were the sole exception — but it was not
+this repo's `security-model.mdx` were the sole exception, but it was not
 independently verified.
 
 ## What Was and Wasn't Checked
@@ -56,6 +56,6 @@ independently verified.
 
 ## Related Documents
 
-- [`SECURITY.md`](../../SECURITY.md) — the repo's security policy and disclosure process
-- `docs/security-model.mdx` — the document in question (not yet cross-checked)
-- [`postmortems/three-repo-audit-initiative-cross-links.md`](./three-repo-audit-initiative-cross-links.md) — the cross-reference pattern established for this audit
+- [`SECURITY.md`](../../SECURITY.md): the repo's security policy and disclosure process
+- `docs/security-model.mdx`: the document in question (not yet cross-checked)
+- [`postmortems/three-repo-audit-initiative-cross-links.md`](./three-repo-audit-initiative-cross-links.md): the cross-reference pattern established for this audit

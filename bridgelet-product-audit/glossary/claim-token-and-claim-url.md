@@ -2,7 +2,7 @@
 
 ## Canonical definitions
 
-`docs/GLOSSARY.md` holds the canonical short definitions — a **Claim Token** is
+`docs/GLOSSARY.md` holds the canonical short definitions: a **Claim Token** is
 the unique token that lets a recipient securely claim funds, and a **Claim URL**
 is the web link containing that token. Those entries are the source of truth for
 the terms themselves; this page does not restate them, it describes the frontend
@@ -19,7 +19,7 @@ frontend/app/claim/[token]/
 └── claim-page-client.tsx    # client component doing the real work
 ```
 
-The token is therefore a **path segment**, not a query parameter — a claim URL
+The token is therefore a **path segment**, not a query parameter: a claim URL
 looks like `/claim/<token>`. The `[token]` segment is what the recipient's link
 carries, and `claim-page-client.tsx` is where the claim is actually presented and
 attempted.
@@ -41,5 +41,5 @@ rendering the claim and calling the API.
 ## Related
 
 - [`claim-url-security-properties.md`](../integration-notes/claim-url-security-properties.md)
-  — what a claim URL guarantees as a bearer credential.
+  - what a claim URL guarantees as a bearer credential.
 - [`sender-vs-recipient-auth-models.md`](./sender-vs-recipient-auth-models.md)

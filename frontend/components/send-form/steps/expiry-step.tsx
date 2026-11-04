@@ -33,7 +33,7 @@ export function ExpiryStep({ expiresInHours, onChange, onBack, onNext }: ExpiryS
     <div className="space-y-4">
       <p className="text-sm text-slate-600">
         The payment is sent to a temporary inbox address. The claim link you share with the
-        recipient will automatically expire after the period you choose below — unclaimed funds
+        recipient will automatically expire after the period you choose below: unclaimed funds
         are returned to your wallet.
       </p>
 

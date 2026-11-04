@@ -1,5 +1,5 @@
 /**
- * Issue #767 — tiny local stub SDK used by the frontend e2e suite.
+ * Issue #767: tiny local stub SDK used by the frontend e2e suite.
  *
  * Serves the exact HTTP surface the Next.js app depends on, with fixed
  * responses so the suite is deterministic and needs no testnet, no bridgelet-sdk

@@ -8,7 +8,7 @@
 
 A file named `pr_body.md` exists at the repository root. It contains a
 PR description draft for the NFC feature (Closes #98), describing a Web NFC
-hook, send-flow integration, and evaluation document — work that was completed
+hook, send-flow integration, and evaluation document: work that was completed
 and merged under a separate PR.
 
 ## Evidence
@@ -38,12 +38,12 @@ The full content describes:
 - **NFC Evaluation Document:** An experiment writeup at `docs/experiments/nfc-experiment.md`
 - **Latent Type Fixes:** MSW module imports and Freighter API updates
 
-All acceptance criteria are checked off — this is post-merge debris.
+All acceptance criteria are checked off: this is post-merge debris.
 
 ## Risk
 
 - **Scratch files accumulate.** If this file was not cleaned up after the PR
-  merged, other working notes may follow the same pattern — `.env.draft`,
+  merged, other working notes may follow the same pattern, such as `.env.draft`,
   `notes.md`, temporary screenshots, etc. Each one is a small hygiene failure
   that compounds over time.
 - **No pre-commit or gitignore guard.** Its presence at root suggests no
@@ -66,7 +66,7 @@ All acceptance criteria are checked off — this is post-merge debris.
 2. **Add a `.gitignore` entry** (or enforce one) for common scratch patterns:
    `pr_body.md`, `*.draft.md`, `.env.local`, etc.
 3. **Document the expectation** that working notes and draft PR descriptions
-   should not be committed to the repository — add a note to `CONTRIBUTING.md`
+   should not be committed to the repository: add a note to `CONTRIBUTING.md`
    or the repo README.
 4. **Audit for other stray files.** Check for any other working drafts that may
    have been committed by the same author or via the same workflow. Look for
@@ -76,11 +76,11 @@ All acceptance criteria are checked off — this is post-merge debris.
 
 PR description drafts are often written in a local file before being pasted into
 the GitHub PR form. If the contributor is working inside the repo directory, the
-draft file is right there — and `git add .` or a pre-commit workflow can easily
+draft file is right there, and `git add .` or a pre-commit workflow can easily
 sweep it up. The fix is both cultural (document the expectation) and mechanical
 (gitignore the patterns).
 
 ## Related Documents
 
-- [`pr_body.md`](../../pr_body.md) — the stray file itself
+- [`pr_body.md`](../../pr_body.md): the stray file itself
 - [`glossary/governance-and-roadmap-cross-reference.md`](../glossary/governance-and-roadmap-cross-reference.md)

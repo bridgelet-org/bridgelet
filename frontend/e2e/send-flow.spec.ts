@@ -1,5 +1,5 @@
 /**
- * Issue #767 — send form → claim link (case 1 of the five).
+ * Issue #767: send form → claim link (case 1 of the five).
  *
  * Runs the full multi-step send form against the stub SDK + stubbed Freighter
  * and asserts the claim link is shown and the page has no horizontal overflow.
@@ -19,7 +19,7 @@ test.describe('Send flow (stub SDK)', () => {
     await expect(claimLink).toBeVisible();
     await expect(claimLink).toHaveAttribute('href', /\/claim\//);
 
-    // The claim link must fit the viewport — no sideways scrolling.
+    // The claim link must fit the viewport: no sideways scrolling.
     const overflows = await page.evaluate(
       () => document.documentElement.scrollWidth > document.documentElement.clientWidth,
     );

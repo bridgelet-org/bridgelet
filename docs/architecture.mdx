@@ -45,7 +45,7 @@ the browser. The trust boundary is:
   credential, so the browser calls `bridgelet-sdk` directly using the
   client-safe `NEXT_PUBLIC_API_BASE_URL`.
 - **Guarded SDK routes** (`/accounts`, `/accounts/prepare`, `/accounts/:id`)
-  require a Bearer token. The browser never holds this token — it calls this
+  require a Bearer token. The browser never holds this token: it calls this
   app's own `/api/accounts/*` Route Handlers (see
   `frontend/app/api/accounts/`), which attach `BRIDGELET_SDK_TOKEN`
   server-side before forwarding the request to `bridgelet-sdk`.
@@ -53,5 +53,5 @@ the browser. The trust boundary is:
   must add or reuse a server-side Route Handler rather than calling the SDK
   with a credential from client code. Environment variables prefixed
   `NEXT_PUBLIC_*` are inlined into the browser bundle and must never hold a
-  secret or API key — see `frontend/.env.example` for the client-safe vs.
+  secret or API key: see `frontend/.env.example` for the client-safe vs.
   server-only split.

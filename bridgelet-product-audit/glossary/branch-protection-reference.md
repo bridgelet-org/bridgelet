@@ -1,4 +1,4 @@
-# Branch Protection — Quick Reference
+# Branch Protection: Quick Reference
 
 A summary of `.github/BRANCH_PROTECTION.md`.
 
@@ -10,8 +10,8 @@ A summary of `.github/BRANCH_PROTECTION.md`.
 **Protected branch:** `main`.
 
 **Status checks**
-- Required status checks must pass before merging — enabled.
-- Branches must be up to date with `main` before merging — enabled.
+- Required status checks must pass before merging: enabled.
+- Branches must be up to date with `main` before merging: enabled.
 - Failed CI checks block merges.
 
 **Pull request requirements**
@@ -38,12 +38,12 @@ Running `npm run type-check` from `frontend/` fails with a missing script rather
 than type-checking anything.
 
 Contributors in `frontend/` should run `npm run typecheck`. This is a
-documentation inconsistency, not a CI problem — `frontend-ci.yml` detects and
+documentation inconsistency, not a CI problem: `frontend-ci.yml` detects and
 calls the correct name itself.
 
 ## Read alongside
 
-`CONTRIBUTING.md` covers process expectations — how to propose changes, branch and
+`CONTRIBUTING.md` covers process expectations: how to propose changes, branch and
 open a PR. Branch protection is the *enforcement* of those expectations. Read
 both: following CONTRIBUTING without meeting branch protection means an
 unmergeable PR; the reverse means a mergeable PR that skipped the agreed process.

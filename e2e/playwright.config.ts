@@ -1,8 +1,8 @@
 /**
  * Playwright configuration for the Bridgelet end-to-end integration test harness.
  *
- * These tests exercise the full user journey — create ephemeral account →
- * receive payment → claim funds — across the frontend (this repo), the
+ * These tests exercise the full user journey (create ephemeral account →
+ * receive payment → claim funds) across the frontend (this repo), the
  * bridgelet-sdk backend, and, when available, a Stellar testnet contract
  * deployment from bridgelet-core.
  *
@@ -47,13 +47,13 @@ export default defineConfig({
 
   /**
    * Retry flaky tests twice in CI to tolerate testnet timing variance.
-   * No retries locally — immediate failure is more useful during development.
+   * No retries locally: immediate failure is more useful during development.
    */
   retries: process.env['CI'] ? 2 : 0,
 
   /**
    * GitHub Actions reporter annotates the PR check directly, and includes
-   * the project (browser) name in each annotation — this is what gives us
+   * the project (browser) name in each annotation; this is what gives us
    * per-engine failure attribution in the CI output. The list reporter is
    * easier to read in a local terminal.
    */
@@ -85,7 +85,7 @@ export default defineConfig({
      *
      * Without this, MSW's browser service worker takes priority over
      * `page.route()` because it intercepts at the ServiceWorkerGlobalScope
-     * fetch event level — Playwright's CDP network interception never sees
+     * fetch event level: Playwright's CDP network interception never sees
      * requests that MSW handles entirely inside the browser.
      */
     serviceWorkers: 'block',
@@ -102,13 +102,13 @@ export default defineConfig({
    *
    * Desktop engines cover the three major rendering engines (Chromium,
    * Gecko, WebKit). The mobile projects emulate real device viewports,
-   * touch input, and UA strings — claim links are frequently opened from
+   * touch input, and UA strings: claim links are frequently opened from
    * SMS/mail apps on a phone, so a desktop-viewport-only pass would miss
    * layout and touch-target regressions on that path.
    *
    * Each project name is what CI's matrix strategy passes to
    * `--project=<name>`, and what shows up in the GitHub Actions job name
-   * and Playwright's `--reporter=github` annotations — so a failure is
+   * and Playwright's `--reporter=github` annotations; so a failure is
    * always attributed to a specific engine/device, not just "e2e failed".
    */
   projects: [
@@ -142,7 +142,7 @@ export default defineConfig({
    * startup time on watch/iteration loops.
    *
    * The dev server activates MSW so all API calls are intercepted by the
-   * mock handlers in frontend/mocks/ — no real bridgelet-sdk instance is
+   * mock handlers in frontend/mocks/: no real bridgelet-sdk instance is
    * required for the default suite.
    */
   webServer: {

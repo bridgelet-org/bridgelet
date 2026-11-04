@@ -116,7 +116,7 @@ jobs:
       # BRIDGELET_SDK_* secrets carry a funded Stellar testnet keypair and
       # live bridgelet-core contract IDs. They aren't available on fork PRs
       # and must be provisioned by a maintainer (docs/compatibility.md#required-ci-secrets).
-      # Without them we still verify install/build/migrate/boot below —
+      # Without them we still verify install/build/migrate/boot below;
       # we just can't assert on the funded send -> claim -> sweep flow.
 
       - name: Check whether live-testnet secrets are configured
@@ -170,7 +170,7 @@ jobs:
           STELLAR_HORIZON_URL: https://horizon-testnet.stellar.org
           STELLAR_SOROBAN_RPC_URL: https://soroban-testnet.stellar.org
           # Funded testnet keypair when available; otherwise a freshly
-          # generated (unfunded) keypair so the process still boots — see
+          # generated (unfunded) keypair so the process still boots; see
           # the "live-testnet secrets" step above.
           FUNDING_ACCOUNT_SECRET: ${{ secrets.BRIDGELET_SDK_FUNDING_ACCOUNT_SECRET || steps.throwaway.outputs.secret }}
           RECOVERY_ACCOUNT_PUBLIC: ${{ secrets.BRIDGELET_SDK_RECOVERY_ACCOUNT_PUBLIC || steps.throwaway.outputs.public }}
@@ -178,7 +178,7 @@ jobs:
           STELLAR_SWEEP_CONTROLLER_CONTRACT_ID: ${{ secrets.BRIDGELET_SDK_SWEEP_CONTROLLER_CONTRACT_ID || 'CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABSC4' }}
           SWEEP_SIGNING_KEY_SEED: f76f684a3a8b64f32a7dc7eba0b0a5040ba66b5ea67dad348c3b69b79db3339c
           JWT_SECRET: ci-compatibility-job-not-a-real-secret
-          # 64 hex chars (32 bytes) — CI-only value, not a real secret.
+          # 64 hex chars (32 bytes): CI-only value, not a real secret.
           ENCRYPTION_KEY: '9ef61d8fe679ea10433353f5488a91eabbaf831d9f8e422ba8f89636778683ed'
           CLAIM_TOKEN_EXPIRY: '2592000'
         run: |
@@ -219,12 +219,12 @@ jobs:
       # frontend/lib/bridgelet.ts / frontend/lib/create-bridgelet-client.ts
       # assume specific bridgelet-sdk endpoints and field names. This fetches
       # the pinned SDK's live OpenAPI spec (GET /api/docs-json) and asserts
-      # those endpoints/fields still exist — catching exactly the "frontend
+      # those endpoints/fields still exist: catching exactly the "frontend
       # assumes a response shape/endpoint a different SDK version doesn't
       # provide" failure mode this issue is about, without needing a funded
       # testnet account, so it runs on every PR and scheduled run regardless
       # of secrets. See scripts/check-sdk-contract.mjs for exactly what's
-      # checked (and its known limits — it's field-presence, not full type
+      # checked (and its known limits: it's field-presence, not full type
       # equivalence).
 
       - name: Check frontend/bridgelet-sdk API contract
@@ -239,13 +239,13 @@ jobs:
       # frontend/components/mock-provider.tsx currently auto-enables MSW
       # whenever NODE_ENV=development regardless of E2E_USE_MOCKS, and at
       # least one flow (claim-flow.tsx's redeem handler) has a hardcoded
-      # dev-mode stub — so this step does not yet exercise every route
+      # dev-mode stub, so this step does not yet exercise every route
       # against bridgelet-sdk end-to-end. It's kept because it still catches
       # regressions in what *is* wired, and to give the "SDK integration"
       # mode documented in e2e/README.md a real CI run. The OpenAPI check
       # above is the authoritative pass/fail signal for this job.
 
-      - name: Run e2e suite in SDK-integration mode (best-effort — see comment above)
+      - name: Run e2e suite in SDK-integration mode (best-effort, see comment above)
         if: steps.secrets.outputs.configured == 'true'
         continue-on-error: true
         id: e2e
@@ -260,13 +260,13 @@ jobs:
       - name: Job summary
         if: always()
         run: |
-          echo "### Compatibility check — bridgelet-sdk @ \`${{ steps.pin.outputs.commit }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "### Compatibility check: bridgelet-sdk @ \`${{ steps.pin.outputs.commit }}\`" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo "- OpenAPI type contract: authoritative pass/fail signal for this job (see step above)." >> "$GITHUB_STEP_SUMMARY"
           if [ "${{ steps.secrets.outputs.configured }}" = "true" ]; then
-            echo "- Browser e2e suite (SDK-integration mode): ran, best-effort, outcome '${{ steps.e2e.outcome }}' — does not fail the job; see e2e/README.md and this workflow's comments for known coverage gaps." >> "$GITHUB_STEP_SUMMARY"
+            echo "- Browser e2e suite (SDK-integration mode): ran, best-effort, outcome '${{ steps.e2e.outcome }}'; does not fail the job; see e2e/README.md and this workflow's comments for known coverage gaps." >> "$GITHUB_STEP_SUMMARY"
           else
-            echo "- Browser e2e suite (SDK-integration mode): skipped — \`BRIDGELET_SDK_FUNDING_ACCOUNT_SECRET\` and related secrets are not configured (see docs/compatibility.md#required-ci-secrets)." >> "$GITHUB_STEP_SUMMARY"
+            echo "- Browser e2e suite (SDK-integration mode): skipped; \`BRIDGELET_SDK_FUNDING_ACCOUNT_SECRET\` and related secrets are not configured (see docs/compatibility.md#required-ci-secrets)." >> "$GITHUB_STEP_SUMMARY"
           fi
 
       # ── Artifacts ────────────────────────────────────────────────────────────

@@ -1,14 +1,14 @@
 # Analytics Events vs On-Chain Outcomes
 
 Do the events in `docs/analytics-spec.md` reflect *confirmed on-chain* outcomes,
-or optimistic client-side state? The answer differs per event — and the spec is
+or optimistic client-side state? The answer differs per event, and the spec is
 commendably explicit about it.
 
 ## Completion-related events
 
 | Event | Fires when | On-chain confirmed? |
 |---|---|---|
-| `Payment Confirmed` | Sender clicks "Confirm & Pay" and signs | **No** — intent only |
+| `Payment Confirmed` | Sender clicks "Confirm & Pay" and signs | **No**: intent only |
 | `Payment Created` | Transaction succeeds on-chain | **Yes** |
 | `Payment Creation Failed` | Blockchain transaction fails after signing | **Yes** (negative) |
 | `Claim Submitted` | Recipient submits the claim | **No** |
@@ -22,7 +22,7 @@ commendably explicit about it.
 *Confirmed* refers to **the user confirming**, not the **chain** confirming.
 
 Anyone reading a dashboard without the spec in hand will almost certainly read
-"Payment Confirmed" as settlement. It isn't — `Payment Created` is. The funnel
+"Payment Confirmed" as settlement. It isn't: `Payment Created` is. The funnel
 section makes the distinction load-bearing: step 5 measures "% who sign the
 transaction" and step 6 measures "% confirmed → on-chain success". The gap between
 those two steps *is* the on-chain failure rate.

@@ -34,7 +34,7 @@ export default function SendSuccessSandboxPage() {
   return (
     <PageShell
       title="Send a Payment"
-      description="Send crypto to anyone — even recipients with no wallet. They claim from a secure link."
+      description="Send crypto to anyone, even recipients with no wallet. They claim from a secure link."
     >
       <div className="space-y-6">
         <nav aria-label="Send form progress">

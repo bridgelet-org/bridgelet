@@ -1,5 +1,5 @@
 /**
- * Issue #767 — theme toggle (case 5 of the five).
+ * Issue #767: theme toggle (case 5 of the five).
  *
  * Clicking the toggle must actually change the page, not just the button.
  */

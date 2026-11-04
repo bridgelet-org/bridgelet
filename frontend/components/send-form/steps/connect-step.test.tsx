@@ -3,7 +3,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ConnectStep } from './connect-step';
 
-// Stub ChainSelector — tested separately.
+// Stub ChainSelector: tested separately.
 vi.mock('@/components/chain-selector', () => ({
   ChainSelector: () => <div data-testid="chain-selector" />,
 }));

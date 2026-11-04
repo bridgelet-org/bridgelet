@@ -20,5 +20,5 @@
   },
   "status": "pinned",
   "pinnedOn": "2026-08-22",
-  "statusNote": "'pinned' means this is the combination CI is configured to check, not yet a passing result. Flip to 'verified' (and add the run URL to docs/compatibility.md's matrix row) once .github/workflows/compatibility.yml's contract-check job has passed against this exact commit pair — that check does not require BRIDGELET_SDK_* secrets; those only unlock the workflow's secondary, best-effort browser e2e run."
+  "statusNote": "'pinned' means this is the combination CI is configured to check, not yet a passing result. Flip to 'verified' (and add the run URL to docs/compatibility.md's matrix row) once .github/workflows/compatibility.yml's contract-check job has passed against this exact commit pair; that check does not require BRIDGELET_SDK_* secrets; those only unlock the workflow's secondary, best-effort browser e2e run."
 }

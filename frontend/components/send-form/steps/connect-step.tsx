@@ -48,7 +48,7 @@ export function ConnectStep({ publicKey, onConnected }: ConnectStepProps) {
   return (
     <div className="space-y-3">
       <p className="text-sm text-slate-600">
-        Connect your wallet to authorise payments. No password required — signing with your key
+        Connect your wallet to authorise payments. No password required: signing with your key
         proves you control the address.
       </p>
 

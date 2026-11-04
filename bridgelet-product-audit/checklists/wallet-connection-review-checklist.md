@@ -13,7 +13,7 @@ This checklist covers end-to-end verification of all three wallet connection typ
 ### LOBSTR Wallet
 - [ ] Verify current `connectLobstr()` implementation status matches what's documented (paste flow not implemented, throws `USE_PASTE_FLOW` sentinel)
 - [ ] Confirm that no UI components currently call `connectLobstr()`, preventing the unreachable failure state
-- [ ] **EXPLICIT SIGN-OFF: LOBSTR paste-flow gap verification** — Acknowledge that the LOBSTR paste flow documented in `docs/sender-auth-model.md` is not fully implemented in the codebase: while `connectLobstr()` exists in `frontend/lib/wallet.ts`, the UI does not catch the `USE_PASTE_FLOW` sentinel to render a paste-your-public-key step, as detailed in `integration-notes/lobstr-paste-flow-not-implemented.md`
+- [ ] **EXPLICIT SIGN-OFF: LOBSTR paste-flow gap verification**: Acknowledge that the LOBSTR paste flow documented in `docs/sender-auth-model.md` is not fully implemented in the codebase: `connectLobstr()` exists in `frontend/lib/wallet.ts`, but the UI does not catch the `USE_PASTE_FLOW` sentinel to render a paste-your-public-key step, as detailed in `integration-notes/lobstr-paste-flow-not-implemented.md`
 - [ ] Sign-off: _______________ (name and date) for LOBSTR paste flow gap acceptance
 
 ### Generated Wallet

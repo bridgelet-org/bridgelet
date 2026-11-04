@@ -1,8 +1,8 @@
 # FAQ: How do I know a claim link someone sent me is legitimate?
 
 **Short answer:** A genuine Bridgelet claim link is a signed, single-use JWT
-embedded in the URL path. Knowing what makes a link trustworthy — and what it
-cannot protect against — helps you decide whether to act on one.
+embedded in the URL path. Knowing what makes a link trustworthy, and what it
+cannot protect against, helps you decide whether to act on one.
 
 ---
 
@@ -17,12 +17,12 @@ https://app.bridgelet.org/claim/<token>
 The `<token>` segment is a **JWT signed by the Bridgelet backend** using a
 secret the frontend never sees. Per `docs/security-model.mdx`:
 
-- **Integrity-protected** — the JWT signature guarantees the token was issued
+- **Integrity-protected**: the JWT signature guarantees the token was issued
   by the backend and has not been tampered with.
-- **Single-use** — the token is consumed on redemption and cannot be replayed.
-- **High-entropy** — derived from a UUID v4 `accountId` (122 bits); brute-force
+- **Single-use**: the token is consumed on redemption and cannot be replayed.
+- **High-entropy**: derived from a UUID v4 `accountId` (122 bits); brute-force
   enumeration is not feasible, and verify calls are rate-limited.
-- **Path segment, not query string** — deliberately, to avoid leaking the token
+- **Path segment, not query string**: deliberately, to avoid leaking the token
   in `Referer` headers.
 
 Full technical detail is in
@@ -37,10 +37,10 @@ This is the most important thing to understand:
 > **Whoever holds the link can attempt the claim.** There is no identity check
 > binding the token to an intended recipient.
 
-The token is a *bearer credential* — like cash in an envelope, not an addressed
+The token is a *bearer credential*, like cash in an envelope, not an addressed
 letter. If someone else obtains the link before you act on it, they can claim
 the funds first. The security model logs this as **threat T-01 (claim token
-theft)** and rates it mitigated — but the mitigation is *single-use*, not
+theft)** and rates it mitigated, but the mitigation is *single-use*, not
 *identity-bound*. First valid redemption wins.
 
 ### What this means in practice
@@ -97,12 +97,12 @@ or delivered, follow the responsible disclosure process in
 ## Related documents
 
 - [`integration-notes/claim-url-security-properties.md`](../integration-notes/claim-url-security-properties.md)
-  — full technical analysis of claim URL security properties
+  - full technical analysis of claim URL security properties
 - [`glossary/claim-token-and-claim-url.md`](../glossary/claim-token-and-claim-url.md)
-  — definitions and properties
-- [`docs/security-model.mdx`](../../docs/security-model.mdx) — broader security
+  - definitions and properties
+- [`docs/security-model.mdx`](../../docs/security-model.mdx): broader security
   posture, threat model, and T-01/T-13 threat entries
-- [`SECURITY.md`](../../SECURITY.md) — responsible disclosure process
+- [`SECURITY.md`](../../SECURITY.md): responsible disclosure process
 
 ---
 

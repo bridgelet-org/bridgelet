@@ -14,7 +14,7 @@ actually rely on.
 
 ## Evidence
 
-### The config — `frontend/lighthouserc.js`
+### The config: `frontend/lighthouserc.js`
 
 ```js
 module.exports = {
@@ -44,10 +44,10 @@ module.exports = {
 };
 ```
 
-Three thresholds are set to `error` — meaning they **should** block a merge
+Three thresholds are set to `error`, meaning they **should** block a merge
 when violated. Accessibility is held to the strictest bar (0.95).
 
-### The CI gap — `frontend-ci.yml`
+### The CI gap: `frontend-ci.yml`
 
 The frontend CI workflow runs:
 
@@ -62,7 +62,7 @@ A separate `lighthouse-ci.yml` workflow exists (referenced in
 [`glossary/lighthouse-ci-config.md`](../glossary/lighthouse-ci-config.md)),
 but it is:
 
-- **Path-filtered** to `frontend/**`, `docs/**`, and its own workflow file — so
+- **Path-filtered** to `frontend/**`, `docs/**`, and its own workflow file, so
   changes elsewhere skip it entirely.
 - **Dependent on `LHCI_GITHUB_APP_TOKEN`** from repository secrets, which is
   typically unavailable to pull requests from forks.
@@ -71,18 +71,18 @@ but it is:
 
 - **False confidence.** The thresholds read as enforced quality gates. A
   contributor or reviewer might assume accessibility regressions will be caught.
-  They will not — unless the separate `lighthouse-ci.yml` happens to run and
+  They will not, unless the separate `lighthouse-ci.yml` happens to run and
   has token access.
 - **Fork PRs escape entirely.** External contributors' PRs will never trigger
   Lighthouse because they lack the app token. A significant accessibility
   regression could merge without any Lighthouse signal.
-- **Config drift.** An unused config can drift from reality — the URLs it
+- **Config drift.** An unused config can drift from reality: the URLs it
   audits (`/send`, `/claim/abc123`) may change without anyone noticing because
   the gate is not actually enforced.
 
 ## Recommended Fix
 
-### Option A — Add Lighthouse to `frontend-ci.yml` (preferred)
+### Option A: Add Lighthouse to `frontend-ci.yml` (preferred)
 
 Add a step after `build`:
 
@@ -97,11 +97,11 @@ Add a step after `build`:
 If the token is unavailable for fork PRs, make the step non-blocking (`continue-on-error: true`)
 with a clear comment explaining why, so the gap is visible rather than implicit.
 
-### Option B — Remove the config
+### Option B: Remove the config
 
 If Lighthouse is not intended to be a merge gate, delete
 `frontend/lighthouserc.js` and remove the `@lhci/cli` dependency. A config that
-exists but is not enforced is worse than no config — it creates the illusion of
+exists but is not enforced is worse than no config: it creates the illusion of
 a safety net.
 
 ### Either way
@@ -112,8 +112,8 @@ reflect the actual state after the fix.
 
 ## Related Documents
 
-- [`frontend/lighthouserc.js`](../../frontend/lighthouserc.js) — the unused config
-- [`glossary/lighthouse-ci-config.md`](../glossary/lighthouse-ci-config.md) —
+- [`frontend/lighthouserc.js`](../../frontend/lighthouserc.js): the unused config
+- [`glossary/lighthouse-ci-config.md`](../glossary/lighthouse-ci-config.md):
   glossary entry describing the Lighthouse setup
-- `frontend-ci.yml` — the CI workflow that should invoke (or explicitly skip)
+- `frontend-ci.yml`: the CI workflow that should invoke (or explicitly skip)
   Lighthouse

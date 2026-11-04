@@ -6,7 +6,7 @@
  * touches Stellar testnet, bridgelet-sdk, or a real extension.
  *
  * Two web servers start before the tests:
- *   1. `e2e/stub-sdk.mjs` on :4100 — the SDK + Horizon surface.
+ *   1. `e2e/stub-sdk.mjs` on :4100: the SDK + Horizon surface.
  *   2. the Next.js dev server on :3000, pointed at the stub via env.
  *
  *   npm run test:e2e

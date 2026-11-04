@@ -110,7 +110,7 @@ jobs:
             core.summary.addRaw(body).write();
             // PR comments require issues/pull-requests write. Fork PRs and
             // read-only org workflow policy get 403 here; warn instead of
-            // failing CI — the step summary above carries the same report.
+            // failing CI: the step summary above carries the same report.
             try {
               await github.rest.issues.createComment({
                 issue_number: context.issue.number,

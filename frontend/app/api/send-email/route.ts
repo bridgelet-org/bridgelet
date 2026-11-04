@@ -65,7 +65,7 @@ function buildEmail({ claimUrl, recipientName, amount, assetCode }: ClaimEmail) 
   const html = `
     <div style="font-family: -apple-system, Segoe UI, Roboto, sans-serif; line-height: 1.5; color: #0f172a;">
       <p>${escapeHtml(greeting)}</p>
-      <p>Someone sent you a payment${escapeHtml(amountLine)} using Bridgelet. No wallet needed — just open the link below to claim it.</p>
+      <p>Someone sent you a payment${escapeHtml(amountLine)} using Bridgelet. No wallet needed: just open the link below to claim it.</p>
       <p><a href="${escapeHtml(claimUrl)}" style="display:inline-block;background:#0f172a;color:#ffffff;padding:10px 18px;border-radius:8px;text-decoration:none;">Claim your payment</a></p>
       <p style="font-size:13px;color:#475569;">If the button doesn't work, copy this link into your browser:<br><span style="word-break:break-all;">${escapeHtml(claimUrl)}</span></p>
       <p style="font-size:13px;color:#475569;">If you weren't expecting this, you can safely ignore this email.</p>
@@ -75,7 +75,7 @@ function buildEmail({ claimUrl, recipientName, amount, assetCode }: ClaimEmail) 
   const text = [
     greeting,
     '',
-    `Someone sent you a payment${amountLine} using Bridgelet. No wallet needed — open the link below to claim it:`,
+    `Someone sent you a payment${amountLine} using Bridgelet. No wallet needed: open the link below to claim it:`,
     claimUrl,
     '',
     "If you weren't expecting this, you can safely ignore this email.",

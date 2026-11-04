@@ -19,7 +19,7 @@ As currently implemented:
    backend side. The browser does not submit transactions directly.
 
 Network selection is resolved browser-side from `NEXT_PUBLIC_CRYPTO_NETWORK`,
-defaulting to `stellar-testnet` — meaning the passphrase the user signs against is
+defaulting to `stellar-testnet`: meaning the passphrase the user signs against is
 chosen by frontend configuration.
 
 ## The ambiguity worth resolving
@@ -32,8 +32,8 @@ properties:
 
 | Reading | Who holds the key | Implication |
 |---|---|---|
-| **A** — the SDK *triggers* signing by the connected wallet | Freighter extension | Non-custodial for this step; matches `signFreighterTransaction()` |
-| **B** — the SDK itself signs with a key it holds | Backend | Custodial for this step; the "connected key" is not the signer |
+| **A**: the SDK *triggers* signing by the connected wallet | Freighter extension | Non-custodial for this step; matches `signFreighterTransaction()` |
+| **B**: the SDK itself signs with a key it holds | Backend | Custodial for this step; the "connected key" is not the signer |
 
 Reading A is consistent with the code in `lib/wallet.ts`, which is unambiguously
 extension-side signing. But the same document elsewhere leans on the SDK as an

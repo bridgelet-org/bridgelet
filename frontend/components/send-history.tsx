@@ -9,7 +9,7 @@ import { RateLimitError } from '@/lib/create-bridgelet-client';
  * Sender-facing list of payments.
  *
  * The list deliberately renders only non-sensitive fields. A row's `claimUrl`
- * (which embeds the single-use claim token) is never read or displayed — the
+ * (which embeds the single-use claim token) is never read or displayed; the
  * link is shown once at creation time and is not recoverable afterwards.
  */
 
@@ -39,7 +39,7 @@ function statusStyle(status: string): StatusStyle {
 }
 
 function formatDate(iso?: string): string {
-  if (!iso) return '—';
+  if (!iso) return 'N/A';
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return iso;
   return date.toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' });
