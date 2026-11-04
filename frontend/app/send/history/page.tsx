@@ -12,7 +12,7 @@ export default function SendHistoryPage() {
   return (
     <PageShell
       title="Sent payments"
-      description="Payments created through this app, newest first. Claim links are withheld here on purpose."
+      description="Payments created through this app, newest first. Claim links are recoverable for payments created in this browser."
     >
       <SendHistory />
     </PageShell>

@@ -23,6 +23,7 @@ import {
 import { publicEnv, resolveAppUrl } from '@/lib/env';
 import { FundingError, fundEphemeralAccount } from '@/lib/fund-ephemeral-account';
 import { analytics } from '@/lib/analytics';
+import { rememberClaimLink } from '@/lib/claim-links';
 
 /**
  * Default claim window for accounts created from the send form.
@@ -202,6 +203,7 @@ export function ConfirmStep({ state, onBack }: ConfirmStepProps) {
       setAccountStatus('pending_payment');
       void pollAccountStatus(account.accountId, claimLink);
 
+      rememberClaimLink(account.accountId, claimLink);
       setClaimUrl(claimLink);
       setCreatedAccountId(account.accountId);
       setSubmitPhase('success');
