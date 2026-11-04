@@ -66,7 +66,7 @@ export function SharePrompt({ appUrl }: SharePromptProps) {
             Share on WhatsApp
           </a>
           <a
-            href={`https://twitter.com/intent/tweet?text=${encodeURIComponent('Just received a crypto payment via Bridgelet: the recipient needed no wallet. Check it out:')}&url=${encodeURIComponent(appUrl)}`}
+            href={`https://twitter.com/intent/tweet?text=${encodeURIComponent('Just received a crypto payment via Bridgelet: the recipient needed no wallet. Check it out:')}&url=${encodeURIComponent(resolvedAppUrl)}`}
             target="_blank"
             rel="noopener noreferrer"
             className="text-xs text-slate-500 underline underline-offset-2 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200"
