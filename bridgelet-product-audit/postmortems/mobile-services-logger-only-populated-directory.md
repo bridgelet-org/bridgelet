@@ -20,3 +20,11 @@ This structural gap should be revisited as part of the broader parity review out
 - Inventory which service modules are still missing from the mobile app's `services/` directory
 - Create implementation milestones for bringing the mobile app's service architecture in line with the web frontend's modular pattern
 - Track progress on this architectural debt as part of the mobile app's development roadmap to ensure it does not impede future feature development or maintainability.
+
+## Resolution & Service Modularization (#870)
+
+The mobile analytics service has been extracted and relocated from `mobile/app/src/analytics/` to `mobile/services/analytics/index.ts`:
+- **Architectural Separation**: Analytics is now colocated in `mobile/services/analytics/` alongside `mobile/services/logger/`, establishing a modular cross-cutting service layer with provider abstraction (`AnalyticsProvider`, `registerAnalyticsProvider`).
+- **Telemetry & Logging Integration**: Integrated dev-mode debug logging via `mobile/services/logger` while maintaining production sink isolation.
+- **Backward Compatibility**: `mobile/app/src/analytics/analytics.ts` re-exports the service definition to prevent breaking existing UI imports.
+- **CI Synchronization**: `.github/workflows/analytics-spec-diff.yml` updated to inspect `mobile/services/analytics/index.ts` for automated event naming drift checks.
