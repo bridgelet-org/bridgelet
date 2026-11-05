@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
+    "check:analytics-drift": "node ../scripts/check-analytics-spec-drift.mjs",
     "generate:types": "node scripts/generate-types.mjs",
     "lhci": "lhci autorun",
     "e2e": "playwright test",
