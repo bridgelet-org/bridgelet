@@ -14,6 +14,7 @@ import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { TransferService } from './TransferService';
 import { ShareSheet } from './ShareSheet';
 import { CreateAccountRequest, CreateAccountResponse, SupportedAsset } from '../types/api';
+import { track } from '../analytics/analytics';
 
 type Step = 'amount' | 'recipient' | 'review' | 'success' | 'error';
 
@@ -65,6 +66,14 @@ export const SenderFlow: React.FC = () => {
     } catch (err: any) {
       setError(err.message || 'Failed to create ephemeral account. Please try again.');
       setStep('error');
+      track({
+        name: "Payment Creation Failed",
+        params: {
+          journey: "sender",
+          asset_type: selectedAsset.code,
+          error_code: err?.code || "unknown",
+        },
+      });
     } finally {
       setLoading(false);
     }

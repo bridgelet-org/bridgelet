@@ -273,6 +273,8 @@ Fired when the blockchain confirms the funding transaction and a claim ID is ret
 
 Fired when the blockchain transaction fails after the sender signed.
 
+*Cross-Platform Parity:* Mobile application send flow (`SenderFlow.tsx`) emits `Payment Creation Failed` with `journey: "sender"` when ephemeral account creation or on-chain transaction fails, providing unified cross-platform naming parity with the web catalog (#867).
+
 | Property | Type | Value / Description |
 |----------|------|---------------------|
 | `journey` | string | `"sender"` |
