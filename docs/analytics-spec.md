@@ -384,6 +384,15 @@ Fired when the sender successfully reclaims expired funds.
 | `asset_type` | string | |
 | `days_expired` | number | Days the claim was expired before reclaim |
 
+##### Sender Recovery Architecture & Telemetry Scope (#911)
+
+In Bridgelet's custodial architecture (`bridgelet-product-audit/glossary/custodial-model-in-practice.md`):
+- **Non-Custodial Sender / Custodial Ephemeral Account**: Senders configure an on-chain `recovery_address` (their authenticated wallet public key) at payment creation time. The ephemeral account's private keys are managed temporarily by the backend custodial service. Senders **do not hold, view, or copy raw private seed phrases or secret keys** in the browser.
+- **Automated Lifecycle Recovery**: When a payment expires or is cancelled, recovery is executed by returning funds to the sender's verified `recovery_address`. This lifecycle is captured by:
+  - `Payment Cancelled` (§4.5): Sender actively aborts an unclaimed payment.
+  - `Funds Reclaimed` (§4.5): Sender sweeps/retrieves expired funds.
+- **Recipient Generated Key Recovery (Future Scope)**: When client-side generated wallets (`generateNewWallet()`) are surfaced to non-crypto recipients, secret key preservation events (`Recovery Key Viewed`, `Recovery Key Copied`) will be scoped in §5 to track recipient seed phrase drop-off.
+
 ---
 
 ## 5. Recipient Journey Events
