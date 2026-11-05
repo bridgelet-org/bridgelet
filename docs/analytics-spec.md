@@ -311,13 +311,20 @@ Fired when the sender copies the claim link to clipboard.
 
 #### `Claim Link Shared`
 
-Fired when the sender uses a share button (SMS, Email, WhatsApp, QR).
+Fired when the sender uses a share button (SMS, Email, WhatsApp, QR, Web Share, or social platforms).
 
 | Property | Type | Value / Description |
 |----------|------|---------------------|
 | `journey` | string | `"sender"` |
-| `claim_id` | string | |
-| `share_method` | string | `"sms"`, `"email"`, `"whatsapp"`, `"qr_code"` |
+| `claim_id` | string | Ephemeral payment account identifier |
+| `share_method` | string | `"sms"`, `"email"`, `"whatsapp"`, `"qr_code"`, `"native_share"`, `"x"`, `"linkedin"` |
+
+##### Channel Attribution & `copy_only` KPI Relationship (#891)
+
+`Claim Link Copied` and `Claim Link Shared` capture distinct user actions:
+- `Claim Link Copied` tracks clipboard interactions (`copy_location: "success_screen"` or `"dashboard_detail"`).
+- `Claim Link Shared` tracks explicit sharing channels with the `share_method` property.
+- To compute the §8.2 **Share Method Distribution** KPI across all sharing behaviors, claims where the sender only performed `Claim Link Copied` without dispatching any `Claim Link Shared` are attributed to the synthetic `"copy_only"` cohort.
 
 ---
 
@@ -785,11 +792,18 @@ Sender Activation Rate = (unique anonymous_ids with ≥1 Payment Created)
 
 Breakdown of how senders share claim links.
 
+> **Readiness: operational with query definition.** `Claim Link Shared` captures active channel dispatches via `share_method`, while claims with only clipboard copies contribute to `copy_only`.
+
 ```
-For each share_method in {sms, email, whatsapp, qr_code, copy_only}:
-  % = (Claim Link Shared events with share_method)
-      / (total sharing actions per claim)
-      × 100
+For each share_method in {sms, email, whatsapp, qr_code, native_share, x, linkedin, copy_only}:
+  If share_method == 'copy_only':
+    % = (Claims where count(Claim Link Copied) > 0 and count(Claim Link Shared) == 0)
+        / (Total claims with at least one share or copy action)
+        × 100
+  Else:
+    % = (Claim Link Shared events with share_method)
+        / (Total sharing actions across all claims)
+        × 100
 ```
 
 **Use:** Informs which sharing channels to prioritize in the UI and for integrations.
