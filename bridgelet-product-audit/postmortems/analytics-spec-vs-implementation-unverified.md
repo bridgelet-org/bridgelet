@@ -114,9 +114,7 @@ This could be partially automated but requires human judgment for step 4
 
 ## Recommendations
 
-- **Immediate:** Add a note to `analytics-spec.md` stating that implementation
-  compliance has not been verified, so readers treat it as a design document
-  rather than a source of truth.
+- **Immediate (Resolved #874):** Added a prominent compliance notice and scope boundary section to `docs/analytics-spec.md` stating that implementation compliance has not been verified, so readers treat it as a design document rather than a source of truth.
 - **Short-term:** Perform the event-name diff (steps 1–3 above) as a lightweight
   compliance check. This is largely automatable.
 - **Medium-term:** Establish a process for keeping the spec in sync, either
