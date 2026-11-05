@@ -46,3 +46,14 @@ whether a delivered webhook reliably corresponds to a settled chain event. Both
 reduce to: *does this signal mean "someone asked" or "the ledger agreed"?* Answers
 should stay consistent across the two surfaces, or a dashboard and a webhook
 consumer will disagree about the same payment.
+
+## Resolution & Cross-Repo Semantic Alignment (#878)
+
+To ensure client-side telemetry dashboards and backend webhook consumers never disagree on payment and sweep states:
+
+- **Canonical Event Alignment**:
+  - `Payment Confirmed` (frontend analytics): Intent committed / transaction signed by user. Fires *before* submission to the Stellar network. No corresponding webhook event (uncommitted intent is client-local).
+  - `Payment Created` (frontend/server analytics) ↔ `account.created` / `account.funded` (backend webhook): Both require **ledger-confirmed inclusion** (transaction successful on Horizon/Soroban). Neither signal fires if the funding transaction fails or is rejected.
+  - `Claim Submitted` (frontend analytics): Recipient destination submitted; sweep transaction pending execution by the custodial backend.
+  - `Claim Succeeded` (frontend/server analytics) ↔ `sweep.completed` (backend webhook): Both require **confirmed on-chain sweep execution**. Both surfaces carry the authoritative transaction hash and duration.
+- **Cross-Repo Contract Reference**: Aligned with `bridgelet-sdk` webhook specifications and `docs/analytics-spec.md` §9.2.1.
