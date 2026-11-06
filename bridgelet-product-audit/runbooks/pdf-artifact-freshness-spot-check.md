@@ -19,12 +19,11 @@ Before starting, confirm you have access to:
 
 ## Step 1: Select a paired file at random
 
-From the list of verified paired files (per [`docs-mdx-vs-pdf-pairs.md`](../glossary/docs-mdx-vs-pdf-pairs.md)), choose **one file at random** for this spot check:
-- `architecture.mdx` ↔ `architecture.pdf`
-- `security-model.mdx` ↔ `security-model.pdf`
+Use the remaining paired file (per [`docs-mdx-vs-pdf-pairs.md`](../glossary/docs-mdx-vs-pdf-pairs.md)) for this spot check:
 - `integration-guide.mdx` ↔ `integration-guide.pdf`
 
-Example: Random selection might pick `security-model.mdx` and its matching `security-model.pdf`.
+`architecture.pdf`, `security-model.pdf`, and `use-cases.pdf` were retired during
+docs cleanup; their Markdown/MDX replacements are authoritative.
 
 ## Step 2: High-level content comparison
 

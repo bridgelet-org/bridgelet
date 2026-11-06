@@ -231,13 +231,12 @@ default in either direction. A defensible middle path: a documented maximum
 lifetime with a staleness check on read (drop and re-mint an id older than N
 days), plus a documented manual erase path.
 
-Related: `docs/GDPR_COMPLIANCE.md` claims *"Data erasure rights: Users can request
-deletion of address history records"*. No code path implementing erasure exists
-in this repository, and the same file's claim that *"Session Cookies only:
-Transient localStorage tokens are encrypted"* is inaccurate on both counts,
-there are no cookies in application code, and the `localStorage` values are
-plaintext (a UUID and a JSON wallet object), not encrypted. Flagged for the
-owner of that document; not edited here.
+Related: the now-retired `docs/GDPR_COMPLIANCE.md` claimed *"Data erasure rights:
+Users can request deletion of address history records"*. No code path implementing
+erasure exists in this repository, and the same file's claim that *"Session
+Cookies only: Transient localStorage tokens are encrypted"* was inaccurate on
+both counts: there are no cookies in application code, and the `localStorage`
+values are plaintext (a UUID and a JSON wallet object), not encrypted.
 
 ### 12. No sensitive cryptographic material in any client-side persistent storage: ✅ PASS (by inspection)
 
@@ -288,9 +287,9 @@ requirements" item is not met by any file in this repository.
 3. **Delete or justify `bridgelet_wallet` persistence.** It is the highest-sensitivity
    key in the file and no code path uses it.
 4. **Validate the shape read from `bridgelet_wallet`** instead of casting.
-5. **Fix `docs/GDPR_COMPLIANCE.md`**: the "Session Cookies only … encrypted"
-   claim is wrong on both counts, and the erasure-rights claim has no
-   implementation in this repository.
+5. **Retire the outdated GDPR compliance claims** (the file was removed during
+   docs cleanup): the "Session Cookies only … encrypted" claim was wrong on both
+   counts, and the erasure-rights claim had no implementation in this repository.
 6. **Add a localStorage line to the `CONTRIBUTING.md` pull request checklist** so
    the re-run trigger has a process anchor.
 

@@ -121,7 +121,7 @@ Bridgelet implements a multi-layered security approach:
 4. **No Seed Phrase Exposure:** Recipients don't handle sensitive cryptographic material
 5. **Claim Authentication:** Secure verification before fund release
 
-For detailed information about our security architecture, threat model, and security assumptions, please refer to our [Security Model Documentation](./docs/security-model.pdf).
+For detailed information about our security architecture, threat model, and security assumptions, please refer to our [Security Model Documentation](./docs/security-model.mdx).
 
 ## Disclosure Policy
 

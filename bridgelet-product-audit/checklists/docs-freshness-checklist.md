@@ -44,8 +44,6 @@ The documentation lead is responsible for coordinating each review cycle, assign
   - [ ] Compliance requirements are up-to-date
   - [ ] Any new security controls have been documented
   - [ ] Links to related security documents are functional
-- **PDF Pair Check**:
-  - [ ] Confirm `security-model.pdf` matches the current `.mdx` source (trigger the [PDF artifact freshness spot check](../runbooks/pdf-artifact-freshness-spot-check.md) if discrepancies are found)
 
 ### 4. `docs/architecture.mdx`
 - **Document Owner**: System Architecture Team
@@ -56,8 +54,6 @@ The documentation lead is responsible for coordinating each review cycle, assign
   - [ ] Deprecated components have been removed or marked as legacy
   - [ ] Data flows described match current implementation
   - [ ] Technology stack information is current
-- **PDF Pair Check**:
-  - [ ] Confirm `architecture.pdf` matches the current `.mdx` source (trigger the [PDF artifact freshness spot check](../runbooks/pdf-artifact-freshness-spot-check.md) if discrepancies are found)
 
 ### 5. `docs/integration-guide.mdx`
 - **Document Owner**: Developer Relations Team

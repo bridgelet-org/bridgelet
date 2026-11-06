@@ -57,8 +57,8 @@ Comprehensive documentation is available in the [`/docs`](./docs) directory:
 
 | Document                                                                                               | Description                                      |
 | ------------------------------------------------------------------------------------------------------ | ------------------------------------------------ |
-| [📐 Architecture Overview](https://github.com/bridgelet-org/bridgelet/raw/main/docs/architecture.pdf)  | System design and component interactions         |
-| [🔒 Security Model](https://github.com/bridgelet-org/bridgelet/raw/main/docs/security-model.pdf)       | Security considerations and threat model         |
+| [📐 Architecture Overview](./docs/architecture.mdx)                                                    | System design and component interactions         |
+| [🔒 Security Model](./docs/security-model.mdx)                                                         | Security considerations and threat model         |
 | [🚀 Getting Started](https://github.com/bridgelet-org/bridgelet/raw/main/docs/getting-started.pdf)     | Quick start guide for developers                 |
 | [🔧 Integration Guide](https://github.com/bridgelet-org/bridgelet/raw/main/docs/integration-guide.pdf) | Step-by-step integration instructions            |
 | [💡 Use Cases & Examples](./docs/use-cases.md)                                                         | Real-world use cases with runnable code samples |
