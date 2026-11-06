@@ -8,7 +8,7 @@ description: Real-world Bridgelet use cases with concrete, runnable code samples
 **Version:** 1.1 (MVP)  
 **Status:** Draft, MVP Phase
 **Last Updated:** August 2026  
-**Derived from:** `use-cases.pdf` (January 2025)
+**Derived from:** January 2025 Bridgelet use-cases narrative (original PDF retired)
 
 **Audience:** Product managers, business developers, and implementers.
 
@@ -27,7 +27,7 @@ All successful Bridgelet use cases share these traits:
 - Recipients can receive simple notifications (SMS/email)
 - Amounts justify the onboarding effort
 
-This document converts the original narrative `use-cases.pdf` into Markdown and
+This document converts the original narrative use-cases document into Markdown and
 adds **at least one runnable code sample per use case**, written against the
 **current** bridgelet-sdk API (see [SDK API contract](#sdk-api-contract-used-by-these-samples)).
 
@@ -490,7 +490,6 @@ Use Bridgelet when:
 
 | Document | Notes |
 |----------|-------|
-| `docs/use-cases.pdf` | Original narrative source document (January 2025) |
 | `docs/integration-guide.mdx` | SDK installation, claim links, webhooks |
 | `scripts/check-sdk-contract.mjs` | CI-verified SDK contract this guide's samples follow |
 | `docs/security-model.mdx` | Trust boundaries, claim token security, threat model |

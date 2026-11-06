@@ -2,22 +2,22 @@
 
 ## Step 1: Confirm the file actually has a source
 
-**Only three docs are paired.** Per
+**Only one doc is paired.** Per
 [`docs-mdx-vs-pdf-pairs.md`](../glossary/docs-mdx-vs-pdf-pairs.md):
 
 | PDF | Has `.mdx` source? |
 |---|---|
-| `architecture.pdf` | ✅ |
-| `security-model.pdf` | ✅ |
 | `integration-guide.pdf` | ✅ |
 | `getting-started.pdf` | ❌ none |
 | `mvp-specification.pdf` | ❌ none |
-| `use-cases.pdf` | ❌ none |
 
-**This runbook applies only to the first three.** If asked to regenerate one of
-the bottom three, stop: there is no source to regenerate *from*. Escalate rather
-than improvising, since a hand-rebuilt PDF would silently diverge from whatever
-the original said.
+`architecture.pdf`, `security-model.pdf`, and `use-cases.pdf` were retired during
+docs cleanup; their Markdown/MDX replacements are authoritative.
+
+**This runbook applies only to `integration-guide.pdf`.** If asked to regenerate
+one of the PDF-only files, stop: there is no source to regenerate *from*. Escalate
+rather than improvising, since a hand-rebuilt PDF would silently diverge from
+whatever the original said.
 
 ## Step 2: Establish the toolchain first
 

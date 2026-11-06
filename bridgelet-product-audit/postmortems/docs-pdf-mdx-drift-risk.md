@@ -2,7 +2,9 @@
 
 **Issue:** [#315](https://github.com/amberly-d/bridgelet/issues/315)
 **Severity:** Medium (documentation accuracy, especially security docs)
-**Status:** Open
+**Status:** Partially resolved: `architecture.pdf`, `security-model.pdf`, and
+`use-cases.pdf` were retired during docs cleanup; `integration-guide.pdf` remains
+paired with its `.mdx` source.
 
 ## Summary
 
