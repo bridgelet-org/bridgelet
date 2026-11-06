@@ -4,9 +4,8 @@
 > actually exists, and records the `Payment Confirmed` / `Payment Created`
 > resolution. Closes #632.
 >
-> Companions: `docs/analytics-kpi-readiness-audit.md` (#628, #624),
-> `docs/analytics-funnel-tracker.md`, and
-> `bridgelet-product-audit/integration-notes/analytics-events-vs-onchain-outcomes.md`.
+> Companions: `docs/analytics-kpi-readiness-audit.md` (#628, #624) and
+> `docs/analytics-funnel-tracker.md`.
 
 ## Status of this document
 
