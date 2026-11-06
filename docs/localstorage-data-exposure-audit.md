@@ -1,9 +1,9 @@
 # LocalStorage Data Exposure Audit
 
-> Item-by-item review of
-> `bridgelet-product-audit/checklists/localstorage-data-exposure-checklist.md`
-> against the frontend at commit `faeb0b6`. Closes the audit deliverable of #633,
-> which requires the anonymous-identity implementation to be reviewed against this
+> Item-by-item review of the frontend at commit `faeb0b6` against the
+> localStorage data-exposure checklist used for #633. Closes the audit
+> deliverable of #633, which requires the anonymous-identity implementation to
+> be reviewed against this
 > checklist "given localStorage-persisted identifiers are a recurring
 > privacy/security review topic in this codebase".
 >
@@ -21,8 +21,6 @@
 - **This was a static review. Nothing was run.** No build, no typecheck, no lint,
   no test, no browser session, no `node_modules` inspection. Items that cannot be
   settled by reading source are marked as such rather than ticked.
-- `bridgelet-product-audit/**` is not modified by this work, so the checklist
-  itself still carries the stale inventory described in item 7.
 
 ## Complete storage inventory (`frontend/`)
 
@@ -155,8 +153,8 @@ is small and fully enumerable, but the *documentation* of it is now wrong, and
 the checklist is the artefact a future reviewer will trust.
 
 **Recommendation:** add `bridgelet_anonymous_id` and `bridgelet_session_id` to the
-checklist, with the retention question in item 15 answered. Not done in this
-change because `bridgelet-product-audit/**` is out of scope here.
+checklist, with the retention question in item 15 answered. The checklist has
+since been retired with the audit folder.
 
 ### 8. All localStorage usage is intentional and necessary: ⚠️ PASS with one exception
 
@@ -201,9 +199,7 @@ not a pass, and it should not be reported as one.
   on *every* event (`lib/analytics.ts:69`). It is not persisted to
   `localStorage`, so it is out of scope for this checklist, but it is the
   strongest fingerprinting signal in the payload. `claim_id` is also in every
-  payload and, per
-  `bridgelet-product-audit/integration-notes/claim-url-security-properties.md`,
-  is a **bearer credential** for the claim. Both are written up in
+  payload and is a **bearer credential** for the claim. Both are written up in
   `docs/analytics-server-vs-client-decision.md` §4.2.
 
 Data-quality note, not an exposure one: `getAnonymousId()` returns `''` when
@@ -281,9 +277,8 @@ requirements" item is not met by any file in this repository.
    erase path. Whichever it is, it belongs in the checklist and the privacy
    notice, not only in a code comment. Owner decision, not an implementation
    detail.
-2. **Update the checklist** with `bridgelet_anonymous_id` and
-   `bridgelet_session_id`, and re-date it. Owner of
-   `bridgelet-product-audit/**`.
+2. **Keep the storage inventory current** with `bridgelet_anonymous_id` and
+   `bridgelet_session_id` as future storage keys are added.
 3. **Delete or justify `bridgelet_wallet` persistence.** It is the highest-sensitivity
    key in the file and no code path uses it.
 4. **Validate the shape read from `bridgelet_wallet`** instead of casting.

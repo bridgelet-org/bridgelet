@@ -5,7 +5,7 @@
 **Created:** March 2026
 **Based On:** `bridgelet-frd-ui-ux.md`, `ROADMAP.md`, `FRONTEND_TECHNICAL_SPEC.md`
 
-> **Implementation status:** Implementation compliance has **not** been verified. Treat this document as the intended design for Bridgelet's analytics instrumentation, not as a source of truth. See `bridgelet-product-audit/postmortems/analytics-spec-vs-implementation-unverified.md`.
+> **Implementation status:** Implementation compliance has **not** been verified. Treat this document as the intended design for Bridgelet's analytics instrumentation, not as a source of truth.
 
 ---
 
@@ -805,8 +805,7 @@ Breakdown of channels through which recipients open claim links.
 > dashboard that computes the distribution below. The event payload tests only
 > verify emission; they do not verify the KPI against an event export. Do not
 > report this KPI until an aggregation query or dashboard is implemented and
-> its result has been checked against the event data. See
-> `bridgelet-product-audit/postmortems/analytics-spec-vs-implementation-unverified.md`.
+> its result has been checked against the event data.
 
 ```
 For each entry_channel in {sms, email, whatsapp, direct, unknown}:

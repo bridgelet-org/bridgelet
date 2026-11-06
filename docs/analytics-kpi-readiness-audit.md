@@ -100,7 +100,7 @@ Repo-wide, the two names appear only in prose:
 | Event | Repo-wide matches | All of them |
 |-------|-------------------|-------------|
 | `Wallet Address Screen Viewed` | 2 | `docs/analytics-spec.md:437` (definition), `:845` (the KPI denominator) |
-| `Wallet Address Entered` | 8 | `docs/analytics-spec.md:72`, `:449`, `:665`, `:677`; `docs/analytics-funnel-tracker.md:41`, `:48`, `:53`; `bridgelet-product-audit/runbooks/review-analytics-spec-before-new-event.md:40` |
+| `Wallet Address Entered` | 7 | `docs/analytics-spec.md:72`, `:449`, `:665`, `:677`; `docs/analytics-funnel-tracker.md:41`, `:48`, `:53` |
 
 The numerator, by contrast, is present in `frontend/`:
 
@@ -314,9 +314,7 @@ ORDER BY claims_sharing_via DESC;
 ### 4.5 If a `copy_only` bucket is wanted
 
 It has to be a union of two events, and it changes the KPI definition, so it
-needs a spec PR first (per
-`bridgelet-product-audit/runbooks/review-analytics-spec-before-new-event.md`,
-Step 4):
+needs a spec PR first:
 
 ```sql
 WITH actions AS (
@@ -434,7 +432,3 @@ make the "signed → settled" step uncomputable.
   emission guidance. Not edited by this work.
 - `docs/analytics-server-vs-client-decision.md`: which events should move
   server-side, and what client context must travel with them.
-- `bridgelet-product-audit/postmortems/analytics-spec-vs-implementation-unverified.md`
-  - the postmortem behind the readiness gate.
-- `bridgelet-product-audit/runbooks/review-analytics-spec-before-new-event.md`:
-  the pre-flight a new or renamed event must pass.
