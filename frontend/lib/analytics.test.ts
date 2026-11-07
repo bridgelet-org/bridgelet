@@ -262,6 +262,60 @@ describe('analytics.errorDisplayed', () => {
   });
 });
 
+describe('sender recovery lifecycle events (§4.5 & #911)', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+    delete (window as unknown as { plausible?: unknown }).plausible;
+  });
+
+  it('emits Payment Cancelled with sender journey and optional duration', () => {
+    (window as unknown as { plausible?: ReturnType<typeof plausibleMock> }).plausible =
+      plausibleMock();
+
+    analytics.paymentCancelled({
+      claimId: 'claim-cancel-101',
+      assetType: 'XLM',
+      timeSinceCreationHours: 2.5,
+    });
+
+    const call = (window as unknown as { plausible: ReturnType<typeof plausibleMock> }).plausible
+      .mock.calls[0]!;
+    expect(call[0]).toBe('Payment Cancelled');
+    expect(call[1].props).toEqual(
+      expect.objectContaining({
+        journey: 'sender',
+        claim_id: 'claim-cancel-101',
+        asset_type: 'XLM',
+        time_since_creation_hours: 2.5,
+      }),
+    );
+  });
+
+  it('emits Funds Reclaimed with sender journey and days_expired', () => {
+    (window as unknown as { plausible?: ReturnType<typeof plausibleMock> }).plausible =
+      plausibleMock();
+
+    analytics.fundsReclaimed({
+      claimId: 'claim-reclaim-202',
+      assetType: 'USDC',
+      daysExpired: 7,
+    });
+
+    const call = (window as unknown as { plausible: ReturnType<typeof plausibleMock> }).plausible
+      .mock.calls[0]!;
+    expect(call[0]).toBe('Funds Reclaimed');
+    expect(call[1].props).toEqual(
+      expect.objectContaining({
+        journey: 'sender',
+        claim_id: 'claim-reclaim-202',
+        asset_type: 'USDC',
+        days_expired: 7,
+      }),
+    );
+  });
+});
+
 describe('track base payload merge', () => {
   afterEach(() => {
     vi.restoreAllMocks();
