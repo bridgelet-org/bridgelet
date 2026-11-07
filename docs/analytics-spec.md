@@ -42,6 +42,14 @@ The purpose of this spec is to:
 | **Sender Journey** | Alice (crypto-literate) | Create a claimable payment link |
 | **Recipient Journey** | Bob (crypto-novice) | Claim crypto sent to them |
 
+### Scope Boundary: Integrator & Developer Telemetry (#899)
+
+This specification defines **client-side product and end-user analytics** across web and mobile surfaces for human senders and recipients. 
+
+Developer and integrator actions (such as managing webhook subscriptions via `POST /webhooks`, SDK client initialization via `@bridgelet/sdk`, or API key creation) are **deliberately out of scope** for this client-side product analytics specification:
+- **Backend & API Telemetry**: Integrator API operations are tracked separately via server-side API gateway metrics, request traces, and audit logs rather than client-side Plausible/PostHog event streams.
+- **Future Integrator Journey Scope**: If Bridgelet introduces a client-side developer portal or management dashboard in the future, an `integrator` journey namespace (e.g. `journey: "integrator"`) will be introduced in a dedicated specification extension to track developer portal interactions (such as `Webhook Created`, `API Key Rotated`).
+
 ---
 
 ## 2. Event Naming Conventions
@@ -83,6 +91,8 @@ While event names do not require journey prefixes, the `journey` property in eve
 | `sender` | Events from the sender (Alice) flow |
 | `recipient` | Events from the recipient (Bob) flow |
 | `shared` | Events that can occur in either flow |
+
+> **Note on Integrator Journey (#899):** Developer and integrator API interactions (e.g. webhook registration via SDK) are tracked at the server/API layer and omitted here. Client-side product analytics are restricted to `sender`, `recipient`, and `shared`.
 
 ---
 
