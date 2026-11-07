@@ -262,6 +262,79 @@ describe('analytics.errorDisplayed', () => {
   });
 });
 
+describe('dashboard analytics helpers (§4.5)', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+    delete (window as unknown as { plausible?: unknown }).plausible;
+  });
+
+  it('emits Dashboard Viewed with total_payments and active_filter', () => {
+    (window as unknown as { plausible?: ReturnType<typeof plausibleMock> }).plausible =
+      plausibleMock();
+
+    analytics.dashboardViewed({ totalPayments: 12, activeFilter: 'unclaimed' });
+
+    const call = (window as unknown as { plausible: ReturnType<typeof plausibleMock> }).plausible
+      .mock.calls[0]!;
+    expect(call[0]).toBe('Dashboard Viewed');
+    expect(call[1].props).toEqual(
+      expect.objectContaining({
+        journey: 'sender',
+        total_payments: 12,
+        active_filter: 'unclaimed',
+      }),
+    );
+  });
+
+  it('emits Dashboard Filter Applied with closed enumerated dimensions and values', () => {
+    (window as unknown as { plausible?: ReturnType<typeof plausibleMock> }).plausible =
+      plausibleMock();
+
+    analytics.dashboardFilterApplied({
+      filterType: 'status',
+      filterValue: 'claimed',
+      previousFilterValue: 'unclaimed',
+    });
+
+    const call = (window as unknown as { plausible: ReturnType<typeof plausibleMock> }).plausible
+      .mock.calls[0]!;
+    expect(call[0]).toBe('Dashboard Filter Applied');
+    expect(call[1].props).toEqual(
+      expect.objectContaining({
+        journey: 'sender',
+        filter_type: 'status',
+        filter_value: 'claimed',
+        filter: 'claimed',
+        previous_filter_value: 'unclaimed',
+      }),
+    );
+  });
+
+  it('emits Dashboard Filter Applied for asset and date_range dimensions without previous_filter_value', () => {
+    (window as unknown as { plausible?: ReturnType<typeof plausibleMock> }).plausible =
+      plausibleMock();
+
+    analytics.dashboardFilterApplied({
+      filterType: 'date_range',
+      filterValue: '30d',
+    });
+
+    const call = (window as unknown as { plausible: ReturnType<typeof plausibleMock> }).plausible
+      .mock.calls[0]!;
+    expect(call[0]).toBe('Dashboard Filter Applied');
+    expect(call[1].props).toEqual(
+      expect.objectContaining({
+        journey: 'sender',
+        filter_type: 'date_range',
+        filter_value: '30d',
+        filter: '30d',
+      }),
+    );
+    expect('previous_filter_value' in call[1].props).toBe(false);
+  });
+});
+
 describe('track base payload merge', () => {
   afterEach(() => {
     vi.restoreAllMocks();

@@ -40,6 +40,18 @@ type EventProps = Record<string, string | number | boolean | null>;
 
 export type DeviceType = 'mobile' | 'tablet' | 'desktop';
 
+// §4.5 Dashboard Filter Dimensions & Closed Sets (#896)
+export type DashboardFilterType = 'status' | 'asset' | 'date_range';
+export type DashboardStatusFilter = 'all' | 'unclaimed' | 'claimed' | 'expired' | 'cancelled';
+export type DashboardDateRangeFilter = 'today' | '7d' | '30d' | '90d' | 'all_time' | 'custom';
+export type DashboardAssetFilter = 'all' | 'native' | 'USDC' | 'EURC' | (string & {});
+
+export interface DashboardFilterProps {
+  filterType: DashboardFilterType;
+  filterValue: string;
+  previousFilterValue?: string | null;
+}
+
 /**
  * App version correlated to a deploy (`docs/analytics-spec.md` §3.1
  * `app_version`). Inlined at build time from NEXT_PUBLIC_APP_VERSION so
@@ -303,11 +315,12 @@ export function createDeduplicationStore(
   return {
     isDuplicate(key, now = Date.now()) {
       prune(now);
-      if (seen.has(key)) {
-        // Refresh recency so a hot claim is not evicted by the cap while
-        // older idle claims are.
+      const recordedAt = seen.get(key);
+      if (recordedAt !== undefined) {
+        // Refresh LRU recency so a hot claim is not evicted by the cap while
+        // older idle claims are, but preserve its original TTL expiration timestamp.
         seen.delete(key);
-        seen.set(key, now);
+        seen.set(key, recordedAt);
         return true;
       }
       seen.set(key, now);
@@ -702,6 +715,30 @@ export const analytics = {
       journey: 'sender',
       claim_id: claimId,
       claim_status: claimStatus,
+    }),
+  dashboardViewed: ({
+    totalPayments,
+    activeFilter = 'all',
+  }: {
+    totalPayments: number;
+    activeFilter?: string;
+  }) =>
+    track('Dashboard Viewed', {
+      journey: 'sender',
+      total_payments: totalPayments,
+      active_filter: activeFilter,
+    }),
+  dashboardFilterApplied: ({
+    filterType,
+    filterValue,
+    previousFilterValue,
+  }: DashboardFilterProps) =>
+    track('Dashboard Filter Applied', {
+      journey: 'sender',
+      filter_type: filterType,
+      filter_value: filterValue,
+      filter: filterValue,
+      ...(previousFilterValue != null ? { previous_filter_value: previousFilterValue } : {}),
     }),
   pageViewed: ({ page, entrySource }: { page: string; entrySource?: EntrySource }) =>
     track('Page Viewed', {
