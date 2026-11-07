@@ -8,7 +8,8 @@
   },
   "scripts": {
     "build": "npm --prefix frontend run build",
-    "test": "echo \"Run npm test inside frontend/ for app tests\" && exit 0"
+    "test": "echo \"Run npm test inside frontend/ for app tests\" && exit 0",
+    "check:analytics-drift": "node scripts/check-analytics-spec-drift.mjs"
   },
   "repository": {
     "type": "git",
