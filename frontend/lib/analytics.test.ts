@@ -262,6 +262,60 @@ describe('analytics.errorDisplayed', () => {
   });
 });
 
+describe('analytics.claimLinkShared (§4.4 share channels & §8.2 KPI - #891)', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+    delete (window as unknown as { plausible?: unknown }).plausible;
+  });
+
+  it('emits Claim Link Shared with journey: sender, claim_id, and share_method', () => {
+    (window as unknown as { plausible?: ReturnType<typeof plausibleMock> }).plausible =
+      plausibleMock();
+
+    analytics.claimLinkShared({
+      claimId: 'claim-share-123',
+      shareMethod: 'whatsapp',
+    });
+
+    const call = (window as unknown as { plausible: ReturnType<typeof plausibleMock> }).plausible
+      .mock.calls[0]!;
+    expect(call[0]).toBe('Claim Link Shared');
+    expect(call[1].props).toEqual(
+      expect.objectContaining({
+        journey: 'sender',
+        claim_id: 'claim-share-123',
+        share_method: 'whatsapp',
+      }),
+    );
+  });
+
+  it('supports expanded share methods for native share sheets and social platforms', () => {
+    (window as unknown as { plausible?: ReturnType<typeof plausibleMock> }).plausible =
+      plausibleMock();
+
+    const methods = ['sms', 'email', 'whatsapp', 'qr_code', 'native_share', 'x', 'linkedin'] as const;
+
+    for (const [idx, method] of methods.entries()) {
+      analytics.claimLinkShared({
+        claimId: `claim-test-${idx}`,
+        shareMethod: method,
+      });
+
+      const call = (window as unknown as { plausible: ReturnType<typeof plausibleMock> }).plausible
+        .mock.calls[idx]!;
+      expect(call[0]).toBe('Claim Link Shared');
+      expect(call[1].props).toEqual(
+        expect.objectContaining({
+          journey: 'sender',
+          claim_id: `claim-test-${idx}`,
+          share_method: method,
+        }),
+      );
+    }
+  });
+});
+
 describe('track base payload merge', () => {
   afterEach(() => {
     vi.restoreAllMocks();
