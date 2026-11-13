@@ -26,8 +26,12 @@ function claimEntryChannel(): ClaimEntryChannel {
   try {
     if (typeof window === 'undefined' || typeof document === 'undefined') return 'unknown';
     const params = new URLSearchParams(window.location.search);
-    const flagged = (params.get('channel') ?? params.get('src') ?? params.get('utm_source') ?? '')
-      .toLowerCase();
+    const flagged = (
+      params.get('channel') ??
+      params.get('src') ??
+      params.get('utm_source') ??
+      ''
+    ).toLowerCase();
     if (flagged.includes('whatsapp') || flagged.includes('wa')) return 'whatsapp';
     if (flagged.includes('mail') || flagged.includes('email')) return 'email';
     if (flagged.includes('sms') || flagged.includes('text')) return 'sms';
@@ -73,10 +77,12 @@ export function ClaimPageClient({ token, supportEmail, initialView }: ClaimPageC
           analytics.claimVerified({
             claimId: token,
             assetType: result.assetCode,
-            expiryDaysRemaining: result.expiresAt ? daysRemainingUntil(result.expiresAt) : undefined,
+            expiryDaysRemaining: result.expiresAt
+              ? daysRemainingUntil(result.expiresAt)
+              : undefined,
             verificationTimeMs: Date.now() - verifiedAt,
           });
-// The review/confirm claim screen is this panel (§5.3).
+          // The review/confirm claim screen is this panel (§5.3).
           analytics.claimConfirmationViewed({ claimId: token, assetType: result.assetCode });
         } else if (result.status === AccountStatus.CLAIMED) {
           // Token is valid but the funds were already swept (§6 `already_claimed`).
@@ -152,151 +158,6 @@ export function ClaimPageClient({ token, supportEmail, initialView }: ClaimPageC
   }, [loadError, token]);
 
   /**
-   * Submit the claim with bounded retry and double-submit prevention.
-   *
-   * On success: updates the view to CLAIMED/PARTIAL_SWEEP.
-   * On ambiguous failure: polls status instead of resubmitting.
-   * On retryable failure: throws a ClaimError with retryable=true so the
-   *   UI can offer a "Try again" button.
-   * On terminal failure: throws a ClaimError with retryable=false.
-   */
-  const handleClaim = useCallback(
-    async (destinationAddress: string) => {
-      analytics.claimCtaClicked({ claimId: token, assetType: view?.assetCode });
-      if (submissionInFlight.current) {
-        // Guard: prevent concurrent submissions for the same token.
-        throw new ClaimError("NETWORK_ERROR", "A claim is already being processed. Please wait.");
-      }
-      submissionInFlight.current = true;
-      const currentAttempt = ++attemptNumberRef.current;
-      submittedAtRef.current = Date.now();
-      // Recipient submitted the claim (intent only, pre-chain-confirmation) (§5.3).
-      analytics.claimSubmitted({ claimId: token, assetType: view?.assetCode });
-
-      try {
-        const result = await submitClaimWithRetry(client, token, destinationAddress, {
-          // A failing claim makes exactly one request; the explicit "Try again"
-          // button is the only thing that re-submits.
-          maxAttempts: 1,
-          pollTimeoutMs: 30_000,
-          pollIntervalMs: 2_000,
-        });
-
-        switch (result.outcome.kind) {
-          case "success": {
-            // Sweep confirmed -- update view.
-            markTokenClaimed(token);
-            const resp = result.outcome.response;
-            // Sweep transaction confirmed on-chain (§5.3 primary conversion event).
-            analytics.claimSucceeded({
-              claimId: token,
-              assetType: view?.assetCode,
-              sweepDurationMs: Math.max(0, Date.now() - submittedAtRef.current),
-            });
-            setView((prev) => ({
-              ...(prev ?? { status: AccountStatus.CLAIMED }),
-              status: resp.isPartial ? AccountStatus.PARTIAL_SWEEP : AccountStatus.CLAIMED,
-              sweepNote: resp.message,
-              claimedByMe: true,
-              sweepDestination: destinationAddress,
-              sweepTxHash: resp.txHash,
-              sweepAmountStroops: prev?.amountStroops,
-            }));
-            return;
-          }
-
-          case "alreadyClaimed": {
-            // Token was already claimed (possibly by this session earlier).
-            markTokenClaimed(token);
-            setView((prev) => ({
-              ...(prev ?? { status: AccountStatus.CLAIMED }),
-              status: AccountStatus.CLAIMED,
-              claimedByMe: true,
-              sweepDestination: destinationAddress,
-            }));
-            return;
-          }
-
-          case "safeToRetry": {
-            // The request never reached the server. Safe to retry.
-            // §5.3 Claim Failed: network_error, safe-to-retry path.
-            analytics.claimFailed({
-              claimId: token,
-              assetType: view?.assetCode,
-              errorCode: 'SUBMISSION_FAILED_RETRYABLE',
-              errorType: 'network_error',
-              attemptNumber: currentAttempt,
-            });
-            analytics.errorDisplayed({
-              journey: 'recipient',
-              claimId: token,
-              errorType: 'network_unavailable',
-              errorCode: 'SUBMISSION_FAILED_RETRYABLE',
-              sourceScreen: 'claim_landing',
-            });
-            throw new ClaimError(
-              "SUBMISSION_FAILED_RETRYABLE",
-              "Your claim could not be sent right now. Please try again -- this is safe and will not cause any problems.",
-              true,
-            );
-          }
-
-          case "ambiguous": {
-            // Submission may or may not have been received. We already polled
-            // inside submitClaimWithRetry. If we are still here, the poll
-            // timed out or the status is still processing.
-            //
-            // Kick off a background poll and update the view when it resolves.
-            startBackgroundPoll(destinationAddress);
-            throw new ClaimError(
-              "SUBMISSION_TIMEOUT",
-              "Your claim is taking longer than expected due to network congestion. We are checking on it -- please wait a moment.",
-              false,
-            );
-          }
-
-          case "terminal": {
-            // Explicit rejection -- do not retry.
-            const apiErr = result.outcome.error;
-            // Map the backend's machine-readable code to a specific message
-            // (e.g. DESTINATION_NOT_FUNDED, SWEEP_CONTRACT_FAILED) so the user
-            // is told exactly what is wrong instead of a generic failure.
-            const mappedCode = claimErrorCodeFromApiCode(apiErr?.code);
-            const userMessage = mappedCode
-              ? getClaimErrorMessage(mappedCode)
-              : apiErr?.message ?? getClaimErrorMessage('SUBMISSION_FAILED_FINAL');
-            // §5.3 Claim Failed: transaction_failed, terminal rejection path.
-            analytics.claimFailed({
-              claimId: token,
-              assetType: view?.assetCode,
-              errorCode: apiErr?.code ?? apiErr?.message ?? 'unknown',
-              errorType: 'transaction_failed',
-              attemptNumber: currentAttempt,
-            });
-            analytics.errorDisplayed({
-              journey: 'recipient',
-              claimId: token,
-              errorType: 'transaction_failed',
-              errorCode:
-                apiErr?.code ??
-                (apiErr?.statusCode != null ? String(apiErr.statusCode) : 'unknown'),
-              sourceScreen: 'claim_landing',
-            });
-            throw new ClaimError(
-              mappedCode ?? "SUBMISSION_FAILED_FINAL",
-              userMessage,
-              false,
-            );
-          }
-        }
-      } finally {
-        submissionInFlight.current = false;
-      }
-    },
-    [token, view],
-  );
-
-  /**
    * Background poll: after an ambiguous submission, periodically check
    * the claim status and update the view when it resolves.
    */
@@ -361,7 +222,148 @@ export function ClaimPageClient({ token, supportEmail, initialView }: ClaimPageC
         cancelled = true;
       };
     },
-    [token],
+    [token, view?.assetCode],
+  );
+
+  /**
+   * Submit the claim with bounded retry and double-submit prevention.
+   *
+   * On success: updates the view to CLAIMED/PARTIAL_SWEEP.
+   * On ambiguous failure: polls status instead of resubmitting.
+   * On retryable failure: throws a ClaimError with retryable=true so the
+   *   UI can offer a "Try again" button.
+   * On terminal failure: throws a ClaimError with retryable=false.
+   */
+  const handleClaim = useCallback(
+    async (destinationAddress: string) => {
+      analytics.claimCtaClicked({ claimId: token, assetType: view?.assetCode });
+      if (submissionInFlight.current) {
+        // Guard: prevent concurrent submissions for the same token.
+        throw new ClaimError('NETWORK_ERROR', 'A claim is already being processed. Please wait.');
+      }
+      submissionInFlight.current = true;
+      const currentAttempt = ++attemptNumberRef.current;
+      submittedAtRef.current = Date.now();
+      // Recipient submitted the claim (intent only, pre-chain-confirmation) (§5.3).
+      analytics.claimSubmitted({ claimId: token, assetType: view?.assetCode });
+
+      try {
+        const result = await submitClaimWithRetry(client, token, destinationAddress, {
+          // A failing claim makes exactly one request; the explicit "Try again"
+          // button is the only thing that re-submits.
+          maxAttempts: 1,
+          pollTimeoutMs: 30_000,
+          pollIntervalMs: 2_000,
+        });
+
+        switch (result.outcome.kind) {
+          case 'success': {
+            // Sweep confirmed -- update view.
+            markTokenClaimed(token);
+            const resp = result.outcome.response;
+            // Sweep transaction confirmed on-chain (§5.3 primary conversion event).
+            analytics.claimSucceeded({
+              claimId: token,
+              assetType: view?.assetCode,
+              sweepDurationMs: Math.max(0, Date.now() - submittedAtRef.current),
+            });
+            setView((prev) => ({
+              ...(prev ?? { status: AccountStatus.CLAIMED }),
+              status: resp.isPartial ? AccountStatus.PARTIAL_SWEEP : AccountStatus.CLAIMED,
+              sweepNote: resp.message,
+              claimedByMe: true,
+              sweepDestination: destinationAddress,
+              sweepTxHash: resp.txHash,
+              sweepAmountStroops: prev?.amountStroops,
+            }));
+            return;
+          }
+
+          case 'alreadyClaimed': {
+            // Token was already claimed (possibly by this session earlier).
+            markTokenClaimed(token);
+            setView((prev) => ({
+              ...(prev ?? { status: AccountStatus.CLAIMED }),
+              status: AccountStatus.CLAIMED,
+              claimedByMe: true,
+              sweepDestination: destinationAddress,
+            }));
+            return;
+          }
+
+          case 'safeToRetry': {
+            // The request never reached the server. Safe to retry.
+            // §5.3 Claim Failed: network_error, safe-to-retry path.
+            analytics.claimFailed({
+              claimId: token,
+              assetType: view?.assetCode,
+              errorCode: 'SUBMISSION_FAILED_RETRYABLE',
+              errorType: 'network_error',
+              attemptNumber: currentAttempt,
+            });
+            analytics.errorDisplayed({
+              journey: 'recipient',
+              claimId: token,
+              errorType: 'network_unavailable',
+              errorCode: 'SUBMISSION_FAILED_RETRYABLE',
+              sourceScreen: 'claim_landing',
+            });
+            throw new ClaimError(
+              'SUBMISSION_FAILED_RETRYABLE',
+              'Your claim could not be sent right now. Please try again -- this is safe and will not cause any problems.',
+              true,
+            );
+          }
+
+          case 'ambiguous': {
+            // Submission may or may not have been received. We already polled
+            // inside submitClaimWithRetry. If we are still here, the poll
+            // timed out or the status is still processing.
+            //
+            // Kick off a background poll and update the view when it resolves.
+            startBackgroundPoll(destinationAddress);
+            throw new ClaimError(
+              'SUBMISSION_TIMEOUT',
+              'Your claim is taking longer than expected due to network congestion. We are checking on it -- please wait a moment.',
+              false,
+            );
+          }
+
+          case 'terminal': {
+            // Explicit rejection -- do not retry.
+            const apiErr = result.outcome.error;
+            // Map the backend's machine-readable code to a specific message
+            // (e.g. DESTINATION_NOT_FUNDED, SWEEP_CONTRACT_FAILED) so the user
+            // is told exactly what is wrong instead of a generic failure.
+            const mappedCode = claimErrorCodeFromApiCode(apiErr?.code);
+            const userMessage = mappedCode
+              ? getClaimErrorMessage(mappedCode, view?.assetCode)
+              : (apiErr?.message ?? getClaimErrorMessage('SUBMISSION_FAILED_FINAL'));
+            // §5.3 Claim Failed: transaction_failed, terminal rejection path.
+            analytics.claimFailed({
+              claimId: token,
+              assetType: view?.assetCode,
+              errorCode: apiErr?.code ?? apiErr?.message ?? 'unknown',
+              errorType: 'transaction_failed',
+              attemptNumber: currentAttempt,
+            });
+            analytics.errorDisplayed({
+              journey: 'recipient',
+              claimId: token,
+              errorType: 'transaction_failed',
+              errorCode:
+                apiErr?.code ??
+                (apiErr?.statusCode != null ? String(apiErr.statusCode) : 'unknown'),
+              sourceScreen: 'claim_landing',
+            });
+            throw new ClaimError(mappedCode ?? 'SUBMISSION_FAILED_FINAL', userMessage, false);
+          }
+        }
+      } finally {
+        submissionInFlight.current = false;
+      }
+    },
+    [token, view?.assetCode, startBackgroundPoll],
   );
 
   if (loadError) {

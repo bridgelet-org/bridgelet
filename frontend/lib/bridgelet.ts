@@ -128,9 +128,9 @@ export function createEphemeralAccount(data: CreateAccountRequest): Promise<Ephe
   return defaultClient().createAccount(data);
 }
 
-export function listEphemeralAccounts(options: { limit?: number; offset?: number } = {}): Promise<
-  AccountsListResponse
-> {
+export function listEphemeralAccounts(
+  options: { limit?: number; offset?: number } = {},
+): Promise<AccountsListResponse> {
   return defaultClient().listAccounts(options);
 }
 
@@ -145,17 +145,20 @@ export function redeemClaim(
 
 /**
  * Assets the frontend can send. `XLM` is always available; an issued asset is
- * offered only when an issuer is configured for the active network, otherwise
- * the send form would let the user pick an asset the ephemeral account cannot
+ * offered only when the SDK's per-network allowlist includes it, otherwise the
+ * send form would let the user pick an asset the ephemeral account cannot
  * receive (no trustline, no issuer).
  */
-export const ISSUED_ASSET_CODES = ['USDC'] as const;
-export type IssuedAssetCode = (typeof ISSUED_ASSET_CODES)[number];
-
-/** The base unit shown when the send form offers no issued assets. */
 export const NATIVE_ASSET_CODE = 'XLM';
 
 type NetworkKey = 'testnet' | 'mainnet';
+
+type SupportedIssuedAsset = {
+  code: string;
+  issuer: string;
+};
+
+const ASSET_ENTRY_PATTERN = /^([A-Z0-9]{1,12}):(G[A-Z0-9]{55})$/;
 
 function currentNetworkKey(): NetworkKey {
   const network = process.env['NEXT_PUBLIC_CRYPTO_NETWORK'] ?? 'stellar-testnet';
@@ -164,26 +167,53 @@ function currentNetworkKey(): NetworkKey {
 
 // Static member access is required for Next.js to inline these into the
 // browser bundle; a dynamic `process.env[key]` read would be undefined client
-// side. Issuer addresses are public and safe behind NEXT_PUBLIC_.
-const USDC_ISSUER_BY_NETWORK: Record<NetworkKey, string | undefined> = {
-  testnet: process.env['NEXT_PUBLIC_USDC_ISSUER_TESTNET'],
-  mainnet: process.env['NEXT_PUBLIC_USDC_ISSUER_MAINNET'],
+// side. Issuer addresses are public and safe behind NEXT_PUBLIC_. The
+// network-specific value wins over the global fallback, matching the SDK.
+const SUPPORTED_ASSETS_BY_NETWORK: Record<NetworkKey, string | undefined> = {
+  testnet:
+    process.env['NEXT_PUBLIC_SUPPORTED_ASSETS_TESTNET'] ??
+    process.env['NEXT_PUBLIC_SUPPORTED_ASSETS'],
+  mainnet:
+    process.env['NEXT_PUBLIC_SUPPORTED_ASSETS_MAINNET'] ??
+    process.env['NEXT_PUBLIC_SUPPORTED_ASSETS'],
 };
 
+function parseSupportedAssets(raw: string | undefined): SupportedIssuedAsset[] {
+  if (!raw) return [];
+
+  const seen = new Set<string>();
+  const assets: SupportedIssuedAsset[] = [];
+
+  for (const entry of raw.split(',')) {
+    const match = ASSET_ENTRY_PATTERN.exec(entry.trim());
+    if (!match) continue;
+
+    const [, code, issuer] = match;
+    if (!code || !issuer || code === NATIVE_ASSET_CODE || seen.has(code)) continue;
+
+    seen.add(code);
+    assets.push({ code, issuer });
+  }
+
+  return assets;
+}
+
+function supportedIssuedAssets(): SupportedIssuedAsset[] {
+  return parseSupportedAssets(SUPPORTED_ASSETS_BY_NETWORK[currentNetworkKey()]);
+}
+
 /**
- * Returns the per-network issuer for a supported issued asset, or `undefined`
- * when the asset is unknown or no issuer is configured for this network.
+ * Returns the per-network issuer for an allowlisted issued asset, or `undefined`
+ * when the asset is unknown or absent from the SDK allowlist for this network.
  */
 export function getAssetIssuer(assetCode: string): string | undefined {
   if (assetCode === NATIVE_ASSET_CODE) return undefined;
-  if (!(ISSUED_ASSET_CODES as readonly string[]).includes(assetCode)) return undefined;
-  const issuer = USDC_ISSUER_BY_NETWORK[currentNetworkKey()];
-  return issuer && issuer.trim() ? issuer.trim() : undefined;
+  return supportedIssuedAssets().find((asset) => asset.code === assetCode)?.issuer;
 }
 
 /**
  * `true` when the send form should offer this asset: native XLM, or an issued
- * asset with a configured issuer for the current network.
+ * asset allowlisted by the SDK for the current network.
  */
 export function isAssetAvailable(assetCode: string): boolean {
   return assetCode === NATIVE_ASSET_CODE || Boolean(getAssetIssuer(assetCode));
@@ -191,8 +221,5 @@ export function isAssetAvailable(assetCode: string): boolean {
 
 /** Asset codes to render in the send form's asset selector, in display order. */
 export function supportedAssetCodes(): string[] {
-  return [
-    NATIVE_ASSET_CODE,
-    ...ISSUED_ASSET_CODES.filter((code) => isAssetAvailable(code)),
-  ];
+  return [NATIVE_ASSET_CODE, ...supportedIssuedAssets().map((asset) => asset.code)];
 }
