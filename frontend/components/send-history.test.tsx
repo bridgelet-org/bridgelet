@@ -8,6 +8,7 @@ import { rememberClaimLink } from '@/lib/claim-links';
 
 vi.mock('@/lib/bridgelet', () => ({
   listEphemeralAccounts: vi.fn(),
+  listAccountEvents: vi.fn(),
 }));
 
 vi.mock('@/lib/analytics', () => ({
@@ -137,9 +138,7 @@ describe('SendHistory (#956)', () => {
 
     await userEvent.click(next);
 
-    await waitFor(() =>
-      expect(listMock).toHaveBeenLastCalledWith({ limit: 10, offset: 10 }),
-    );
+    await waitFor(() => expect(listMock).toHaveBeenLastCalledWith({ limit: 10, offset: 10 }));
     await waitFor(() => expect(screen.getByRole('button', { name: /next/i })).toBeDisabled());
   });
 

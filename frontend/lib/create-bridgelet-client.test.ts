@@ -30,9 +30,7 @@ describe('BridgeletClient.listAccounts (#764, #956)', () => {
     return new BridgeletClient({ internalBaseUrl: 'http://app.test' });
   }
 
-  const accounts = [
-    { accountId: 'a1', publicKey: 'G1', claimUrl: null, status: 'pending_claim' },
-  ];
+  const accounts = [{ accountId: 'a1', publicKey: 'G1', claimUrl: null, status: 'pending_claim' }];
 
   it('returns the normalised list from the internal proxy', async () => {
     fetchMock.mockResolvedValue(jsonResponse({ accounts, total: 12 }));
@@ -82,5 +80,49 @@ describe('BridgeletClient.listAccounts (#764, #956)', () => {
     await makeClient().listAccounts({});
 
     expect(fetchMock).toHaveBeenCalledWith('http://app.test/api/accounts', expect.any(Object));
+  });
+});
+
+describe('BridgeletClient.listAccountEvents (#978)', () => {
+  beforeEach(() => {
+    fetchMock.mockReset();
+    vi.stubGlobal('fetch', fetchMock);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  function makeClient() {
+    return new BridgeletClient({ internalBaseUrl: 'http://app.test' });
+  }
+
+  const events = [
+    {
+      id: 'e1',
+      accountId: 'a1',
+      type: 'funded',
+      txHash: null,
+      details: {},
+      createdAt: '2026-11-01T12:00:00.000Z',
+    },
+  ];
+
+  it('loads lifecycle events from the internal proxy', async () => {
+    fetchMock.mockResolvedValue(jsonResponse(events));
+
+    const result = await makeClient().listAccountEvents('a1');
+
+    expect(result).toEqual(events);
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://app.test/api/accounts/a1/events',
+      expect.any(Object),
+    );
+  });
+
+  it('throws BridgeletApiError for a malformed events response', async () => {
+    fetchMock.mockResolvedValue(jsonResponse({ events }));
+
+    await expect(makeClient().listAccountEvents('a1')).rejects.toBeInstanceOf(BridgeletApiError);
   });
 });

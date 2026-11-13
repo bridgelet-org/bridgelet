@@ -6,6 +6,7 @@ import { listEphemeralAccounts, type EphemeralAccount } from '@/lib/bridgelet';
 import { RateLimitError } from '@/lib/create-bridgelet-client';
 import { analytics } from '@/lib/analytics';
 import { getRememberedClaimLinks } from '@/lib/claim-links';
+import { PaymentTimeline } from '@/components/payment-timeline';
 
 /**
  * Sender-facing list of payments.
@@ -248,6 +249,8 @@ export function SendHistory() {
                   </div>
                 </div>
               )}
+
+              <PaymentTimeline accountId={account.accountId} />
             </li>
           );
         })}
