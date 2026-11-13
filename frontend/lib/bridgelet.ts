@@ -52,6 +52,29 @@ export interface AccountsListResponse {
   total: number;
 }
 
+/** Mirrors bridgelet-sdk's `AccountEventType` audit-log union. */
+export type AccountEventType =
+  | 'created'
+  | 'contract_deployed'
+  | 'funded'
+  | 'claim_started'
+  | 'claimed'
+  | 'claim_failed'
+  | 'partial_sweep'
+  | 'expired'
+  | 'reclaimed'
+  | 'failed';
+
+/** One append-only lifecycle entry from GET /accounts/:id/events. */
+export interface AccountEvent {
+  id: string;
+  accountId: string;
+  type: AccountEventType;
+  txHash: string | null;
+  details: Record<string, unknown>;
+  createdAt: string;
+}
+
 export interface VerifyClaimRequest {
   claimToken: string;
 }
@@ -132,6 +155,10 @@ export function listEphemeralAccounts(
   options: { limit?: number; offset?: number } = {},
 ): Promise<AccountsListResponse> {
   return defaultClient().listAccounts(options);
+}
+
+export function listAccountEvents(accountId: string): Promise<AccountEvent[]> {
+  return defaultClient().listAccountEvents(accountId);
 }
 
 export function redeemClaim(
