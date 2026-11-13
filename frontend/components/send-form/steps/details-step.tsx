@@ -47,17 +47,18 @@ export function DetailsStep({ state, onChange, onBack, onNext }: DetailsStepProp
   const [selectedChain, setSelectedChain] = useState<string>('stellar');
   const [usdRate, setUsdRate] = useState<number | null>(null);
   const errors = validateDetails(state);
-  // Issued assets are only offered when an issuer is configured for the active
-  // network; otherwise offer them disabled with an explanatory hint.
+  // Issued assets are only offered when the SDK allowlist includes them for the
+  // active network; otherwise XLM is the only selectable asset.
   const availableAssets = supportedAssetCodes();
-  const usdcAvailable = isAssetAvailable('USDC');
 
   useEffect(() => {
     let active = true;
     getXlmUsdRate().then((rate) => {
       if (active) setUsdRate(rate);
     });
-    return () => { active = false; };
+    return () => {
+      active = false;
+    };
   }, []);
 
   function handleSubmit(e: React.FormEvent) {
@@ -65,8 +66,7 @@ export function DetailsStep({ state, onChange, onBack, onNext }: DetailsStepProp
     // Email is optional: only the amount (and a valid asset) gate progression.
     // When an email is provided it must still be well-formed.
     const fieldErrors = validateDetails(state);
-    const firstError =
-      fieldErrors.amountXlm ?? fieldErrors.assetCode ?? fieldErrors.recipientEmail;
+    const firstError = fieldErrors.amountXlm ?? fieldErrors.assetCode ?? fieldErrors.recipientEmail;
     if (firstError) {
       setValidationError(firstError);
       return;
@@ -86,14 +86,15 @@ export function DetailsStep({ state, onChange, onBack, onNext }: DetailsStepProp
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4" noValidate>
-      <ChainSelector
-        selectedChainId={selectedChain}
-        onSelectChain={setSelectedChain}
-      />
+      <ChainSelector selectedChainId={selectedChain} onSelectChain={setSelectedChain} />
 
       <div>
-        <label htmlFor="recipient-name" className="block text-sm font-medium text-slate-900 dark:text-slate-100">
-          Recipient name <span className="font-normal text-slate-500 dark:text-slate-400">(optional)</span>
+        <label
+          htmlFor="recipient-name"
+          className="block text-sm font-medium text-slate-900 dark:text-slate-100"
+        >
+          Recipient name{' '}
+          <span className="font-normal text-slate-500 dark:text-slate-400">(optional)</span>
         </label>
         <input
           id="recipient-name"
@@ -107,8 +108,12 @@ export function DetailsStep({ state, onChange, onBack, onNext }: DetailsStepProp
       </div>
 
       <div>
-        <label htmlFor="recipient-email" className="block text-sm font-medium text-slate-900 dark:text-slate-100">
-          Recipient email <span className="font-normal text-slate-500 dark:text-slate-400">(optional)</span>
+        <label
+          htmlFor="recipient-email"
+          className="block text-sm font-medium text-slate-900 dark:text-slate-100"
+        >
+          Recipient email{' '}
+          <span className="font-normal text-slate-500 dark:text-slate-400">(optional)</span>
         </label>
         <input
           id="recipient-email"
@@ -118,7 +123,9 @@ export function DetailsStep({ state, onChange, onBack, onNext }: DetailsStepProp
           placeholder="recipient@example.com"
           aria-invalid={errors.recipientEmail ? true : undefined}
           aria-describedby={
-            errors.recipientEmail ? 'recipient-email-error recipient-email-hint' : 'recipient-email-hint'
+            errors.recipientEmail
+              ? 'recipient-email-error recipient-email-hint'
+              : 'recipient-email-hint'
           }
           className={`mt-1 block w-full rounded-lg border px-3 py-2 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-1 dark:bg-slate-800 dark:text-slate-100 dark:placeholder-slate-500 ${
             errors.recipientEmail
@@ -131,14 +138,21 @@ export function DetailsStep({ state, onChange, onBack, onNext }: DetailsStepProp
           link yourself instead.
         </p>
         {errors.recipientEmail && (
-          <p id="recipient-email-error" role="alert" className="mt-1 text-sm text-red-600 dark:text-red-400">
+          <p
+            id="recipient-email-error"
+            role="alert"
+            className="mt-1 text-sm text-red-600 dark:text-red-400"
+          >
             {errors.recipientEmail}
           </p>
         )}
       </div>
 
       <div>
-        <label htmlFor="amount" className="block text-sm font-medium text-slate-900 dark:text-slate-100">
+        <label
+          htmlFor="amount"
+          className="block text-sm font-medium text-slate-900 dark:text-slate-100"
+        >
           Amount
         </label>
         <div className="mt-1 flex gap-2">
@@ -173,16 +187,11 @@ export function DetailsStep({ state, onChange, onBack, onNext }: DetailsStepProp
                 {asset}
               </option>
             ))}
-            {!usdcAvailable && (
-              <option value="USDC" disabled>
-                USDC: unavailable
-              </option>
-            )}
           </select>
         </div>
-        {!usdcAvailable && (
+        {availableAssets.length === 1 && (
           <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-            USDC isn&apos;t available on this network yet: send XLM for now.
+            Only XLM is available on this network right now.
           </p>
         )}
         {errors.amountXlm && (
@@ -209,7 +218,10 @@ export function DetailsStep({ state, onChange, onBack, onNext }: DetailsStepProp
       </div>
 
       <div>
-        <label htmlFor="memo" className="block text-sm font-medium text-slate-900 dark:text-slate-100">
+        <label
+          htmlFor="memo"
+          className="block text-sm font-medium text-slate-900 dark:text-slate-100"
+        >
           Memo <span className="font-normal text-slate-500 dark:text-slate-400">(optional)</span>
         </label>
         <input

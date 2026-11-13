@@ -260,36 +260,41 @@ function AvailablePanel({
 
   return (
     <div className="space-y-4">
-      <dl className="space-y-2 text-sm">
-        <div className="flex justify-between">
-          <dt className="font-medium text-slate-700">Amount</dt>
-          <dd className="font-semibold text-slate-900">
-            {amountStroops ? (
-              stroopsToDisplay(amountStroops, assetCode)
-            ) : (
-              <span className="text-slate-400">N/A</span>
-            )}
-          </dd>
-        </div>
-        {expiresAt && (
-          <div className="flex justify-between">
-            <dt className="font-medium text-slate-700 dark:text-slate-300">Expires</dt>
-            <dd className="text-slate-600 dark:text-slate-400">{formatExpiry(expiresAt)}</dd>
-          </div>
-        )}
-        {memo && (
-          <div className="flex justify-between">
-            <dt className="font-medium text-slate-700 dark:text-slate-300">Memo</dt>
-            <dd className="text-slate-600 dark:text-slate-400">{memo}</dd>
-          </div>
-        )}
-      </dl>
+      <p className="break-words text-sm text-slate-600 dark:text-slate-300">
+        You are receiving{' '}
+        <span className="font-semibold text-slate-900 dark:text-slate-100">
+          {amountStroops ? (
+            stroopsToDisplay(amountStroops, assetCode)
+          ) : (
+            <span className="text-slate-400 dark:text-slate-500">N/A</span>
+          )}
+        </span>
+      </p>
+
+      {(expiresAt || memo) && (
+        <dl className="space-y-2 text-sm">
+          {expiresAt && (
+            <div className="flex flex-wrap justify-between gap-2">
+              <dt className="font-medium text-slate-700 dark:text-slate-300">Expires</dt>
+              <dd className="break-words text-slate-600 dark:text-slate-400">
+                {formatExpiry(expiresAt)}
+              </dd>
+            </div>
+          )}
+          {memo && (
+            <div className="flex flex-wrap justify-between gap-2">
+              <dt className="font-medium text-slate-700 dark:text-slate-300">Memo</dt>
+              <dd className="break-words text-slate-600 dark:text-slate-400">{memo}</dd>
+            </div>
+          )}
+        </dl>
+      )}
 
       {rateLimit !== undefined && <RateLimitBanner retryAfter={rateLimit} />}
       {claimError && (
         <p
           role="alert"
-          className="text-sm text-red-700 bg-red-50 border border-red-200 rounded px-3 py-2"
+          className="break-words rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-300"
         >
           {claimError}
         </p>
@@ -298,7 +303,7 @@ function AvailablePanel({
       <div>
         <label
           htmlFor="destination-address"
-          className="mb-1 block text-xs font-medium text-slate-700"
+          className="mb-1 block text-xs font-medium text-slate-700 dark:text-slate-300"
         >
           Your Stellar wallet address
         </label>
@@ -311,10 +316,10 @@ function AvailablePanel({
           placeholder="G..."
           value={destinationAddress}
           onChange={(e) => setDestinationAddress(e.target.value.trim())}
-          className="w-full rounded-lg border border-slate-300 px-3 py-2 font-mono text-xs text-slate-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-600"
+          className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 font-mono text-xs text-slate-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-600 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
         />
         {destinationAddress.length > 0 && !isValidAddress && (
-          <p className="mt-1 text-xs text-red-600">
+          <p className="mt-1 text-xs text-red-600 dark:text-red-400">
             Enter a valid Stellar public key (starts with G, 56 characters).
           </p>
         )}
@@ -418,7 +423,9 @@ function ClaimedPanel({
           />
         </svg>
         <div>
-          <p className="text-sm font-semibold text-blue-800 dark:text-blue-100">{claimedByMe ? 'Payment claimed!' : 'Payment already claimed'}</p>
+          <p className="text-sm font-semibold text-blue-800 dark:text-blue-100">
+            {claimedByMe ? 'Payment claimed!' : 'Payment already claimed'}
+          </p>
           <p className="text-xs text-blue-700 mt-0.5 dark:text-blue-200">
             {claimedByMe
               ? 'The funds have been swept to your wallet.'
@@ -596,7 +603,9 @@ export function ClaimStatusCard({
       className={`rounded-xl border-2 ${BORDER_COLORS[status]} bg-white p-5 shadow-sm space-y-4 dark:bg-slate-900`}
     >
       <header className="flex items-center justify-between">
-        <h2 className="text-base font-semibold text-slate-900 dark:text-slate-50">{HEADERS[status]}</h2>
+        <h2 className="text-base font-semibold text-slate-900 dark:text-slate-50">
+          {HEADERS[status]}
+        </h2>
         <StatusBadge status={status} />
       </header>
 
