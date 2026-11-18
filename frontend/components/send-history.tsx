@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { listEphemeralAccounts, type EphemeralAccount } from '@/lib/bridgelet';
 import { RateLimitError } from '@/lib/create-bridgelet-client';
@@ -106,6 +106,7 @@ export function SendHistory() {
   const [hasMore, setHasMore] = useState(false);
   const [rememberedClaimLinks, setRememberedClaimLinks] = useState<Record<string, string>>({});
   const [copiedAccountId, setCopiedAccountId] = useState<string | null>(null);
+  const viewedRecoveryClaimIds = useRef(new Set<string>());
 
   const load = useCallback(async (nextOffset: number) => {
     setLoading(true);
@@ -139,11 +140,27 @@ export function SendHistory() {
     setRememberedClaimLinks(getRememberedClaimLinks());
   }, []);
 
+  useEffect(() => {
+    if (loading || error) return;
+
+    for (const account of accounts) {
+      const claimId = account.accountId;
+      if (
+        RECOVERABLE_CLAIM_STATUSES.has(account.status) &&
+        rememberedClaimLinks[claimId] &&
+        !viewedRecoveryClaimIds.current.has(claimId)
+      ) {
+        viewedRecoveryClaimIds.current.add(claimId);
+        analytics.claimLinkRecoveryViewed({ claimId });
+      }
+    }
+  }, [accounts, error, loading, rememberedClaimLinks]);
+
   async function handleCopyClaimLink(accountId: string, claimUrl: string) {
     try {
       await navigator.clipboard.writeText(claimUrl);
       setCopiedAccountId(accountId);
-      analytics.claimLinkCopied({ claimId: accountId, copyLocation: 'dashboard_detail' });
+      analytics.claimLinkCopied({ claimId: accountId, copyLocation: 'send_history_recovery' });
     } catch {
       // Clipboard API unavailable: no-op.
     }

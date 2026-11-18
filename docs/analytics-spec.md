@@ -318,7 +318,9 @@ Fired when the sender copies the claim link to clipboard.
 |----------|------|---------------------|
 | `journey` | string | `"sender"` |
 | `claim_id` | string | |
-| `copy_location` | string | `"success_screen"`, `"dashboard_detail"` |
+| `copy_location` | string | `"success_screen"`, `"dashboard_detail"`, `"send_history_recovery"` |
+
+When a sender copies a claim link recovered from the browser's sent-payment history, use `"send_history_recovery"`. This is still a `Claim Link Copied` event; do not emit a second copy event for the recovery flow.
 
 ---
 
@@ -335,6 +337,20 @@ Fired when the sender uses a share button (SMS, Email, WhatsApp, QR).
 ---
 
 ### 4.5 Sender Dashboard
+
+---
+
+#### `Claim Link Recovery Viewed`
+
+Fired when the sent-payment history displays a claim link remembered in this browser, so the sender can recover a link after leaving the payment success screen. Fire once per claim per history-page view when the link is displayed; do not fire for payments without a remembered link.
+
+This event measures use of the claim-link recovery UI, not access to a wallet recovery phrase, private key, or other secret. Never include the claim URL or other secret recovery material in the payload.
+
+| Property | Type | Value / Description |
+|----------|------|---------------------|
+| `journey` | string | `"sender"` |
+| `claim_id` | string | Identifier from the payment record whose remembered link is displayed |
+| `recovery_location` | string | `"send_history"` |
 
 ---
 
@@ -873,10 +889,12 @@ Breakdown of how senders share claim links.
 
 ```
 For each share_method in {sms, email, whatsapp, qr_code, copy_only}:
-  % = (Claim Link Shared events with share_method)
-      / (total sharing actions per claim)
+  % = (matching sharing actions)
+      / (all Claim Link Copied and Claim Link Shared actions)
       × 100
 ```
+
+For `copy_only`, count `Claim Link Copied` events. For `sms`, `email`, `whatsapp`, and `qr_code`, count `Claim Link Shared` events whose `share_method` matches the value. The `Claim Link Shared` payload's `share_method` is required; do not infer a channel from the event name or claim URL.
 
 **Use:** Informs which sharing channels to prioritize in the UI and for integrations.
 

@@ -15,11 +15,13 @@ vi.mock('@/lib/analytics', () => ({
   analytics: {
     claimLinkCopied: vi.fn(),
     claimLinkShared: vi.fn(),
+    claimLinkRecoveryViewed: vi.fn(),
   },
 }));
 
 const listMock = vi.mocked(listEphemeralAccounts);
 const claimLinkCopiedMock = vi.mocked(analytics.claimLinkCopied);
+const claimLinkRecoveryViewedMock = vi.mocked(analytics.claimLinkRecoveryViewed);
 
 function account(id: string, status: AccountStatus = 'pending_claim') {
   return {
@@ -38,6 +40,7 @@ describe('SendHistory (#956)', () => {
   beforeEach(() => {
     listMock.mockReset();
     claimLinkCopiedMock.mockReset();
+    claimLinkRecoveryViewedMock.mockReset();
     window.localStorage.clear();
   });
 
@@ -66,6 +69,7 @@ describe('SendHistory (#956)', () => {
 
     await screen.findByText('10.0000000 XLM');
     expect(screen.queryByText(/another-senders-token/i)).not.toBeInTheDocument();
+    expect(claimLinkRecoveryViewedMock).not.toHaveBeenCalled();
   });
 
   it('recovers a claim link remembered by this browser and copies it', async () => {
@@ -82,6 +86,8 @@ describe('SendHistory (#956)', () => {
 
     const link = await screen.findByTestId('recovered-claim-link-a1');
     expect(link).toHaveAttribute('href', claimUrl);
+    expect(claimLinkRecoveryViewedMock).toHaveBeenCalledTimes(1);
+    expect(claimLinkRecoveryViewedMock).toHaveBeenCalledWith({ claimId: 'a1' });
     expect(screen.getByRole('link', { name: /share on whatsapp/i })).toHaveAttribute(
       'href',
       expect.stringContaining(encodeURIComponent(claimUrl)),
@@ -93,7 +99,7 @@ describe('SendHistory (#956)', () => {
     expect(screen.getByRole('button', { name: /copied/i })).toBeInTheDocument();
     expect(claimLinkCopiedMock).toHaveBeenCalledWith({
       claimId: 'a1',
-      copyLocation: 'dashboard_detail',
+      copyLocation: 'send_history_recovery',
     });
   });
 
