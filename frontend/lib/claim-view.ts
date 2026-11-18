@@ -21,6 +21,8 @@ export interface ClaimView {
   claimedByMe?: boolean;
   /** Destination address used for this session's sweep. */
   sweepDestination?: string;
+  /** Stellar transaction hash of this session's payout, from the redeem response. */
+  sweepTxHash?: string;
   /** Amount swept during this session, in stroops. */
   sweepAmountStroops?: string;
   /**

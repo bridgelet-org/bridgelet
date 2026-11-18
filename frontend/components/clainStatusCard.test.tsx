@@ -57,9 +57,9 @@ describe('ClaimStatusCard', () => {
       expect(screen.getByText('Thanks!')).toBeInTheDocument();
     });
 
-    it('renders a dash when amount is missing', () => {
+    it('renders N/A when amount is missing', () => {
       render(<ClaimStatusCard status={AccountStatus.PENDING_CLAIM} />);
-      expect(screen.getByText('—')).toBeInTheDocument();
+      expect(screen.getByText('N/A')).toBeInTheDocument();
     });
 
     it('disables the claim button until a valid address is entered', () => {

@@ -1,16 +1,16 @@
 // #633 – 30-minute inactivity window for the §3.1 `session_id`.
 //
 // `docs/analytics-spec.md` §9.3 requires a *new* `session_id` when a browser
-// session starts — "first page load, or after 30 minutes of inactivity".
+// session starts: "first page load, or after 30 minutes of inactivity".
 // `lib/analytics.ts` mints one id per `sessionStorage` lifetime and never
 // expires it, so the inactivity half of that rule was unimplemented. This
 // module owns the whole read → expire-or-reuse → stamp → return cycle so the
 // rule is testable without a DOM, an analytics event, or `analytics.ts`.
 //
 // Two layers, so both are testable:
-//   - `resolveSessionId()` — pure. All I/O arrives as arguments (storage, clock,
+//   - `resolveSessionId()`: pure. All I/O arrives as arguments (storage, clock,
 //     id generator, threshold). No globals are touched.
-//   - `getSessionIdWithInactivity()` — the browser entry point. Reads the real
+//   - `getSessionIdWithInactivity()`: the browser entry point. Reads the real
 //     `sessionStorage` / `Date.now()` behind SSR and blocked-storage guards,
 //     and delegates to `resolveSessionId()`.
 //
@@ -23,7 +23,7 @@ export const SESSION_INACTIVITY_MS = 30 * 60 * 1000;
 
 /**
  * `sessionStorage` key holding the active `session_id`. Identical to the
- * `SESSION_ID_KEY` const in `lib/analytics.ts` — duplicated deliberately so
+ * `SESSION_ID_KEY` const in `lib/analytics.ts`; duplicated deliberately so
  * this module has no import edge to a file another PR owns. The two must stay
  * in sync; the optional cleanup is noted in the hand-off note below.
  */
@@ -67,7 +67,7 @@ export interface ResolveSessionIdOptions {
  * | no id | mint + stamp | first page load of a browser session |
  * | id, marker within window | reuse + restamp | still the same session |
  * | id, marker at/over the threshold | mint + stamp | §9.3 inactivity reset |
- * | id, no marker | reuse + stamp | id predates this module — see below |
+ * | id, no marker | reuse + stamp | id predates this module; see below |
  * | id, unparsable marker | reuse + stamp | cannot prove elapsed; do not rotate |
  * | id, marker in the future | reuse + stamp | clock skew; negative idle is < window |
  *
@@ -76,7 +76,7 @@ export interface ResolveSessionIdOptions {
  * Rotating on first sight would split one in-flight session into two across a
  * deploy, so the id is adopted and stamped; the window then applies normally.
  *
- * Returns `''` when no id can be produced — SSR, storage blocked, or a mint
+ * Returns `''` when no id can be produced: SSR, storage blocked, or a mint
  * that could not be persisted. Persisting matters: an unpersisted id would be
  * regenerated on every event, which is worse than emitting none, and matches
  * the `''` contract of `getSessionId()` in `lib/analytics.ts`.
@@ -114,8 +114,8 @@ export function resolveSessionId({
     return mint(storage, now, generateId);
   }
 
-  // Reusing the stored id: keep the window open. A failed restamp is not fatal
-  // — the id was read successfully, it just will not be rotated on schedule.
+  // Reusing the stored id: keep the window open. A failed restamp is not fatal;
+  // the id was read successfully; it just will not be rotated on schedule.
   try {
     storage.setItem(SESSION_LAST_ACTIVITY_KEY, String(now));
   } catch {

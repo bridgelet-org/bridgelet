@@ -7,6 +7,7 @@ export type ClaimErrorCode =
   | 'NETWORK_ERROR'
   | 'SWEEP_FAILED'
   | 'DESTINATION_NOT_FUNDED'
+  | 'DESTINATION_MISSING_TRUSTLINE'
   | 'SWEEP_CONTRACT_FAILED'
   | 'RATE_LIMITED'
   | 'SUBMISSION_FAILED_RETRYABLE'
@@ -17,23 +18,28 @@ export class ClaimError extends Error {
   /** Whether re-submitting this claim is safe (e.g. the request never reached the server). */
   public readonly retryable: boolean;
 
-  constructor(public readonly code: ClaimErrorCode, message: string, retryable = false) {
+  constructor(
+    public readonly code: ClaimErrorCode,
+    message: string,
+    retryable = false,
+  ) {
     super(message);
     this.name = 'ClaimError';
     this.retryable = retryable;
   }
 }
 
-const MESSAGES: Record<ClaimErrorCode, string> = {
-  TOKEN_NOT_FOUND:  'This claim link is invalid or no longer exists.',
-  ALREADY_CLAIMED:  'This payment has already been claimed.',
-  EXPIRED:          'This claim link has expired. Contact the sender for a new one.',
-  INVALID_ADDRESS:  'The destination address is not a valid Stellar public key.',
-  NETWORK_ERROR:    'A network error occurred. Please check your connection and try again.',
-  SWEEP_FAILED:     'The transfer could not be completed. Please try again or contact support.',
+type StaticClaimErrorCode = Exclude<ClaimErrorCode, 'DESTINATION_MISSING_TRUSTLINE'>;
+
+const MESSAGES: Record<StaticClaimErrorCode, string> = {
+  TOKEN_NOT_FOUND: 'This claim link is invalid or no longer exists.',
+  ALREADY_CLAIMED: 'This payment has already been claimed.',
+  EXPIRED: 'This claim link has expired. Contact the sender for a new one.',
+  INVALID_ADDRESS: 'The destination address is not a valid Stellar public key.',
+  NETWORK_ERROR: 'A network error occurred. Please check your connection and try again.',
+  SWEEP_FAILED: 'The transfer could not be completed. Please try again or contact support.',
   DESTINATION_NOT_FUNDED: 'Fund this wallet with at least 1 XLM first.',
-  SWEEP_CONTRACT_FAILED:
-    'The claim could not be completed. Your funds are safe; contact support.',
+  SWEEP_CONTRACT_FAILED: 'The claim could not be completed. Your funds are safe; contact support.',
   RATE_LIMITED: 'Too many attempts, wait a minute.',
   SUBMISSION_FAILED_RETRYABLE:
     'Your claim could not be sent right now. Please try again -- this is safe and will not cause any problems.',
@@ -43,7 +49,11 @@ const MESSAGES: Record<ClaimErrorCode, string> = {
     'Something went wrong after several attempts. Your funds are safe, but we need our team to look into this.',
 };
 
-export function getClaimErrorMessage(code: ClaimErrorCode): string {
+export function getClaimErrorMessage(code: ClaimErrorCode, assetCode?: string): string {
+  if (code === 'DESTINATION_MISSING_TRUSTLINE') {
+    const asset = assetCode?.trim() || 'this asset';
+    return `Your wallet needs to add ${asset} before it can receive this payment. Add ${asset} in your wallet, then try again.`;
+  }
   return MESSAGES[code];
 }
 
@@ -56,6 +66,8 @@ export function claimErrorCodeFromApiCode(apiCode: string | undefined): ClaimErr
   switch (apiCode) {
     case 'DESTINATION_NOT_FUNDED':
       return 'DESTINATION_NOT_FUNDED';
+    case 'DESTINATION_MISSING_TRUSTLINE':
+      return 'DESTINATION_MISSING_TRUSTLINE';
     case 'SWEEP_CONTRACT_FAILED':
       return 'SWEEP_CONTRACT_FAILED';
     case 'INVALID_ADDRESS':
@@ -76,9 +88,9 @@ export function claimErrorCodeFromApiCode(apiCode: string | undefined): ClaimErr
  * backend's machine-readable error code. Backend codes win so the user sees a
  * specific message (e.g. `DESTINATION_NOT_FUNDED`) instead of a generic one.
  */
-export function toClaimError(status: number, apiCode?: string): ClaimError {
+export function toClaimError(status: number, apiCode?: string, assetCode?: string): ClaimError {
   const mapped = claimErrorCodeFromApiCode(apiCode);
-  if (mapped) return new ClaimError(mapped, MESSAGES[mapped]);
+  if (mapped) return new ClaimError(mapped, getClaimErrorMessage(mapped, assetCode));
 
   if (status === 404) return new ClaimError('TOKEN_NOT_FOUND', MESSAGES.TOKEN_NOT_FOUND);
   if (status === 409) return new ClaimError('ALREADY_CLAIMED', MESSAGES.ALREADY_CLAIMED);

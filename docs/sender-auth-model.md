@@ -2,22 +2,22 @@
 
 ## Decision
 
-**Option B — Wallet-based auth via Freighter** is the chosen approach for the `/send` page.
+**Option B: Wallet-based auth via Freighter** is the chosen approach for the `/send` page.
 
 ## Options Evaluated
 
 | Option | Description | Verdict |
 |--------|-------------|---------|
-| A — API key in env | Caller includes a static `X-API-Key` header from `.env`. Suits backend org integrations. | ❌ Rejected for browser UI — key would leak in the JS bundle. |
-| B — Wallet-based auth (Freighter) | Sender connects Freighter browser extension. The public key identifies them; transaction signing is the implicit proof of auth. | ✅ **Chosen.** Native to Stellar, non-custodial, already supported by `lib/wallet.ts`. |
-| C — No auth (open send) | `/send` is fully open with no identity check. | ❌ Rejected for MVP — unmitigated spam/abuse risk without rate-limiting. |
+| A: API key in env | Caller includes a static `X-API-Key` header from `.env`. Suits backend org integrations. | ❌ Rejected for browser UI: key would leak in the JS bundle. |
+| B: Wallet-based auth (Freighter) | Sender connects Freighter browser extension. The public key identifies them; transaction signing is the implicit proof of auth. | ✅ **Chosen.** Native to Stellar, non-custodial, already supported by `lib/wallet.ts`. |
+| C: No auth (open send) | `/send` is fully open with no identity check. | ❌ Rejected for MVP: unmitigated spam/abuse risk without rate-limiting. |
 
 ## How It Works
 
 1. The `/send` page renders a `WalletConnect` component (`frontend/components/wallet-connect.tsx`).
-2. The user clicks **Connect Freighter Wallet** — this opens the Freighter extension popup.
+2. The user clicks **Connect Freighter Wallet**: this opens the Freighter extension popup.
 3. On approval, the sender's Stellar public key is returned.
-4. When the sender creates a payment intent, the Bridgelet SDK signs the transaction with the connected key, which serves as the auth proof — no JWT is issued or stored.
+4. When the sender creates a payment intent, the Bridgelet SDK signs the transaction with the connected key, which serves as the auth proof; no JWT is issued or stored.
 
 ## Security Notes
 
@@ -29,11 +29,11 @@
 
 | File | Change |
 |------|--------|
-| `frontend/components/wallet-connect.tsx` | New — Freighter connect button with connected/error states |
-| `frontend/app/send/page.tsx` | Updated — renders `WalletConnect` before the API config display |
+| `frontend/components/wallet-connect.tsx` | New: Freighter connect button with connected/error states |
+| `frontend/app/send/page.tsx` | Updated: renders `WalletConnect` before the API config display |
 
 ## References
 
-- `frontend/lib/wallet.ts` — `connectFreighter()` and wallet persistence helpers
+- `frontend/lib/wallet.ts`: `connectFreighter()` and wallet persistence helpers
 - [Freighter browser extension](https://freighter.app)
 - [Freighter JS API docs](https://docs.freighter.app)

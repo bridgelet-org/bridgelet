@@ -17,7 +17,7 @@
     "@release-it/conventional-changelog": {
       "preset": "conventionalcommits",
       "infile": "CHANGELOG.md",
-      "header": "# Changelog\n\nAll notable changes to Bridgelet will be documented in this file.\n\nThe format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),\nand this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).\n\n> **Release process:** changelog entries are generated automatically from\n> conventional commits on release (`npm run release`, via release-it +\n> `@release-it/conventional-changelog`). Manual edits are an explicit override\n> of the generated output — see the Releases section of CONTRIBUTING.md."
+      "header": "# Changelog\n\nAll notable changes to Bridgelet will be documented in this file.\n\nThe format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),\nand this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).\n\n> **Release process:** changelog entries are generated automatically from\n> conventional commits on release (`npm run release`, via release-it +\n> `@release-it/conventional-changelog`). Manual edits are an explicit override\n> of the generated output: see the Releases section of CONTRIBUTING.md."
     }
   }
 }

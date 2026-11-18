@@ -22,7 +22,7 @@ const nextConfig = {
    * here because:
    *   1. The claim page has no SEO value that depends on referrer analytics.
    *   2. No third-party widgets on this page need the origin URL to function.
-   *   3. The alternative — `strict-origin-when-cross-origin` — would still
+   *   3. The alternative (`strict-origin-when-cross-origin`) would still
    *      send the full path (including the token) to same-origin sub-resources,
    *      which is unnecessarily broad.
    *
@@ -42,7 +42,7 @@ const nextConfig = {
         headers: [{ key: 'Referrer-Policy', value: 'no-referrer' }],
       },
       {
-        // Matches /claim/<any-token> — Next.js header source patterns use
+        // Matches /claim/<any-token>: Next.js header source patterns use
         // :param notation, not the [param] file-system convention.
         source: '/claim/:token',
         headers: [

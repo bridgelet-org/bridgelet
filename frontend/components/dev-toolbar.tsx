@@ -47,7 +47,7 @@ export function DevToolbar() {
     try {
       sessionStorage.setItem(SESSION_KEY, value);
     } catch {
-      // sessionStorage unavailable in some test environments — ignore
+      // sessionStorage unavailable in some test environments; ignore
     }
   }
 

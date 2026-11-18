@@ -15,7 +15,7 @@ export class BridgeletApiError extends Error {
       const body = await res.json();
       message = body?.error?.message ?? message;
     } catch {
-      // non-JSON body — keep statusText
+      // non-JSON body: keep statusText
     }
     return new BridgeletApiError(res.status, message);
   }

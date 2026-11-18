@@ -171,7 +171,7 @@ export type ErrorType = keyof typeof ERROR_TYPES;
  * `navigator.msDoNotTrack` as the strings `"1"` / `"0"`, or `null` when the
  * user expressed no preference. A numeric `1` is also accepted because a
  * few privacy extensions assign a number rather than a string. Everything
- * else — `"0"`, `"unspecified"`, `""`, `null`, non-string junk — means the
+ * else (`"0"`, `"unspecified"`, `""`, `null`, non-string junk) means the
  * user did not opt out, so the event is allowed.
  */
 function isDntSignalEnabled(value: unknown): boolean {
@@ -183,7 +183,7 @@ function isDntSignalEnabled(value: unknown): boolean {
 /**
  * Browser-level Do Not Track opt-out (`docs/analytics-spec.md` §9.5).
  *
- * When the browser reports `DNT: 1` the event is suppressed entirely — not
+ * When the browser reports `DNT: 1` the event is suppressed entirely; not
  * reduced, not anonymised further, just dropped. This matters most in the
  * recipient flow, where someone opening a claim link may have no prior
  * relationship with Bridgelet and never asked to be measured.
@@ -198,7 +198,7 @@ function isDntSignalEnabled(value: unknown): boolean {
  *
  * This function deliberately touches no storage. `track()` calls it *before*
  * `getAnonymousId()` / `getSessionId()` so that a visitor who opted out
- * never has a UUID minted and persisted on their behalf — writing an
+ * never has a UUID minted and persisted on their behalf; writing an
  * identifier to `localStorage` is itself a durable tracking artefact, so
  * checking later would be too late.
  *
@@ -226,7 +226,7 @@ export function isDoNotTrackEnabled(): boolean {
 /**
  * The only two events §9.4 requires to be idempotent on `claim_id`:
  * `Payment Created` (sender) and `Claim Succeeded` (recipient). Every other
- * event is deliberately left un-deduplicated — a second `Page Viewed` in the
+ * event is deliberately left un-deduplicated; a second `Page Viewed` in the
  * same tick, or a recipient copying the claim link twice, are distinct real
  * interactions that must all be counted.
  *
@@ -236,8 +236,8 @@ export function isDoNotTrackEnabled(): boolean {
  * ephemeral account exists, so there is nothing stable to key on, and a
  * generic "same event twice within N ms" rule would silently swallow
  * legitimate repeats (two `Page Viewed` events in one tick, a user
- * retrying a copy). That guard belongs in the UI — `ConfirmStep` already
- * disables its button via `submitting` — so this layer leaves
+ * retrying a copy). That guard belongs in the UI (`ConfirmStep` already
+ * disables its button via `submitting`), so this layer leaves
  * `Payment Confirmed` un-deduplicated and the gap is recorded as a UI one.
  */
 export const DEDUPLICATED_EVENTS = ['Payment Created', 'Claim Succeeded'] as const;
@@ -261,8 +261,8 @@ export const DEDUP_MAX_ENTRIES = 200;
 
 /**
  * How long a `claim_id` counts as "already sent" for a §9.4 event. A
- * duplicate always arrives within a render cycle or a network retry — both
- * are seconds — so one hour is generous, while short enough that the Map
+ * duplicate always arrives within a render cycle or a network retry (both
+ * are seconds), so one hour is generous, while short enough that the Map
  * reclaims its entries during normal use. The TTL is a safety valve against
  * over-suppression (a genuinely distinct second `Claim Succeeded` for a
  * partially-swept claim), not the primary mechanism.
@@ -286,7 +286,7 @@ export interface DeduplicationStore {
  *
  * Eviction policy: entries expire after `ttlMs`; survivors beyond
  * `maxEntries` are evicted least-recently-used (a hit refreshes recency).
- * The Map is the bound — there is no persistent backing store.
+ * The Map is the bound: there is no persistent backing store.
  */
 export function createDeduplicationStore(
   maxEntries: number = DEDUP_MAX_ENTRIES,
@@ -330,7 +330,7 @@ export function createDeduplicationStore(
  * **Honest limitations.** This reduces double-counting; it does not
  * eliminate it. Being in-memory and per-tab, it cannot see a retry that
  * arrives from a different process, in a second tab, or after a page
- * reload — the real guarantee has to come from the pipeline deduplicating on
+ * reload: the real guarantee has to come from the pipeline deduplicating on
  * the `message_id` / `claim_id` this module now attaches to every payload.
  * The store is deliberately not persisted to `localStorage`:
  * `claim_id` values identify a payment, and writing them durably would
@@ -341,7 +341,7 @@ const claimEventDedupStore = createDeduplicationStore();
 /**
  * `true` when this §9.4 event for this `claim_id` was already dispatched
  * inside the TTL window and must therefore be dropped. Returns `false` for
- * every other event, and for a §9.4 event with no usable `claim_id` — an
+ * every other event, and for a §9.4 event with no usable `claim_id`; an
  * event without a key is never deduped, because guessing would risk
  * suppressing a distinct event.
  */
@@ -360,25 +360,25 @@ function isDuplicateClaimEvent(event: ClaimEvent, claimId: unknown): boolean {
  *
  * This is the only place an event reaches the provider, so both opt-out
  * (§9.5) and deduplication (§9.4) are enforced here rather than at call
- * sites — no emitter can forget them.
+ * sites: no emitter can forget them.
  *
  * Dispatch targets, in priority order:
- * 1. `window.plausible` — populated by the Plausible script loaded in the
+ * 1. `window.plausible`: populated by the Plausible script loaded in the
  *    root layout when NEXT_PUBLIC_PLAUSIBLE_DOMAIN is configured (§9.1).
- * 2. `window.posthog` — capture fallback when PostHog is wired up instead.
+ * 2. `window.posthog`: capture fallback when PostHog is wired up instead.
  * 3. Console debug output in development builds.
  */
 function track(event: ClaimEvent, props?: EventProps): void {
   if (typeof window === 'undefined') return;
 
-  // #635 (§9.5) — first, before any payload is built. `getAnonymousId()`
+  // #635 (§9.5): first, before any payload is built. `getAnonymousId()`
   // and `getSessionId()` below *persist* a UUID to localStorage/
   // sessionStorage; minting one for a visitor who asked not to be tracked
   // would itself be a privacy violation, so suppression has to happen
   // before identifier generation, not just before the provider call.
   if (isDoNotTrackEnabled()) return;
 
-  // #634 (§9.4) — second, so a suppressed duplicate also avoids burning a
+  // #634 (§9.4): second, so a suppressed duplicate also avoids burning a
   // `message_id`.
   if (isDuplicateClaimEvent(event, props?.claim_id)) return;
 
@@ -762,7 +762,7 @@ export const analytics = {
     }),
 
   /**
-   * §6 Retry Clicked — fires when a user clicks Try Again/Retry on an error
+   * §6 Retry Clicked: fires when a user clicks Try Again/Retry on an error
    * screen, recording which error prompted the retry and how many attempts
    * have been made.
    */
@@ -780,7 +780,7 @@ export const analytics = {
     }),
 
   /**
-   * §5.3 Claim Failed — fires when the sweep fails after the recipient confirmed.
+   * §5.3 Claim Failed: fires when the sweep fails after the recipient confirmed.
    * `error_type` must be one of the five §5.3 taxonomy values.
    */
   claimFailed: ({
@@ -800,7 +800,7 @@ export const analytics = {
     }),
 
   /**
-   * §5.4 Claim Success Viewed — fires when the post-claim success screen is displayed.
+   * §5.4 Claim Success Viewed: fires when the post-claim success screen is displayed.
    */
   claimSuccessViewed: ({ claimId, assetType }: ClaimSuccessViewedProps) =>
     track('Claim Success Viewed', {
@@ -810,7 +810,7 @@ export const analytics = {
     }),
 
   /**
-   * §5.4 Sender Signup CTA Clicked — fires when a recipient clicks "Create your account →"
+   * §5.4 Sender Signup CTA Clicked: fires when a recipient clicks "Create your account →"
    * on the success screen, measuring viral growth potential.
    */
   senderSignupCtaClicked: ({ claimId }: SenderSignupCtaClickedProps) =>
@@ -821,7 +821,7 @@ export const analytics = {
     }),
 
   /**
-   * §5.4/§6 Explorer Link Clicked — fires when a user (sender or recipient) clicks a
+   * §5.4/§6 Explorer Link Clicked: fires when a user (sender or recipient) clicks a
    * Stellar Explorer transaction link.
    */
   explorerLinkClicked: ({ journey, claimId, sourceScreen }: ExplorerLinkClickedProps) =>

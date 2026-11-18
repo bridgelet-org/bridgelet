@@ -130,7 +130,7 @@ export function SendForm() {
         </ol>
       </nav>
 
-      {/* Step heading — receives focus on every step transition */}
+      {/* Step heading: receives focus on every step transition */}
       <h2
         ref={headingRef}
         tabIndex={-1}

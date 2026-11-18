@@ -44,7 +44,7 @@ export function ChainSelector({
             value={chain.id}
             disabled={!chain.isSupported}
           >
-            {chain.name} ({chain.symbol}) {!chain.isSupported ? `— [${chain.badge}]` : ''}
+            {chain.name} ({chain.symbol}) {!chain.isSupported ? ` [${chain.badge}]` : ''}
           </option>
         ))}
       </select>

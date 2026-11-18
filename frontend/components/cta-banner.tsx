@@ -2,7 +2,7 @@ import Link from 'next/link';
 
 /**
  * Full-width CTA banner displayed at the bottom of the homepage.
- * Issue #181 — "Integrate Bridgelet Today"
+ * Issue #181: "Integrate Bridgelet Today"
  */
 export function CTABanner() {
   return (
@@ -18,7 +18,7 @@ export function CTABanner() {
           Integrate Bridgelet Today
         </h2>
         <p className="text-base text-slate-300">
-          Start sending payments to anyone — even recipients without a crypto wallet. Open-source,
+          Start sending payments to anyone, even recipients without a crypto wallet. Open-source,
           composable, and built for the Stellar ecosystem.
         </p>
         <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">

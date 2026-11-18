@@ -1,8 +1,8 @@
 /**
  * Frontend-facing API types shared with bridgelet-sdk.
  *
- * `AccountStatus` mirrors the backend's real lifecycle enum — see
- * bridgelet-sdk `src/modules/accounts/enums/account-status.enum.ts` —
+ * `AccountStatus` mirrors the backend's real lifecycle enum (see
+ * bridgelet-sdk `src/modules/accounts/enums/account-status.enum.ts`)
  * instead of an old three-value `'available' | 'claimed' | 'expired'`
  * model that had no way to represent INITIALIZING, PENDING_PAYMENT,
  * CLAIMING, PARTIAL_SWEEP, or FAILED accounts.
@@ -37,7 +37,7 @@ export interface VerifyClaimResponse {
   expiresAt: string;
 }
 
-/** Response from POST /claims/redeem — the result of a sweep. */
+/** Response from POST /claims/redeem: the result of a sweep. */
 export interface RedeemClaimResponse {
   /** Whether the sweep completed successfully. */
   success: boolean;

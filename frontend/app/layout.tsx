@@ -46,7 +46,7 @@ export default function RootLayout({ children }: RootLayoutProps) {
           {children}
           {isDev && <DevToolbar />}
           {isDev && <MockProvider />}
-          {/* Plausible loader — kept inside RootLayout so the loader is present
+          {/* Plausible loader: kept inside RootLayout so the loader is present
               on every route; the underlying script tag is stripped server-side
               on claim routes, where third-party scripts are forbidden by the
               security model (T-16, token-in-Referer). */}

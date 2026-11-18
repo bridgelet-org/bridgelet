@@ -49,4 +49,4 @@ If you are unsure how to proceed, open a GitHub Discussion or email the maintain
 
 ## Reference
 
-- [Governance](./docs/GOVERNANCE.md) — outlines project roles, decision-making, and contributor participation.
+- [Governance](./docs/GOVERNANCE.md): outlines project roles, decision-making, and contributor participation.

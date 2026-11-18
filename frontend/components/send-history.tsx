@@ -4,16 +4,21 @@ import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { listEphemeralAccounts, type EphemeralAccount } from '@/lib/bridgelet';
 import { RateLimitError } from '@/lib/create-bridgelet-client';
+import { analytics } from '@/lib/analytics';
+import { getRememberedClaimLinks } from '@/lib/claim-links';
+import { PaymentTimeline } from '@/components/payment-timeline';
 
 /**
- * Sender-facing list of the payments created from this browser.
+ * Sender-facing list of payments.
  *
- * The list deliberately renders only non-sensitive fields. A row's `claimUrl`
- * (which embeds the single-use claim token) is never read or displayed — the
- * link is shown once at creation time and is not recoverable afterwards.
+ * Server-provided `claimUrl` values are deliberately ignored because the
+ * accounts endpoint is app-wide, not sender-scoped. A claim link is shown only
+ * when this browser remembered it at creation time, allowing the sender to
+ * recover the link after closing the success screen.
  */
 
 const PAGE_SIZE = 10;
+const RECOVERABLE_CLAIM_STATUSES = new Set(['pending_payment', 'pending_claim']);
 
 type StatusStyle = { label: string; dot: string; text: string };
 
@@ -39,7 +44,7 @@ function statusStyle(status: string): StatusStyle {
 }
 
 function formatDate(iso?: string): string {
-  if (!iso) return '—';
+  if (!iso) return 'N/A';
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return iso;
   return date.toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' });
@@ -65,7 +70,7 @@ function EmptyState() {
   return (
     <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-6 py-10 text-center dark:border-slate-700 dark:bg-slate-900">
       <p className="text-sm font-medium text-slate-700 dark:text-slate-200">
-        You haven&apos;t sent any payments from this browser yet.
+        No sent payments to show yet.
       </p>
       <Link
         href="/send"
@@ -99,14 +104,21 @@ export function SendHistory() {
   // Tracked separately from `accounts.length` so the Next button stays disabled
   // while a page is in flight and reflects the last loaded page size.
   const [hasMore, setHasMore] = useState(false);
+  const [rememberedClaimLinks, setRememberedClaimLinks] = useState<Record<string, string>>({});
+  const [copiedAccountId, setCopiedAccountId] = useState<string | null>(null);
 
   const load = useCallback(async (nextOffset: number) => {
     setLoading(true);
     setError(null);
     try {
       const page = await listEphemeralAccounts({ limit: PAGE_SIZE, offset: nextOffset });
-      setAccounts(page);
-      setHasMore(page.length === PAGE_SIZE);
+      // Defensive: a malformed body must render the in-page error state, never
+      // reach `.map` during render (which would escape to the app error screen).
+      if (!page || !Array.isArray(page.accounts)) {
+        throw new Error('The payment list response was malformed.');
+      }
+      setAccounts(page.accounts);
+      setHasMore(nextOffset + page.accounts.length < page.total);
     } catch (err) {
       if (err instanceof RateLimitError) {
         setError(err.message);
@@ -122,6 +134,24 @@ export function SendHistory() {
   useEffect(() => {
     void load(offset);
   }, [load, offset]);
+
+  useEffect(() => {
+    setRememberedClaimLinks(getRememberedClaimLinks());
+  }, []);
+
+  async function handleCopyClaimLink(accountId: string, claimUrl: string) {
+    try {
+      await navigator.clipboard.writeText(claimUrl);
+      setCopiedAccountId(accountId);
+      analytics.claimLinkCopied({ claimId: accountId, copyLocation: 'dashboard_detail' });
+    } catch {
+      // Clipboard API unavailable: no-op.
+    }
+  }
+
+  function handleWhatsAppShare(accountId: string) {
+    analytics.claimLinkShared({ claimId: accountId, shareMethod: 'whatsapp' });
+  }
 
   if (loading) {
     return <LoadingState />;
@@ -145,7 +175,9 @@ export function SendHistory() {
     );
   }
 
-  if (accounts.length === 0) {
+  const safeAccounts = Array.isArray(accounts) ? accounts : [];
+
+  if (safeAccounts.length === 0) {
     return offset === 0 ? (
       <EmptyState />
     ) : (
@@ -156,26 +188,72 @@ export function SendHistory() {
   return (
     <div className="space-y-4">
       <ul className="space-y-3">
-        {accounts.map((account) => (
-          <li
-            key={account.accountId}
-            className="rounded-lg border border-slate-200 bg-white px-4 py-3 shadow-sm dark:border-slate-800 dark:bg-slate-900"
-          >
-            <div className="flex items-center justify-between gap-3">
-              <span className="font-semibold text-slate-900 dark:text-slate-100">
-                {account.amount} {account.asset}
-              </span>
-              <StatusBadge status={account.status} />
-            </div>
-            <div className="mt-1 flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-slate-500 dark:text-slate-400">
-              <span className="font-mono" title={account.accountId}>
-                {shortId(account.accountId)}
-              </span>
-              <span>Sent {formatDate(account.createdAt)}</span>
-              <span>Expires {formatDate(account.expiresAt)}</span>
-            </div>
-          </li>
-        ))}
+        {safeAccounts.map((account) => {
+          const claimUrl = RECOVERABLE_CLAIM_STATUSES.has(account.status)
+            ? rememberedClaimLinks[account.accountId]
+            : undefined;
+          const whatsappShareUrl = claimUrl
+            ? `https://wa.me/?text=${encodeURIComponent(
+                `Here is your payment claim link via Bridgelet: ${claimUrl}`,
+              )}`
+            : null;
+
+          return (
+            <li
+              key={account.accountId}
+              className="rounded-lg border border-slate-200 bg-white px-4 py-3 shadow-sm dark:border-slate-800 dark:bg-slate-900"
+            >
+              <div className="flex items-center justify-between gap-3">
+                <span className="font-semibold text-slate-900 dark:text-slate-100">
+                  {account.amount} {account.asset}
+                </span>
+                <StatusBadge status={account.status} />
+              </div>
+              <div className="mt-1 flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-slate-500 dark:text-slate-400">
+                <span className="font-mono" title={account.accountId}>
+                  {shortId(account.accountId)}
+                </span>
+                <span>Sent {formatDate(account.createdAt)}</span>
+                <span>Expires {formatDate(account.expiresAt)}</span>
+              </div>
+
+              {claimUrl && whatsappShareUrl && (
+                <div className="mt-3 space-y-2 border-t border-slate-200 pt-3 dark:border-slate-800">
+                  <p className="break-all text-xs text-slate-600 dark:text-slate-300">
+                    Claim link saved in this browser:{' '}
+                    <a
+                      href={claimUrl}
+                      data-testid={`recovered-claim-link-${account.accountId}`}
+                      className="font-medium underline underline-offset-2 hover:text-slate-900 dark:hover:text-slate-100"
+                    >
+                      {claimUrl}
+                    </a>
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => void handleCopyClaimLink(account.accountId, claimUrl)}
+                      className="rounded border border-slate-300 px-3 py-1 text-xs font-medium text-slate-700 transition hover:bg-slate-100 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+                    >
+                      {copiedAccountId === account.accountId ? 'Copied' : 'Copy link'}
+                    </button>
+                    <a
+                      href={whatsappShareUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={() => handleWhatsAppShare(account.accountId)}
+                      className="rounded border border-green-600 px-3 py-1 text-xs font-medium text-green-700 transition hover:bg-green-50 dark:border-green-500 dark:text-green-400 dark:hover:bg-green-950"
+                    >
+                      Share on WhatsApp
+                    </a>
+                  </div>
+                </div>
+              )}
+
+              <PaymentTimeline accountId={account.accountId} />
+            </li>
+          );
+        })}
       </ul>
 
       <div className="flex items-center justify-between">

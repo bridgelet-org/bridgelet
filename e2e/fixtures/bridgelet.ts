@@ -5,7 +5,7 @@
  *
  * The frontend dev server runs MSW as a browser service worker that intercepts
  * all API calls. Playwright's `page.route()` handlers run at the network
- * proxy level *before* the service worker, so they take priority — but only
+ * proxy level *before* the service worker, so they take priority, but only
  * for requests that reach the network. MSW intercepts at the browser level
  * *after* `page.route()` has a chance to fulfill.
  *
@@ -37,7 +37,7 @@ export const MOCK_PUBLIC_KEY = 'GBALBEDOFAKEWALLETADDRESSKEYPLACEHOLDERXXXXXQNZP
  * must be applied in every test that clicks; it is inert in production
  * builds (no portal is injected).
  *
- * NOTE: the style must live in `<head>` — a bare style appended to
+ * NOTE: the style must live in `<head>`: a bare style appended to
  * `document.documentElement` from an init script is discarded by Next's
  * hydration. We wait for the DOM to be ready before injecting.
  */
@@ -140,7 +140,7 @@ async function setupClaimPage(page: Page): Promise<void> {
 
 /** Install happy-path API route interceptors (replaces MSW in e2e tests). */
 export async function installHappyPathMocks(page: Page): Promise<void> {
-  // POST /api/accounts — account creation (proxied through Next.js)
+  // POST /api/accounts: account creation (proxied through Next.js)
   await page.route('**/api/accounts', async (route) => {
     if (route.request().method() !== 'POST') { await route.continue(); return; }
     await route.fulfill({
@@ -159,14 +159,14 @@ export async function installHappyPathMocks(page: Page): Promise<void> {
     });
   });
 
-  // POST /api/accounts/prepare — not supported in e2e; return 404 so the client
+  // POST /api/accounts/prepare: not supported in e2e; return 404 so the client
   // falls through to backend account creation (see isPrepareUnavailableError)
   await page.route('**/api/accounts/prepare', async (route) => {
     if (route.request().method() !== 'POST') { await route.continue(); return; }
     await route.fulfill({ status: 404, contentType: 'application/json', body: JSON.stringify({ error: 'not supported' }) });
   });
 
-  // POST /claims/verify — claim token verification
+  // POST /claims/verify: claim token verification
   await page.route('**/claims/verify', async (route) => {
     if (route.request().method() !== 'POST') { await route.continue(); return; }
     await route.fulfill({
@@ -182,7 +182,7 @@ export async function installHappyPathMocks(page: Page): Promise<void> {
     });
   });
 
-  // POST /claims/redeem — sweep execution
+  // POST /claims/redeem: sweep execution
   await page.route('**/claims/redeem', async (route) => {
     if (route.request().method() !== 'POST') { await route.continue(); return; }
     await route.fulfill({
@@ -256,7 +256,7 @@ export class SendFlowPage {
   async fillDetails(opts: { email?: string; amount?: string; memo?: string } = {}): Promise<void> {
     const { email = 'e2e-test@bridgelet.app', amount = '10', memo = 'E2E test payment' } = opts;
 
-    // Step 2 is expiry — accept the default (24 h) and continue.
+    // Step 2 is expiry: accept the default (24 h) and continue.
     await press(this.page, this.page.getByRole('button', { name: /continue/i }));
     await expect(
       this.page.locator('h2').filter({ hasText: /step 3 of 4: set account details/i }),

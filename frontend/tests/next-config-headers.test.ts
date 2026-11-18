@@ -5,7 +5,7 @@
  * We test the config module directly rather than spinning up a Next.js server
  * so these can run fast inside the existing Vitest suite (no network / process
  * overhead).  The important behaviour we are asserting is that the header
- * declaration is present and correctly formed — a misconfigured export would
+ * declaration is present and correctly formed; a misconfigured export would
  * be caught here before it ever reaches CI or a browser.
  */
 
@@ -24,7 +24,7 @@ const nextConfig = require(path.resolve(__dirname, '../next.config.js')) as {
   >;
 };
 
-describe('next.config.js — security headers', () => {
+describe('next.config.js: security headers', () => {
   it('exports a headers() function', () => {
     expect(typeof nextConfig.headers).toBe('function');
   });
@@ -45,7 +45,7 @@ describe('next.config.js — security headers', () => {
   it('does not emit the Referrer-Policy header for other routes', async () => {
     const headerRules = await nextConfig.headers!();
 
-    // Routes such as /, /send, /roadmap must not carry the claim-page header —
+    // Routes such as /, /send, /roadmap must not carry the claim-page header;
     // applying it broadly would suppress analytics referrer data site-wide.
     // /c/:token is the SDK's claim-link path, rewritten to /claim/:token in next.config.js,
     // so it carries the same token and needs the same header.

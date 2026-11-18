@@ -3,7 +3,7 @@ import { PageShell } from '@/components/page-shell';
 import { quarters, communityRequests, longTermVision } from '@/lib/roadmap-data';
 
 export const metadata: Metadata = {
-  title: 'Roadmap — Bridgelet',
+  title: 'Roadmap: Bridgelet',
   description:
     'Development timeline, planned features, and community priorities for the Bridgelet project.',
 };
@@ -69,7 +69,7 @@ export default function RoadmapPage() {
           </div>
           <ProgressBar value={overallProgress} />
           <p className="text-xs text-slate-400">
-            Phase: MVP Implementation — Building core primitives for ephemeral account creation and
+            Phase: MVP Implementation, building core primitives for ephemeral account creation and
             sweeping.
           </p>
         </div>
@@ -187,8 +187,7 @@ export default function RoadmapPage() {
             className="underline hover:text-slate-600"
           >
             voting on GitHub Discussions
-          </a>
-          , contributing code, or joining our community calls.
+          </a>, contributing code, or joining our community calls.
         </div>
       </div>
     </PageShell>

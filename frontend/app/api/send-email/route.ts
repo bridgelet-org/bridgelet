@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { Resend } from 'resend';
+import { resolveAppUrl } from '@/lib/env';
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -36,12 +37,11 @@ function escapeHtml(value: string): string {
 }
 
 /** The claim link must point at this app's own /claim/<token> route. */
-function isOwnClaimLink(value: string): boolean {
-  const base = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+function isOwnClaimLink(value: string, appUrl: string): boolean {
   let expectedOrigin: string;
   let candidate: URL;
   try {
-    expectedOrigin = new URL(base).origin;
+    expectedOrigin = new URL(appUrl).origin;
     candidate = new URL(value);
   } catch {
     return false;
@@ -65,7 +65,7 @@ function buildEmail({ claimUrl, recipientName, amount, assetCode }: ClaimEmail) 
   const html = `
     <div style="font-family: -apple-system, Segoe UI, Roboto, sans-serif; line-height: 1.5; color: #0f172a;">
       <p>${escapeHtml(greeting)}</p>
-      <p>Someone sent you a payment${escapeHtml(amountLine)} using Bridgelet. No wallet needed — just open the link below to claim it.</p>
+      <p>Someone sent you a payment${escapeHtml(amountLine)} using Bridgelet. No wallet needed: just open the link below to claim it.</p>
       <p><a href="${escapeHtml(claimUrl)}" style="display:inline-block;background:#0f172a;color:#ffffff;padding:10px 18px;border-radius:8px;text-decoration:none;">Claim your payment</a></p>
       <p style="font-size:13px;color:#475569;">If the button doesn't work, copy this link into your browser:<br><span style="word-break:break-all;">${escapeHtml(claimUrl)}</span></p>
       <p style="font-size:13px;color:#475569;">If you weren't expecting this, you can safely ignore this email.</p>
@@ -75,7 +75,7 @@ function buildEmail({ claimUrl, recipientName, amount, assetCode }: ClaimEmail) 
   const text = [
     greeting,
     '',
-    `Someone sent you a payment${amountLine} using Bridgelet. No wallet needed — open the link below to claim it:`,
+    `Someone sent you a payment${amountLine} using Bridgelet. No wallet needed: open the link below to claim it:`,
     claimUrl,
     '',
     "If you weren't expecting this, you can safely ignore this email.",
@@ -92,6 +92,14 @@ export async function POST(request: Request) {
     return NextResponse.json(
       { error: 'Email service not configured' },
       { status: 501 },
+    );
+  }
+
+  const appUrl = resolveAppUrl({ headers: request.headers });
+  if (!appUrl) {
+    return NextResponse.json(
+      { error: 'App URL is not configured' },
+      { status: 503 },
     );
   }
 
@@ -114,7 +122,7 @@ export async function POST(request: Request) {
   const recipientEmail =
     typeof payload.recipientEmail === 'string' ? payload.recipientEmail.trim() : '';
 
-  if (!claimUrl || !isOwnClaimLink(claimUrl)) {
+  if (!claimUrl || !isOwnClaimLink(claimUrl, appUrl)) {
     return NextResponse.json(
       { error: 'A valid Bridgelet claim link is required' },
       { status: 400 },

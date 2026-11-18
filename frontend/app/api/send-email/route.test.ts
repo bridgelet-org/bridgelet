@@ -42,6 +42,7 @@ describe('POST /api/send-email (#763)', () => {
 
   afterEach(() => {
     vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
   });
 
   it('sends the claim link to the recipient using a fixed server-built template', async () => {
@@ -112,6 +113,36 @@ describe('POST /api/send-email (#763)', () => {
     );
 
     expect(res.status).toBe(502);
+  });
+
+  it('accepts a claim link using the resolved Vercel fallback URL', async () => {
+    vi.stubEnv('NEXT_PUBLIC_APP_URL', '');
+    vi.stubEnv('VERCEL_PROJECT_PRODUCTION_URL', 'bridgelet.vercel.app');
+    sendMock.mockResolvedValue({ data: { id: 'email_vercel' }, error: null });
+
+    const res = await POST(
+      makeRequest({
+        claimUrl: 'https://bridgelet.vercel.app/claim/abc123',
+        recipientEmail: 'recipient@example.com',
+      }),
+    );
+
+    expect(res.status).toBe(200);
+    expect(sendMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('returns 503 when no app URL can be resolved', async () => {
+    vi.stubEnv('NEXT_PUBLIC_APP_URL', '');
+    vi.stubEnv('VERCEL_PROJECT_PRODUCTION_URL', '');
+    vi.stubEnv('NODE_ENV', 'production');
+    vi.stubGlobal('window', undefined);
+
+    const res = await POST(
+      makeRequest({ claimUrl: VALID_CLAIM_URL, recipientEmail: 'recipient@example.com' }),
+    );
+
+    expect(res.status).toBe(503);
+    expect(sendMock).not.toHaveBeenCalled();
   });
 
   it('rejects a claim link that does not belong to this app', async () => {

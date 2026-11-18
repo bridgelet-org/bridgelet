@@ -5,6 +5,7 @@ import { RateLimitBanner } from '@/components/rate-limit-banner';
 import { RateLimitError } from '@/lib/api/client';
 import { ChainSelector } from '@/components/chain-selector';
 import { AccountStatus } from '@/lib/api/types';
+import { explorerTxUrl } from '@/lib/explorer';
 import { analytics, type ValidationError } from '@/lib/analytics';
 
 /**
@@ -38,6 +39,8 @@ export interface ClaimStatusCardProps {
   claimedByMe?: boolean;
   /** Destination address used for this session's sweep. */
   sweepDestination?: string;
+  /** Transaction hash of this session's payout, used for the explorer link. */
+  sweepTxHash?: string;
   /** Amount swept during this session, in stroops. */
   sweepAmountStroops?: string;
 }
@@ -46,7 +49,7 @@ export interface ClaimStatusCardProps {
 
 function stroopsToDisplay(stroops: string, assetCode = 'XLM'): string {
   const num = parseFloat(stroops);
-  if (Number.isNaN(num)) return `— ${assetCode}`;
+  if (Number.isNaN(num)) return `N/A ${assetCode}`;
   const xlm = num / 10_000_000;
   return `${xlm.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 7 })} ${assetCode}`;
 }
@@ -162,7 +165,7 @@ function AvailablePanel({
   // Matches the backend's Stellar public key validation (StrKey ed25519 public keys).
   const isValidAddress = /^G[A-Z2-7]{55}$/.test(destinationAddress);
 
-  // §6 Error Displayed — fires once when claimError first appears.
+  // §6 Error Displayed: fires once when claimError first appears.
   useEffect(() => {
     if (claimError && !errorDisplayedRef.current) {
       errorDisplayedRef.current = true;
@@ -208,7 +211,7 @@ function AvailablePanel({
     setClaiming(true);
     setRateLimit(undefined);
 
-    // §6 Retry Clicked — fires when the user re-submits after seeing an error.
+    // §6 Retry Clicked: fires when the user re-submits after seeing an error.
     if (claimError) {
       analytics.retryClicked({
         journey: 'recipient',
@@ -257,36 +260,41 @@ function AvailablePanel({
 
   return (
     <div className="space-y-4">
-      <dl className="space-y-2 text-sm">
-        <div className="flex justify-between">
-          <dt className="font-medium text-slate-700">Amount</dt>
-          <dd className="font-semibold text-slate-900">
-            {amountStroops ? (
-              stroopsToDisplay(amountStroops, assetCode)
-            ) : (
-              <span className="text-slate-400">—</span>
-            )}
-          </dd>
-        </div>
-        {expiresAt && (
-          <div className="flex justify-between">
-            <dt className="font-medium text-slate-700 dark:text-slate-300">Expires</dt>
-            <dd className="text-slate-600 dark:text-slate-400">{formatExpiry(expiresAt)}</dd>
-          </div>
-        )}
-        {memo && (
-          <div className="flex justify-between">
-            <dt className="font-medium text-slate-700 dark:text-slate-300">Memo</dt>
-            <dd className="text-slate-600 dark:text-slate-400">{memo}</dd>
-          </div>
-        )}
-      </dl>
+      <p className="break-words text-sm text-slate-600 dark:text-slate-300">
+        You are receiving{' '}
+        <span className="font-semibold text-slate-900 dark:text-slate-100">
+          {amountStroops ? (
+            stroopsToDisplay(amountStroops, assetCode)
+          ) : (
+            <span className="text-slate-400 dark:text-slate-500">N/A</span>
+          )}
+        </span>
+      </p>
+
+      {(expiresAt || memo) && (
+        <dl className="space-y-2 text-sm">
+          {expiresAt && (
+            <div className="flex flex-wrap justify-between gap-2">
+              <dt className="font-medium text-slate-700 dark:text-slate-300">Expires</dt>
+              <dd className="break-words text-slate-600 dark:text-slate-400">
+                {formatExpiry(expiresAt)}
+              </dd>
+            </div>
+          )}
+          {memo && (
+            <div className="flex flex-wrap justify-between gap-2">
+              <dt className="font-medium text-slate-700 dark:text-slate-300">Memo</dt>
+              <dd className="break-words text-slate-600 dark:text-slate-400">{memo}</dd>
+            </div>
+          )}
+        </dl>
+      )}
 
       {rateLimit !== undefined && <RateLimitBanner retryAfter={rateLimit} />}
       {claimError && (
         <p
           role="alert"
-          className="text-sm text-red-700 bg-red-50 border border-red-200 rounded px-3 py-2"
+          className="break-words rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-300"
         >
           {claimError}
         </p>
@@ -295,7 +303,7 @@ function AvailablePanel({
       <div>
         <label
           htmlFor="destination-address"
-          className="mb-1 block text-xs font-medium text-slate-700"
+          className="mb-1 block text-xs font-medium text-slate-700 dark:text-slate-300"
         >
           Your Stellar wallet address
         </label>
@@ -308,10 +316,10 @@ function AvailablePanel({
           placeholder="G..."
           value={destinationAddress}
           onChange={(e) => setDestinationAddress(e.target.value.trim())}
-          className="w-full rounded-lg border border-slate-300 px-3 py-2 font-mono text-xs text-slate-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-600"
+          className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 font-mono text-xs text-slate-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-600 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
         />
         {destinationAddress.length > 0 && !isValidAddress && (
-          <p className="mt-1 text-xs text-red-600">
+          <p className="mt-1 text-xs text-red-600 dark:text-red-400">
             Enter a valid Stellar public key (starts with G, 56 characters).
           </p>
         )}
@@ -381,8 +389,13 @@ function ClaimedPanel({
   assetCode,
   sweepDestination,
   claimedByMe,
-}: Pick<ClaimStatusCardProps, 'claimId' | 'assetCode' | 'sweepDestination' | 'claimedByMe'>) {
-  // §5.4 Claim Success Viewed — fires once when this session's successful
+  sweepTxHash,
+}: Pick<
+  ClaimStatusCardProps,
+  'claimId' | 'assetCode' | 'sweepDestination' | 'claimedByMe' | 'sweepTxHash'
+>) {
+  const explorerUrl = explorerTxUrl(sweepTxHash);
+  // §5.4 Claim Success Viewed: fires once when this session's successful
   // claim result is displayed. Guarded by claimedByMe to avoid firing when
   // the panel shows because someone else already claimed.
   useEffect(() => {
@@ -410,7 +423,9 @@ function ClaimedPanel({
           />
         </svg>
         <div>
-          <p className="text-sm font-semibold text-blue-800 dark:text-blue-100">{claimedByMe ? 'Payment claimed!' : 'Payment already claimed'}</p>
+          <p className="text-sm font-semibold text-blue-800 dark:text-blue-100">
+            {claimedByMe ? 'Payment claimed!' : 'Payment already claimed'}
+          </p>
           <p className="text-xs text-blue-700 mt-0.5 dark:text-blue-200">
             {claimedByMe
               ? 'The funds have been swept to your wallet.'
@@ -424,11 +439,11 @@ function ClaimedPanel({
         </div>
       </div>
 
-      {claimedByMe && claimId && (
+      {claimedByMe && claimId && explorerUrl && (
         <div className="space-y-2">
-          {/* §5.4 Explorer Link Clicked — Stellar block explorer link */}
+          {/* §5.4 Explorer Link Clicked: Stellar block explorer link */}
           <a
-            href={`https://stellar.expert/explorer/testnet/tx/${claimId}`}
+            href={explorerUrl}
             target="_blank"
             rel="noopener noreferrer"
             onClick={() =>
@@ -443,7 +458,7 @@ function ClaimedPanel({
             View transaction on Stellar Explorer ↗
           </a>
 
-          {/* §5.4 Sender Signup CTA Clicked — viral growth loop */}
+          {/* §5.4 Sender Signup CTA Clicked: viral growth loop */}
           <a
             href="/send"
             onClick={() => analytics.senderSignupCtaClicked({ claimId })}
@@ -562,7 +577,7 @@ function FailedPanel({ supportEmail }: Pick<ClaimStatusCardProps, 'supportEmail'
 
 /**
  * Renders the correct UI for a claim token based on its current account
- * status. Every value of AccountStatus is handled explicitly — there is no
+ * status. Every value of AccountStatus is handled explicitly; there is no
  * silent "unknown status" fallback.
  */
 export function ClaimStatusCard({
@@ -577,6 +592,7 @@ export function ClaimStatusCard({
   supportEmail,
   claimedByMe,
   sweepDestination,
+  sweepTxHash,
 }: ClaimStatusCardProps) {
   return (
     <article
@@ -587,7 +603,9 @@ export function ClaimStatusCard({
       className={`rounded-xl border-2 ${BORDER_COLORS[status]} bg-white p-5 shadow-sm space-y-4 dark:bg-slate-900`}
     >
       <header className="flex items-center justify-between">
-        <h2 className="text-base font-semibold text-slate-900 dark:text-slate-50">{HEADERS[status]}</h2>
+        <h2 className="text-base font-semibold text-slate-900 dark:text-slate-50">
+          {HEADERS[status]}
+        </h2>
         <StatusBadge status={status} />
       </header>
 
@@ -616,6 +634,7 @@ export function ClaimStatusCard({
           assetCode={assetCode}
           claimedByMe={claimedByMe}
           sweepDestination={sweepDestination}
+          sweepTxHash={sweepTxHash}
         />
       )}
       {status === AccountStatus.EXPIRED && (

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Issue #762 — sanity-check critical environment variables before starting or
+ * Issue #762: sanity-check critical environment variables before starting or
  * building the frontend, so a misconfiguration fails loudly at build/start
  * instead of on the first request.
  */

@@ -24,7 +24,7 @@ export default function TabLayout() {
           fontSize: 11,
           fontWeight: '500',
         },
-        // Badge styling — matches standard iOS/Android appearance
+        // Badge styling: matches standard iOS/Android appearance
         tabBarBadgeStyle: {
           backgroundColor: '#EF4444',
           color: '#FFFFFF',

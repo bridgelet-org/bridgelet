@@ -5,7 +5,7 @@
 **Created:** March 2026
 **Based On:** `bridgelet-frd-ui-ux.md`, `ROADMAP.md`, `FRONTEND_TECHNICAL_SPEC.md`
 
-> **Implementation status:** Implementation compliance has **not** been verified. Treat this document as the intended design for Bridgelet's analytics instrumentation, not as a source of truth. See `bridgelet-product-audit/postmortems/analytics-spec-vs-implementation-unverified.md`.
+> **Implementation status:** Implementation compliance has **not** been verified. Treat this document as the intended design for Bridgelet's analytics instrumentation, not as a source of truth.
 
 ---
 
@@ -25,7 +25,7 @@
 
 ## 1. Overview
 
-This document defines the analytics and product event tracking specification for Bridgelet — a crypto onboarding solution that allows senders to create claimable crypto links for recipients who do not yet have wallets.
+This document defines the analytics and product event tracking specification for Bridgelet, a crypto onboarding solution that allows senders to create claimable crypto links for recipients who do not yet have wallets.
 
 The purpose of this spec is to:
 - Define every trackable user interaction across both journeys
@@ -127,7 +127,7 @@ Every event includes a **base payload** of common properties. Event-specific pro
 }
 ```
 
-> **Privacy note:** No PII (name, email, phone) should ever appear in an analytics payload. Wallet addresses are pseudonymous — include them only where explicitly specified below. Recipient wallet addresses must never be logged in sender-journey events.
+> **Privacy note:** No PII (name, email, phone) should ever appear in an analytics payload. Wallet addresses are pseudonymous: include them only where explicitly specified below. Recipient wallet addresses must never be logged in sender-journey events.
 
 ### 3.2 Conditional Properties
 
@@ -891,8 +891,7 @@ Breakdown of channels through which recipients open claim links.
 > dashboard that computes the distribution below. The event payload tests only
 > verify emission; they do not verify the KPI against an event export. Do not
 > report this KPI until an aggregation query or dashboard is implemented and
-> its result has been checked against the event data. See
-> `bridgelet-product-audit/postmortems/analytics-spec-vs-implementation-unverified.md`.
+> its result has been checked against the event data.
 
 ```
 For each entry_channel in {sms, email, whatsapp, direct, unknown}:
@@ -981,10 +980,10 @@ These are lower-level metrics derived from event data to monitor system health a
 ### 9.1 Recommended Analytics Platforms
 
 This spec is platform-agnostic and compatible with:
-- **[Segment](https://segment.com)** — recommended as a routing layer to downstream tools
-- **[PostHog](https://posthog.com)** — open-source; suitable for self-hosted analytics
-- **[Mixpanel](https://mixpanel.com)** — strong funnel analysis
-- **[Amplitude](https://amplitude.com)** — strong for product metrics
+- **[Segment](https://segment.com)**: recommended as a routing layer to downstream tools
+- **[PostHog](https://posthog.com)**: open-source; suitable for self-hosted analytics
+- **[Mixpanel](https://mixpanel.com)**: strong funnel analysis
+- **[Amplitude](https://amplitude.com)**: strong for product metrics
 
 ### 9.2 Client-Side vs. Server-Side
 
@@ -1015,5 +1014,5 @@ Respect browser-level `DNT` headers. If `DNT: 1`, suppress all analytics events.
 
 ---
 
-*Document version 1.0 — Analytics & Product Event Tracking Specification for Bridgelet*
+*Document version 1.0: Analytics & Product Event Tracking Specification for Bridgelet*
 *Author: See git history*

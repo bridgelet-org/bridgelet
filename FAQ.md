@@ -98,7 +98,7 @@ The claim process includes multiple security layers:
 - MVP encryption is basic; production deployments should use AES-256
 - All sweep transactions require valid claim token verification
 
-See [Security Model](./docs/security-model.pdf) for detailed threat analysis.
+See [Security Model](./docs/security-model.mdx) for detailed threat analysis.
 
 ### How long do claim links remain valid?
 
@@ -320,11 +320,11 @@ These events enable off-chain monitoring and integration with analytics systems.
 
 ### Where can I find the full documentation?
 
-- [Architecture Overview](./docs/architecture.pdf)
-- [Security Model](./docs/security-model.pdf)
+- [Architecture Overview](./docs/architecture.mdx)
+- [Security Model](./docs/security-model.mdx)
 - [Getting Started Guide](./docs/getting-started.pdf)
 - [Integration Guide](./docs/integration-guide.pdf)
-- [Use Cases & Examples](./docs/use-cases.pdf)
+- [Use Cases & Examples](./docs/use-cases.md)
 - [MVP Specification](./docs/mvp-specification.pdf)
 
 ### What features are planned for future releases?

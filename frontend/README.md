@@ -41,7 +41,7 @@ origin that does not include the frontend.
 
 | Variable | Visibility | Purpose | Must match |
 | --- | --- | --- | --- |
-| `NEXT_PUBLIC_APP_URL` | browser | Public URL of this frontend; used to build claim links | The SDK's `CLAIM_BASE_URL` |
+| `NEXT_PUBLIC_APP_URL` | browser | Public URL of this frontend (for example `https://bridgelet.vercel.app`); used to build and validate share/claim links | The SDK's `CLAIM_BASE_URL` |
 | `NEXT_PUBLIC_API_BASE_URL` | browser | Public SDK URL the browser calls for `/claims/*` | SDK host/port, with CORS allowing this origin |
 | `BRIDGELET_SDK_URL` | server-only | SDK URL used by server Route Handlers (account create/lookup) | SDK host/port (may be internal) |
 | `BRIDGELET_SDK_TOKEN` | server-only | `Authorization: Bearer` JWT for the SDK | Signed with the SDK's `JWT_SECRET` |
@@ -60,6 +60,10 @@ origin that does not include the frontend.
   mismatched token surfaces as a 401 from `/api/accounts`.
 - **Claim links.** Set the SDK's `CLAIM_BASE_URL` to the public frontend URL
   (`NEXT_PUBLIC_APP_URL`) so the link a recipient receives points at this app.
+- **Build-time URL.** `NEXT_PUBLIC_APP_URL` is inlined into the browser bundle
+  at build time. Set it before deploying and redeploy after changing it. If it
+  is missing, the app uses the Vercel production hostname or the request origin
+  and hides the share card when no valid URL can be resolved.
 - **CORS.** The SDK must allow this frontend's origin so browser calls to
   `/claims/*` succeed.
 
@@ -95,9 +99,9 @@ The send form (`components/send-form/`) is a three-step wizard: **Connect** → 
 
 The details step (`steps/details-step.tsx`) collects the payment details:
 
-- **Recipient name** and **recipient email** — both optional; the email format is validated when provided.
-- **Amount** — required, must be greater than 0.
-- **Asset** — `XLM` or `USDC` (defaults to `XLM`).
+- **Recipient name** and **recipient email**: both optional; the email format is validated when provided.
+- **Amount**: required, must be greater than 0.
+- **Asset**: `XLM` or `USDC` (defaults to `XLM`).
 - A live **XLM → USD conversion** is shown under the amount field, using the CoinGecko rate from `lib/xlm-price.ts` (cached for 60 seconds, hidden if the rate is unavailable).
 
 Validation runs on submit and then re-runs on every change so errors clear as soon as the input becomes valid. Errors are announced to assistive technology via `role="alert"` and linked to their fields with `aria-describedby`/`aria-invalid`.
@@ -128,9 +132,9 @@ const account: EphemeralAccount = await createEphemeralAccount({
 });
 ```
 
-- **Auth** — the wrapper never sends credentials from the browser. Requests go to this app's own `app/api/accounts/route.ts`, which attaches the `Authorization: Bearer` SDK token server-side (`BRIDGELET_SDK_TOKEN`).
-- **Errors** — non-2xx responses are parsed into typed errors: `RateLimitError` on 429 (exposes `retryAfter`) and `BridgeletApiError` otherwise (exposes `statusCode` and the backend error code). `lib/account-errors.ts` maps these to user-facing messages.
-- **Retries** — transient network failures and 5xx responses are retried with exponential backoff by the underlying `BridgeletClient` (`lib/create-bridgelet-client.ts`).
+- **Auth**: the wrapper never sends credentials from the browser. Requests go to this app's own `app/api/accounts/route.ts`, which attaches the `Authorization: Bearer` SDK token server-side (`BRIDGELET_SDK_TOKEN`).
+- **Errors**: non-2xx responses are parsed into typed errors: `RateLimitError` on 429 (exposes `retryAfter`) and `BridgeletApiError` otherwise (exposes `statusCode` and the backend error code). `lib/account-errors.ts` maps these to user-facing messages.
+- **Retries**: transient network failures and 5xx responses are retried with exponential backoff by the underlying `BridgeletClient` (`lib/create-bridgelet-client.ts`).
 
 ## Freighter sender signing (experimental, off by default)
 
@@ -139,7 +143,7 @@ transaction. This experiment is **disabled by default** because the SDK does
 not implement `POST /accounts/prepare` yet, so enabling it only adds a request
 that is expected to 404 before falling back to backend signing.
 
-- `NEXT_PUBLIC_ENABLE_FREIGHTER_SENDER_SIGNING` — set to `true` (or `1`/`on`/`yes`)
+- `NEXT_PUBLIC_ENABLE_FREIGHTER_SENDER_SIGNING`: set to `true` (or `1`/`on`/`yes`)
   to opt in; empty or `false` keeps the default backend-signing-only path.
 - With the flag off, the default send makes **no** request to
   `/api/accounts/prepare`.
@@ -172,7 +176,7 @@ that is expected to 404 before falling back to backend signing.
   (`e2e/stub-sdk.mjs`) and replaces Freighter with a `window.postMessage`
   responder (`e2e/fixtures.ts`), so it never touches Stellar testnet, the real
   SDK, a browser extension, or any secret. Optionally, a full manual testnet
-  smoke test can be run against a real SDK instance — see
+  smoke test can be run against a real SDK instance: see
   [`../TESTING.md`](../TESTING.md).
 
 - Production build:

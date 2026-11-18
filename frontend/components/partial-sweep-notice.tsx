@@ -16,7 +16,7 @@ export function PartialSweepNotice({ assets }: Props) {
       className="rounded-lg border border-amber-300 bg-amber-50 p-4 space-y-3"
     >
       <p className="text-sm font-semibold text-amber-800">
-        Partial transfer — some assets could not be swept
+        Partial transfer: some assets could not be swept
       </p>
       {succeeded.length > 0 && (
         <div>
@@ -34,7 +34,7 @@ export function PartialSweepNotice({ assets }: Props) {
           {failed.map((a) => (
             <li key={a.assetCode}>
               {a.assetCode}
-              {a.errorReason ? ` — ${a.errorReason}` : ''}
+              {a.errorReason ? `: ${a.errorReason}` : ''}
             </li>
           ))}
         </ul>

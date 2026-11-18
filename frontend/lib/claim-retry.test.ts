@@ -23,6 +23,17 @@ describe('submitClaimWithRetry', () => {
     expect(redeemClaim).toHaveBeenCalledTimes(1);
   });
 
+  it('passes the payout transaction hash through on success', async () => {
+    const txHash = 'a'.repeat(64);
+    const redeemClaim = vi.fn().mockResolvedValue({ success: true, isPartial: false, txHash });
+    const result = await submitClaimWithRetry(
+      fakeClient(redeemClaim),
+      'tok',
+      'G' + 'A'.repeat(55),
+    );
+    expect(result.outcome).toMatchObject({ kind: 'success', response: { txHash } });
+  });
+
   it('makes exactly one request when the backend rejects with a 5xx', async () => {
     const redeemClaim = vi
       .fn()

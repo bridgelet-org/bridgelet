@@ -39,7 +39,7 @@ function countingIds(prefix: string): () => string {
   return () => `${prefix}-${++n}`;
 }
 
-/** Fails the test if called — for paths that must not reach the generator. */
+/** Fails the test if called: for paths that must not reach the generator. */
 function neverMints(): () => string {
   return () => {
     throw new Error('an id must not be minted when storage is unavailable');

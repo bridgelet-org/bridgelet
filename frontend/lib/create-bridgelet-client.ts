@@ -1,7 +1,9 @@
 import { fetchWithTimeout, RequestTimeoutError } from '@/lib/fetch-with-timeout';
 import type {
   CreateAccountRequest,
+  AccountEvent,
   AccountResponse,
+  AccountsListResponse,
   VerifyClaimRequest,
   RedeemClaimRequest,
   RedeemClaimResponse,
@@ -83,6 +85,54 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+/**
+ * The SDK's `GET /accounts` returns `{ accounts, total }`, but older mocks and
+ * stubs returned a bare array. Normalise both so callers always get the object
+ * shape, and reject anything else instead of letting a bad body crash render.
+ */
+function normalizeAccountsList(body: unknown): AccountsListResponse {
+  if (Array.isArray(body)) {
+    return { accounts: body as AccountResponse[], total: body.length };
+  }
+
+  if (body !== null && typeof body === 'object') {
+    const record = body as Record<string, unknown>;
+    if (Array.isArray(record['accounts'])) {
+      const accounts = record['accounts'] as AccountResponse[];
+      const rawTotal = record['total'];
+      const total =
+        typeof rawTotal === 'number' && Number.isFinite(rawTotal) ? rawTotal : accounts.length;
+      return { accounts, total };
+    }
+  }
+
+  throw new BridgeletApiError(
+    {
+      error: {
+        code: 'INVALID_RESPONSE',
+        message: 'The account list response had an unexpected shape.',
+      },
+    },
+    502,
+  );
+}
+
+function normalizeAccountEvents(body: unknown): AccountEvent[] {
+  if (!Array.isArray(body)) {
+    throw new BridgeletApiError(
+      {
+        error: {
+          code: 'INVALID_RESPONSE',
+          message: 'The account events response had an unexpected shape.',
+        },
+      },
+      502,
+    );
+  }
+
+  return body as AccountEvent[];
+}
+
 function isTransientError(err: unknown): boolean {
   if (err instanceof RequestTimeoutError) return true;
   if (err instanceof TypeError) return true;
@@ -126,14 +176,12 @@ export class BridgeletClient {
     let lastError: unknown;
 
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
-      const response = await fetchWithTimeout(
-        url,
-        { ...options, headers },
-        tuning.timeoutMs,
-      ).catch((err) => {
-        lastError = err;
-        return null;
-      });
+      const response = await fetchWithTimeout(url, { ...options, headers }, tuning.timeoutMs).catch(
+        (err) => {
+          lastError = err;
+          return null;
+        },
+      );
 
       if (!response) {
         if (attempt < maxRetries && isTransientError(lastError)) {
@@ -173,14 +221,20 @@ export class BridgeletClient {
 
   // ─── Accounts (proxied through this app's own server) ───────────────────────
 
-  listAccounts(options: { limit?: number; offset?: number } = {}): Promise<AccountResponse[]> {
+  listAccounts(options: { limit?: number; offset?: number } = {}): Promise<AccountsListResponse> {
     const params = new URLSearchParams();
     if (options.limit != null) params.set('limit', String(options.limit));
     if (options.offset != null) params.set('offset', String(options.offset));
     const qs = params.toString();
-    return this.request<AccountResponse[]>(
-      `${this.internalBaseUrl}/api/accounts${qs ? `?${qs}` : ''}`,
+    return this.request<unknown>(`${this.internalBaseUrl}/api/accounts${qs ? `?${qs}` : ''}`).then(
+      normalizeAccountsList,
     );
+  }
+
+  listAccountEvents(accountId: string): Promise<AccountEvent[]> {
+    return this.request<unknown>(
+      `${this.internalBaseUrl}/api/accounts/${encodeURIComponent(accountId)}/events`,
+    ).then(normalizeAccountEvents);
   }
 
   createAccount(data: CreateAccountRequest): Promise<AccountResponse> {

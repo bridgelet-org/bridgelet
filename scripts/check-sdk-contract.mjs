@@ -8,7 +8,7 @@
  * .github/workflows/compatibility.yml:
  *
  *   > This fetches the pinned SDK's live OpenAPI spec (GET /api/docs-json)
- *   > and asserts those endpoints/fields still exist — catching the exactly
+ *   > and asserts those endpoints/fields still exist; catching the exactly
  *   > "frontend assumes an endpoint/response shape a different SDK version
  *   > doesn't provide" failure mode. This is field-presence, not full type
  *   > equivalence.

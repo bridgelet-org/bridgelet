@@ -52,7 +52,7 @@ const feeStatsHandler = http.get(`${HORIZON_BASE}/fee_stats`, () => {
  * GET https://horizon-testnet.stellar.org/accounts/:id
  *
  * Returns a realistic Stellar testnet account object for the given public key.
- * Balance is set to 10,000 XLM — enough to cover testnet operations.
+ * Balance is set to 10,000 XLM: enough to cover testnet operations.
  */
 const accountDetailHandler = http.get(`${HORIZON_BASE}/accounts/:id`, ({ params }) => {
   const { id } = params as { id: string };

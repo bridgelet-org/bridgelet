@@ -13,6 +13,12 @@ describe('claim error messages', () => {
     );
   });
 
+  it('explains how to recover from a missing trustline', () => {
+    expect(getClaimErrorMessage('DESTINATION_MISSING_TRUSTLINE', 'USDC')).toBe(
+      'Your wallet needs to add USDC before it can receive this payment. Add USDC in your wallet, then try again.',
+    );
+  });
+
   it('reassures the user when the sweep contract fails', () => {
     expect(getClaimErrorMessage('SWEEP_CONTRACT_FAILED')).toBe(
       'The claim could not be completed. Your funds are safe; contact support.',
@@ -37,6 +43,7 @@ describe('claim error messages', () => {
 describe('claimErrorCodeFromApiCode', () => {
   it.each([
     ['DESTINATION_NOT_FUNDED', 'DESTINATION_NOT_FUNDED'],
+    ['DESTINATION_MISSING_TRUSTLINE', 'DESTINATION_MISSING_TRUSTLINE'],
     ['SWEEP_CONTRACT_FAILED', 'SWEEP_CONTRACT_FAILED'],
     ['INVALID_ADDRESS', 'INVALID_ADDRESS'],
     ['ALREADY_CLAIMED', 'ALREADY_CLAIMED'],
@@ -58,6 +65,15 @@ describe('toClaimError', () => {
     expect(err).toBeInstanceOf(ClaimError);
     expect(err.code).toBe('DESTINATION_NOT_FUNDED');
     expect(err.message).toBe('Fund this wallet with at least 1 XLM first.');
+  });
+
+  it('builds a non-retryable, asset-specific missing-trustline error', () => {
+    const err = toClaimError(422, 'DESTINATION_MISSING_TRUSTLINE', 'USDC');
+    expect(err.code).toBe('DESTINATION_MISSING_TRUSTLINE');
+    expect(err.message).toBe(
+      'Your wallet needs to add USDC before it can receive this payment. Add USDC in your wallet, then try again.',
+    );
+    expect(err.retryable).toBe(false);
   });
 
   it('maps a 429 to a retryable rate-limit error', () => {

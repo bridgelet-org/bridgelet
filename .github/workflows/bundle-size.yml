@@ -84,7 +84,7 @@ jobs:
 
             const header = passed
               ? '## ✅ Bundle Size: All routes within budget'
-              : '## ❌ Bundle Size: Budget exceeded — please reduce first-load JS';
+              : '## ❌ Bundle Size: Budget exceeded, please reduce first-load JS';
 
             const body = `${header}
 
@@ -97,13 +97,13 @@ jobs:
 
             - **Code-split** heavy dependencies with \`dynamic(() => import(...))\`
             - **Move Stellar SDK** usage server-side (API routes / Server Components)
-            - **Tree-shake** — check if you're importing entire libraries for a few utils
+            - **Tree-shake**: check if you're importing entire libraries for a few utils
             - **Defer** non-critical scripts and analytics until after hydration
             </details>
 
             _Budgets: \`/send\` and \`/claim/[token]\` → 200 kB · \`/\` → 250 kB · other routes → 300 kB_`;
 
-            // Always write results to the step summary — it needs no extra
+            // Always write results to the step summary: it needs no extra
             // token permissions, so it works even on fork PRs where the
             // GITHUB_TOKEN is read-only.
             core.summary.addRaw(body).write();
@@ -111,7 +111,7 @@ jobs:
             // Post/update the PR comment only when the token is allowed to.
             // Fork PRs and orgs enforcing read-only workflow tokens get 403
             // ("Resource not accessible by integration") here; that must not
-            // fail CI — the step summary above carries the same table.
+            // fail CI: the step summary above carries the same table.
             try {
               const { data: comments } = await github.rest.issues.listComments({
                 owner: context.repo.owner,

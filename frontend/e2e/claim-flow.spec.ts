@@ -1,5 +1,5 @@
 /**
- * Issue #767 — claim flow (cases 2–4 of the five).
+ * Issue #767: claim flow (cases 2–4 of the five).
  *
  *   2. claim success
  *   3. claim failure shows the specific message and makes exactly one request
