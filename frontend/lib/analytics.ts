@@ -39,6 +39,12 @@ type ClaimEvent =
 
 type EventProps = Record<string, string | number | boolean | null>;
 
+declare global {
+  interface Window {
+    plausible?: (event: string, options?: { props?: Record<string, unknown> }) => void;
+  }
+}
+
 export type DeviceType = 'mobile' | 'tablet' | 'desktop';
 
 /**
@@ -395,7 +401,7 @@ function track(event: ClaimEvent, props?: EventProps): void {
   };
 
   // Plausible custom event API
-  const plausible = (window as unknown as { plausible?: Function }).plausible;
+  const plausible = window.plausible;
   if (typeof plausible === 'function') {
     plausible(event, { props: payload });
     return;
