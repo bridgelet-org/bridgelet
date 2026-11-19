@@ -16,12 +16,15 @@ vi.mock('@/lib/analytics', () => ({
     claimLinkCopied: vi.fn(),
     claimLinkShared: vi.fn(),
     claimLinkRecoveryViewed: vi.fn(),
+    dashboardFilterApplied: vi.fn(),
   },
+  DASHBOARD_FILTERS: ['all', 'unclaimed', 'claimed', 'expired'],
 }));
 
 const listMock = vi.mocked(listEphemeralAccounts);
 const claimLinkCopiedMock = vi.mocked(analytics.claimLinkCopied);
 const claimLinkRecoveryViewedMock = vi.mocked(analytics.claimLinkRecoveryViewed);
+const dashboardFilterAppliedMock = vi.mocked(analytics.dashboardFilterApplied);
 
 function account(id: string, status: AccountStatus = 'pending_claim') {
   return {
@@ -41,7 +44,68 @@ describe('SendHistory (#956)', () => {
     listMock.mockReset();
     claimLinkCopiedMock.mockReset();
     claimLinkRecoveryViewedMock.mockReset();
+    dashboardFilterAppliedMock.mockReset();
     window.localStorage.clear();
+  });
+
+  describe('status filter (#996)', () => {
+    const mixed = () => [
+      account('open-1', 'pending_claim'),
+      account('done-1', 'claimed'),
+      account('gone-1', 'expired'),
+      account('bad-1', 'failed'),
+    ];
+
+    it('lists every payment and marks "All" as active initially, without emitting an event', async () => {
+      listMock.mockResolvedValue({ accounts: mixed(), total: 4 });
+
+      render(<SendHistory />);
+
+      await screen.findAllByText('10.0000000 XLM');
+      expect(screen.getAllByRole('listitem')).toHaveLength(4);
+      expect(screen.getByRole('button', { name: 'All' })).toHaveAttribute('aria-pressed', 'true');
+      expect(dashboardFilterAppliedMock).not.toHaveBeenCalled();
+    });
+
+    it('narrows the list and emits the lowercase filter value when a different filter is chosen', async () => {
+      listMock.mockResolvedValue({ accounts: mixed(), total: 4 });
+      const user = userEvent.setup();
+      render(<SendHistory />);
+      await screen.findAllByText('10.0000000 XLM');
+
+      await user.click(screen.getByRole('button', { name: 'Claimed' }));
+
+      expect(screen.getAllByRole('listitem')).toHaveLength(1);
+      expect(screen.getByRole('button', { name: 'Claimed' })).toHaveAttribute('aria-pressed', 'true');
+      expect(dashboardFilterAppliedMock).toHaveBeenCalledTimes(1);
+      expect(dashboardFilterAppliedMock).toHaveBeenCalledWith({ filter: 'claimed' });
+    });
+
+    it('does not emit again when the active filter is re-selected', async () => {
+      listMock.mockResolvedValue({ accounts: mixed(), total: 4 });
+      const user = userEvent.setup();
+      render(<SendHistory />);
+      await screen.findAllByText('10.0000000 XLM');
+
+      await user.click(screen.getByRole('button', { name: 'All' }));
+      await user.click(screen.getByRole('button', { name: 'Expired' }));
+      await user.click(screen.getByRole('button', { name: 'Expired' }));
+
+      expect(dashboardFilterAppliedMock).toHaveBeenCalledTimes(1);
+      expect(dashboardFilterAppliedMock).toHaveBeenCalledWith({ filter: 'expired' });
+    });
+
+    it('shows a message when nothing on the page matches', async () => {
+      listMock.mockResolvedValue({ accounts: [account('open-1', 'pending_claim')], total: 1 });
+      const user = userEvent.setup();
+      render(<SendHistory />);
+      await screen.findAllByText('10.0000000 XLM');
+
+      await user.click(screen.getByRole('button', { name: 'Expired' }));
+
+      expect(screen.queryAllByRole('listitem')).toHaveLength(0);
+      expect(screen.getByText(/No payments on this page match the Expired filter/)).toBeInTheDocument();
+    });
   });
 
   it('renders rows from the { accounts, total } response', async () => {
