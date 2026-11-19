@@ -101,7 +101,7 @@ Every event includes a **base payload** of common properties. Event-specific pro
   // Context
   "journey": "sender | recipient | shared",
   "timestamp": "ISO 8601 string",   // e.g. "2026-03-15T10:23:45.123Z"
-  "platform": "web",
+  "platform": "web | ios | android",
   "network": "testnet | mainnet",
 
   // Device & Environment
@@ -114,6 +114,8 @@ Every event includes a **base payload** of common properties. Event-specific pro
 }
 ```
 
+> **Platform note:** Use `web`, `ios`, or `android` for `platform`. Native apps may use an empty `user_agent` and must report `device_type` as `mobile`.
+>
 > **Privacy note:** No PII (name, email, phone) should ever appear in an analytics payload. Wallet addresses are pseudonymous: include them only where explicitly specified below. Recipient wallet addresses must never be logged in sender-journey events.
 
 ### 3.2 Conditional Properties
@@ -141,13 +143,13 @@ Events are listed in chronological order through the sender flow.
 
 #### `Page Viewed`
 
-Fired when the Bridgelet homepage loads.
+Fired when the Bridgelet homepage loads on web or a top-level screen is shown in a native app.
 
 | Property | Type | Value / Description |
 |----------|------|---------------------|
-| `journey` | string | `"sender"` |
-| `page` | string | `"homepage"` |
-| `entry_source` | string | `"direct"`, `"referral"`, `"shared_link"`, `"unknown"` |
+| `journey` | string | `"sender"`, `"recipient"`, or `"shared"` |
+| `page` | string | `"homepage"` on web; the screen name on mobile |
+| `entry_source` | string | `"direct"`, `"referral"`, `"shared_link"`, `"unknown"`; native apps use `"unknown"` when unavailable |
 
 ---
 
@@ -257,7 +259,7 @@ Fired when the sender clicks "Confirm & Pay" and signs the transaction. This ind
 
 #### `Payment Created`
 
-Fired when the blockchain confirms the funding transaction and a claim ID is returned. This is the definitive "payment exists" event.
+Fired when the funding transaction is confirmed on-chain, the claim ID is returned, and the funded account is initialized and persisted. This is the definitive "payment exists" event; a signed transaction or accepted create request is not sufficient. Its backend counterpart is the `account.created` webhook, emitted after account initialization and persistence.
 
 | Property | Type | Value / Description |
 |----------|------|---------------------|
@@ -339,12 +341,12 @@ Fired when the sender's payment dashboard is loaded.
 
 #### `Dashboard Filter Applied`
 
-Fired when the sender changes the status filter on the dashboard.
+Fired when the sender changes the dashboard's status filter. `filter` is a closed set; emit only one of the values below, never free text. Date-range and asset-type filters are not represented by this event.
 
 | Property | Type | Value / Description |
 |----------|------|---------------------|
 | `journey` | string | `"sender"` |
-| `filter` | string | `"all"`, `"unclaimed"`, `"claimed"`, `"expired"` |
+| `filter` | string enum | `"all"`, `"unclaimed"`, `"claimed"`, `"expired"` |
 
 ---
 
@@ -505,7 +507,7 @@ Fired when the recipient clicks "Claim Now". Fires before the sweep is executed.
 
 #### `Claim Succeeded`
 
-Fired when the sweep transaction is confirmed on-chain. This is the primary conversion event for the recipient journey.
+Fired when the sweep transaction is confirmed on-chain and the redemption succeeds. This is the primary conversion event for the recipient journey; submitting a claim, authorizing a sweep, or entering a partial-sweep state is not sufficient. Its backend counterpart is the `sweep.completed` webhook. A `sweep.partial` or `sweep.failed` webhook is not a successful claim.
 
 | Property | Type | Value / Description |
 |----------|------|---------------------|
@@ -910,6 +912,17 @@ This spec is platform-agnostic and compatible with:
 | `Claim Failed` | **Server-side preferred** | Authoritative error source |
 
 Where server-side events are used, they should be enriched with client context (session ID, device type) passed from the frontend.
+
+#### Confirmation signal consistency
+
+The analytics and webhook surfaces must describe the same completed backend outcome for a claim:
+
+| Analytics event | Corresponding webhook | Emit only when |
+|-----------------|-----------------------|----------------|
+| `Payment Created` | `account.created` | The funded account is initialized on-chain and persisted. A signed transaction or accepted request is only intent, represented by `Payment Confirmed`. |
+| `Claim Succeeded` | `sweep.completed` | The redemption sweep succeeds and is confirmed on-chain. A submitted claim or partial sweep is not success; `sweep.partial` and `sweep.failed` must not produce `Claim Succeeded`. |
+
+Use the stable claim/account identity to correlate both records. For `sweep.completed`, retain the webhook's transaction hash for reconciliation. The events should not disagree about whether the same payment is confirmed.
 
 ### 9.3 Anonymous Identity & Session
 

@@ -1,40 +1,11 @@
 // #118 – Privacy-respecting analytics events (Plausible-compatible, no PII)
-// Event names must match `docs/analytics-spec.md` `#### \`Event Name\`` headings exactly.
-type ClaimEvent =
-  | 'Page Viewed'
-  | 'Send Form Viewed'
-  | 'Send Form Started'
-  | 'Send Form Field Changed'
-  | 'Send Form Completed'
-  | 'Payment Confirmation Viewed'
-  | 'Wallet Connected'
-  | 'Wallet Connection Failed'
-  | 'Payment Confirmed'
-  | 'Payment Created'
-  | 'Payment Creation Failed'
-  | 'Payment Success Viewed'
-  | 'Claim Link Copied'
-  | 'Claim Link Shared'
-  | 'Dashboard Viewed'
-  | 'Dashboard Filter Applied'
-  | 'Payment Details Viewed'
-  | 'Payment Cancelled'
-  | 'Funds Reclaimed'
-  | 'Claim Page Opened'
-  | 'Claim Verified'
-  | 'Claim CTA Clicked'
-  | 'Wallet Address Screen Viewed'
-  | 'Wallet Address Entered'
-  | 'Wallet Address Validation Failed'
-  | 'Claim Confirmation Viewed'
-  | 'Claim Submitted'
-  | 'Claim Succeeded'
-  | 'Claim Failed'
-  | 'Claim Success Viewed'
-  | 'Sender Signup CTA Clicked'
-  | 'Explorer Link Clicked'
-  | 'Error Displayed'
-  | 'Retry Clicked';
+import {
+  buildBasePayload as buildSharedBasePayload,
+  createAnalyticsDispatcher,
+  type AnalyticsEventName,
+} from '@bridgelet/analytics';
+
+type ClaimEvent = AnalyticsEventName;
 
 type EventProps = Record<string, string | number | boolean | null>;
 
@@ -67,17 +38,18 @@ export function detectDeviceType(userAgent?: string): DeviceType {
 /**
  * Base payload fields (`docs/analytics-spec.md` §3.1) shared by every
  * event: `app_version`, `user_agent`, `device_type`, `referrer`, and the
- * fixed frontend `platform` value "web". Each field degrades gracefully
+ * frontend `platform` value "web". Each field degrades gracefully
  * when the browser API it depends on is unavailable (SSR, unit tests
  * without a DOM).
  */
 export function buildBasePayload(): EventProps {
   return {
-    app_version: appVersion(),
-    user_agent: typeof navigator !== 'undefined' ? navigator.userAgent : '',
-    device_type: detectDeviceType(),
-    referrer: typeof document !== 'undefined' && document.referrer ? document.referrer : null,
-    platform: 'web',
+    ...buildSharedBasePayload('web', {
+      app_version: appVersion(),
+      user_agent: typeof navigator !== 'undefined' ? navigator.userAgent : '',
+      device_type: detectDeviceType(),
+      referrer: typeof document !== 'undefined' && document.referrer ? document.referrer : null,
+    }),
   };
 }
 
@@ -353,6 +325,24 @@ function isDuplicateClaimEvent(event: ClaimEvent, claimId: unknown): boolean {
 
 // ─── track() ──────────────────────────────────────────────────────────────────
 
+const dispatchToProvider = createAnalyticsDispatcher<EventProps>((event, payload) => {
+  const plausible = (window as unknown as { plausible?: Function }).plausible;
+  if (typeof plausible === 'function') {
+    plausible(event, { props: payload });
+    return;
+  }
+
+  const posthog = (window as unknown as { posthog?: { capture?: Function } }).posthog;
+  if (typeof posthog?.capture === 'function') {
+    posthog.capture(event, payload);
+    return;
+  }
+
+  if (process.env.NODE_ENV !== 'production') {
+    console.debug('[analytics]', event, payload);
+  }
+});
+
 /**
  * Core dispatch function. Merges the §3.1 identity fields (`anonymous_id`,
  * `session_id`) into every event payload so every downstream event carries
@@ -361,12 +351,6 @@ function isDuplicateClaimEvent(event: ClaimEvent, claimId: unknown): boolean {
  * This is the only place an event reaches the provider, so both opt-out
  * (§9.5) and deduplication (§9.4) are enforced here rather than at call
  * sites: no emitter can forget them.
- *
- * Dispatch targets, in priority order:
- * 1. `window.plausible`: populated by the Plausible script loaded in the
- *    root layout when NEXT_PUBLIC_PLAUSIBLE_DOMAIN is configured (§9.1).
- * 2. `window.posthog`: capture fallback when PostHog is wired up instead.
- * 3. Console debug output in development builds.
  */
 function track(event: ClaimEvent, props?: EventProps): void {
   if (typeof window === 'undefined') return;
@@ -393,24 +377,7 @@ function track(event: ClaimEvent, props?: EventProps): void {
     message_id: generateUUID(),
   };
 
-  // Plausible custom event API
-  const plausible = (window as unknown as { plausible?: Function }).plausible;
-  if (typeof plausible === 'function') {
-    plausible(event, { props: payload });
-    return;
-  }
-
-  // PostHog capture fallback (§9.1 self-hosted option).
-  const posthog = (window as unknown as { posthog?: { capture?: Function } }).posthog;
-  if (typeof posthog?.capture === 'function') {
-    posthog.capture(event, payload);
-    return;
-  }
-
-  // Fallback: console in development
-  if (process.env.NODE_ENV !== 'production') {
-    console.debug('[analytics]', event, payload);
-  }
+  dispatchToProvider(event, payload);
 }
 
 /**
