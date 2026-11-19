@@ -571,6 +571,14 @@ export function daysRemainingUntil(iso: string): number | undefined {
 
 // ─── Public analytics surface ─────────────────────────────────────────────────
 
+/**
+ * §4.5 `Dashboard Filter Applied.filter` / `Dashboard Viewed.active_filter`:
+ * a closed set. Always send the lowercase value, never the display label.
+ */
+export const DASHBOARD_FILTERS = ['all', 'unclaimed', 'claimed', 'expired'] as const;
+
+export type DashboardFilter = (typeof DASHBOARD_FILTERS)[number];
+
 export const analytics = {
   claimPageViewed: ({ claimId, entryChannel }: { claimId: string; entryChannel: ClaimEntryChannel }) =>
     track('Claim Page Opened', {
@@ -760,6 +768,122 @@ export const analytics = {
       ...(claimId ? { claim_id: claimId } : {}),
       validation_error: validationError,
       attempt_number: attemptNumber,
+    }),
+  /** §4.3 Wallet Connection Failed: the sender's wallet connection was attempted and failed. */
+  walletConnectionFailed: ({
+    walletType,
+    errorCode = 'unknown',
+  }: {
+    walletType: string;
+    errorCode?: string;
+  }) =>
+    track('Wallet Connection Failed', {
+      journey: 'sender',
+      wallet_type: walletType,
+      error_code: errorCode,
+    }),
+  /** §4.3 Payment Creation Failed: the transaction failed after the sender signed. */
+  paymentCreationFailed: ({
+    assetType,
+    errorCode = 'unknown',
+  }: {
+    assetType?: string;
+    errorCode?: string;
+  }) =>
+    track('Payment Creation Failed', {
+      journey: 'sender',
+      ...(assetType ? { asset_type: assetType } : {}),
+      error_code: errorCode,
+    }),
+  /** §4.4 Payment Success Viewed: the success screen with the claim link was rendered. */
+  paymentSuccessViewed: ({ claimId, assetType }: { claimId: string; assetType?: string }) =>
+    track('Payment Success Viewed', {
+      journey: 'sender',
+      claim_id: claimId,
+      ...(assetType ? { asset_type: assetType } : {}),
+    }),
+  /** §4.5 Dashboard Viewed: the sender's payment dashboard was loaded. */
+  dashboardViewed: ({
+    totalPayments,
+    activeFilter,
+  }: {
+    totalPayments: number;
+    activeFilter: DashboardFilter;
+  }) =>
+    track('Dashboard Viewed', {
+      journey: 'sender',
+      total_payments: totalPayments,
+      active_filter: activeFilter,
+    }),
+  /**
+   * §4.5 Dashboard Filter Applied: the sender chose a different status filter.
+   * Callers must not fire it on initial load or when the active filter is re-selected.
+   */
+  dashboardFilterApplied: ({ filter }: { filter: DashboardFilter }) =>
+    track('Dashboard Filter Applied', {
+      journey: 'sender',
+      filter,
+    }),
+  /** §4.5 Payment Cancelled: the sender cancelled an unclaimed payment. */
+  paymentCancelled: ({
+    claimId,
+    assetType,
+    timeSinceCreationHours,
+  }: {
+    claimId: string;
+    assetType?: string;
+    timeSinceCreationHours: number;
+  }) =>
+    track('Payment Cancelled', {
+      journey: 'sender',
+      claim_id: claimId,
+      ...(assetType ? { asset_type: assetType } : {}),
+      time_since_creation_hours: timeSinceCreationHours,
+    }),
+  /** §4.5 Funds Reclaimed: the sender reclaimed the funds of an expired payment. */
+  fundsReclaimed: ({
+    claimId,
+    assetType,
+    daysExpired,
+  }: {
+    claimId: string;
+    assetType?: string;
+    daysExpired: number;
+  }) =>
+    track('Funds Reclaimed', {
+      journey: 'sender',
+      claim_id: claimId,
+      ...(assetType ? { asset_type: assetType } : {}),
+      days_expired: daysExpired,
+    }),
+  /** §5.2 Wallet Address Screen Viewed: the recipient's wallet address input was rendered. */
+  walletAddressScreenViewed: ({
+    claimId,
+    hasPreviousAddress,
+  }: {
+    claimId: string;
+    hasPreviousAddress: boolean;
+  }) =>
+    track('Wallet Address Screen Viewed', {
+      journey: 'recipient',
+      claim_id: claimId,
+      has_previous_address: hasPreviousAddress,
+    }),
+  /**
+   * §5.2 Wallet Address Entered: the recipient submitted an address that passed client-side
+   * validation. The address itself is never part of the payload.
+   */
+  walletAddressEntered: ({
+    claimId,
+    usedPreviousAddress,
+  }: {
+    claimId: string;
+    usedPreviousAddress: boolean;
+  }) =>
+    track('Wallet Address Entered', {
+      journey: 'recipient',
+      claim_id: claimId,
+      used_previous_address: usedPreviousAddress,
     }),
   claimConfirmationViewed: ({ claimId, assetType }: ClaimCtaClickedProps) =>
     track('Claim Confirmation Viewed', {
