@@ -114,7 +114,7 @@ Every event includes a **base payload** of common properties. Event-specific pro
   // Context
   "journey": "sender | recipient | shared",
   "timestamp": "ISO 8601 string",   // e.g. "2026-03-15T10:23:45.123Z"
-  "platform": "web",
+  "platform": "web | ios | android",
   "network": "testnet | mainnet",
 
   // Device & Environment
@@ -129,7 +129,23 @@ Every event includes a **base payload** of common properties. Event-specific pro
 
 > **Privacy note:** No PII (name, email, phone) should ever appear in an analytics payload. Wallet addresses are pseudonymous: include them only where explicitly specified below. Recipient wallet addresses must never be logged in sender-journey events.
 
-### 3.2 Conditional Properties
+Mobile apps use the same canonical Title-Case event names as the web catalog
+and include `platform: "ios"` or `platform: "android"` in the base payload;
+web events use `platform: "web"`. Mobile emits only events relevant to its
+flows. `Screen Viewed` is a mobile UI event, while failures use the shared
+`Claim Failed` event name (not a snake_case alias).
+
+### 3.2 Mobile App Events
+
+#### `Screen Viewed`
+
+Fired when a screen is shown in the mobile app.
+
+| Property | Type | Value / Description |
+|----------|------|---------------------|
+| `screen` | string | Stable identifier for the screen |
+
+### 3.3 Conditional Properties
 
 These properties are included only where relevant and marked `(if available)` in event tables:
 
@@ -1002,6 +1018,11 @@ This spec is platform-agnostic and compatible with:
 - **[PostHog](https://posthog.com)**: open-source; suitable for self-hosted analytics
 - **[Mixpanel](https://mixpanel.com)**: strong funnel analysis
 - **[Amplitude](https://amplitude.com)**: strong for product metrics
+
+The mobile app currently sends events to Plausible's `/api/event` endpoint.
+Production builds require `EXPO_PUBLIC_PLAUSIBLE_DOMAIN`;
+`EXPO_PUBLIC_PLAUSIBLE_API_HOST` may be set for a self-hosted or proxied
+endpoint and otherwise defaults to `https://plausible.io`.
 
 ### 9.2 Client-Side vs. Server-Side
 

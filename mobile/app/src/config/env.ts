@@ -6,6 +6,8 @@
 const env = {
   apiUrl: process.env.EXPO_PUBLIC_API_URL ?? 'https://api.bridgelet.io',
   environment: (process.env.EXPO_PUBLIC_ENV ?? 'development') as 'development' | 'staging' | 'production',
+  plausibleDomain: process.env.EXPO_PUBLIC_PLAUSIBLE_DOMAIN,
+  plausibleApiHost: process.env.EXPO_PUBLIC_PLAUSIBLE_API_HOST ?? 'https://plausible.io',
 } as const;
 
 if (!env.apiUrl) {
