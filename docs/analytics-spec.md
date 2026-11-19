@@ -942,6 +942,12 @@ For each entry_channel in {sms, email, whatsapp, direct, unknown}:
 
 Breakdown of assets used in payment creation.
 
+> **Readiness: unverified.** The web client emits `Payment Created` with the
+> `asset_type` code, and the exact aggregation query is maintained in
+> `docs/analytics-kpi-definitions.md`. That query has not been run against a
+> real event export, so the events and the query have not been checked against
+> each other. Do not report this KPI until that export check is complete.
+
 ```
 For each asset in {XLM, USDC, ...}:
   % = (Payment Created events with asset_type)
