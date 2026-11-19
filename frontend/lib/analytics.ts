@@ -15,6 +15,7 @@ type ClaimEvent =
   | 'Payment Success Viewed'
   | 'Claim Link Copied'
   | 'Claim Link Shared'
+  | 'Claim Link Recovery Viewed'
   | 'Dashboard Viewed'
   | 'Dashboard Filter Applied'
   | 'Payment Details Viewed'
@@ -666,7 +667,7 @@ export const analytics = {
     copyLocation,
   }: {
     claimId: string;
-    copyLocation: 'success_screen' | 'dashboard_detail';
+    copyLocation: 'success_screen' | 'dashboard_detail' | 'send_history_recovery';
   }) =>
     track('Claim Link Copied', {
       journey: 'sender',
@@ -678,6 +679,12 @@ export const analytics = {
       journey: 'sender',
       claim_id: claimId,
       share_method: shareMethod,
+    }),
+  claimLinkRecoveryViewed: ({ claimId }: { claimId: string }) =>
+    track('Claim Link Recovery Viewed', {
+      journey: 'sender',
+      claim_id: claimId,
+      recovery_location: 'send_history',
     }),
   claimPageOpened: ({
     claimId,

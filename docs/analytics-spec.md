@@ -42,6 +42,19 @@ The purpose of this spec is to:
 | **Sender Journey** | Alice (crypto-literate) | Create a claimable payment link |
 | **Recipient Journey** | Bob (crypto-novice) | Claim crypto sent to them |
 
+### Out of Scope: Integrator Usage
+
+This spec covers end-user journeys only. Actions taken by integrators through the bridgelet-sdk REST API, such as creating, listing, updating or deleting a webhook subscription (`POST`, `GET`, `PUT` and `DELETE` on `/webhooks`), have no events here. This is a deliberate omission, not an oversight.
+
+Reasons:
+- Every event in this spec is a product event raised in a browser session. The base payload in section 3.1 assumes browser context (`anonymous_id` in `localStorage`, `user_agent`, `device_type`, `referrer`), and section 9.5 relies on the browser Do Not Track header. An integrator calling the API from a backend has none of that.
+- The webhook endpoints are authenticated, rate-limited, server-to-server calls. Their usage is already observable from backend request logs.
+
+If integrator usage analytics later become a product goal, extend this spec rather than reusing the end-user events:
+- Add an `integrator` value to the `journey` table in section 2.3 and a third row to the journey table above.
+- Define the events as server-side only, named under the section 2.1 rules, with a server-side base payload that drops the browser fields.
+- Keep secrets out of payloads. A webhook's signing `secret` must never be recorded, and the target `url` should be left out or reduced to its host.
+
 ---
 
 ## 2. Event Naming Conventions
@@ -305,7 +318,9 @@ Fired when the sender copies the claim link to clipboard.
 |----------|------|---------------------|
 | `journey` | string | `"sender"` |
 | `claim_id` | string | |
-| `copy_location` | string | `"success_screen"`, `"dashboard_detail"` |
+| `copy_location` | string | `"success_screen"`, `"dashboard_detail"`, `"send_history_recovery"` |
+
+When a sender copies a claim link recovered from the browser's sent-payment history, use `"send_history_recovery"`. This is still a `Claim Link Copied` event; do not emit a second copy event for the recovery flow.
 
 ---
 
@@ -325,6 +340,20 @@ Fired when the sender uses a share button (SMS, Email, WhatsApp, QR).
 
 ---
 
+#### `Claim Link Recovery Viewed`
+
+Fired when the sent-payment history displays a claim link remembered in this browser, so the sender can recover a link after leaving the payment success screen. Fire once per claim per history-page view when the link is displayed; do not fire for payments without a remembered link.
+
+This event measures use of the claim-link recovery UI, not access to a wallet recovery phrase, private key, or other secret. Never include the claim URL or other secret recovery material in the payload.
+
+| Property | Type | Value / Description |
+|----------|------|---------------------|
+| `journey` | string | `"sender"` |
+| `claim_id` | string | Identifier from the payment record whose remembered link is displayed |
+| `recovery_location` | string | `"send_history"` |
+
+---
+
 #### `Dashboard Viewed`
 
 Fired when the sender's payment dashboard is loaded.
@@ -333,30 +362,64 @@ Fired when the sender's payment dashboard is loaded.
 |----------|------|---------------------|
 | `journey` | string | `"sender"` |
 | `total_payments` | number | Total number of payments visible to the sender |
-| `active_filter` | string | `"all"`, `"unclaimed"`, `"claimed"`, `"expired"` |
+| `active_filter` | string | Filter active on load. Same closed set as `Dashboard Filter Applied.filter` (see below) |
 
 ---
 
 #### `Dashboard Filter Applied`
 
-Fired when the sender changes the status filter on the dashboard.
+Fired when the sender selects a different status filter on the dashboard. It does not fire on the initial dashboard load (that state is reported by `Dashboard Viewed.active_filter`) or when the sender re-selects the filter that is already active.
 
 | Property | Type | Value / Description |
 |----------|------|---------------------|
 | `journey` | string | `"sender"` |
-| `filter` | string | `"all"`, `"unclaimed"`, `"claimed"`, `"expired"` |
+| `filter` | string | **Closed set:** exactly one of `"all"`, `"unclaimed"`, `"claimed"`, `"expired"` (see below) |
+
+**`filter` values (closed set)**
+
+| `filter` value | Dashboard label | Payments shown |
+|----------------|-----------------|----------------|
+| `all` | All | Every payment, no status restriction |
+| `unclaimed` | Unclaimed | Payments the recipient has not claimed and that have not expired |
+| `claimed` | Claimed | Payments the recipient has claimed |
+| `expired` | Expired | Payments past their expiry (the state in which the sender can reclaim funds) |
+
+The four values and labels come from the Sender Dashboard screen in `bridgelet-frd-ui-ux.md`.
+
+**Rules for `filter` and `active_filter`**
+
+- The set is closed. Any other value is an implementation bug, not a new category.
+- Send the lowercase enum value, never the display label and never user-entered text, so usage can be aggregated with a plain group-by.
+- Status is the only dashboard filter dimension the FRD defines. There is no date-range or asset-type filter today, so no open-ended filter value exists.
+- If another filter dimension is added later (for example date range or asset type), do not widen `filter`. Give the new dimension its own property and document here, in the same change that adds the feature, either its closed set of values or, if it is open-ended (such as a free date range), that it is open-ended and how it is bucketed for aggregation.
+- Open item: the FRD does not say how backend lifecycle statuses beyond claimed and expired (for example `pending_payment` or `failed`) map onto these four buckets. The dashboard implementation must apply one fixed mapping and record it with the dashboard, so the same payment is never counted under two different filters.
 
 ---
 
 #### `Payment Details Viewed`
 
-Fired when the sender opens the detail view for a specific payment.
+Fired when the sender opens the detail view for a specific payment **and** that view has rendered the details of a payment the sender owns.
 
 | Property | Type | Value / Description |
 |----------|------|---------------------|
 | `journey` | string | `"sender"` |
-| `claim_id` | string | |
+| `claim_id` | string | Identifier of the payment, taken from the loaded payment record (the backend account id), never copied from the URL |
 | `claim_status` | string | `"unclaimed"`, `"claimed"`, `"expired"` |
+
+**Firing rule: own payments only**
+
+- Fire only after the payment record has been loaded and displayed to the sender it belongs to. The event means "a sender looked at one of their own payments".
+- Do not fire for attempted access. A payment ID that does not exist, belongs to another sender, is rejected by the backend, or fails to load must not produce this event. Those cases render an error state and are reported through `Error Displayed` (section 6) with `claim_id` set to `null`.
+- Never copy an unvalidated ID from the URL into any analytics property. It is attacker-controlled input, and for a payment the sender does not own it is not a payment they have viewed.
+
+**Why attempted access is excluded**
+
+- Counting probes as views would inflate the number of senders inspecting their payments and distort anything derived from it.
+- Client-side analytics is not a security control: events can be forged or dropped, and all events are suppressed when Do Not Track is set (section 9.5). Detecting enumeration of payment-detail URLs therefore belongs on the backend (request logs, rate limiting, ownership checks), not in this event.
+- The sender API should answer "not found" and "not yours" identically so the response itself does not reveal which IDs exist. That is a backend security requirement tracked in `docs/security-model.mdx`, not part of this analytics spec.
+- If the product later wants a signal for denied attempts, add it as a separate server-side event under the naming rules in section 2, not as a variant of this event.
+
+> **Implementation status:** The sender dashboard and its detail view are not built in the frontend yet. Today this event is emitted from the payment confirmation step shown right after a payment is created (`frontend/components/send-form/steps/confirm-step.tsx`, always with `claim_status: "unclaimed"`). That is consistent with the rule above, since it shows the sender their own just-created payment. See `docs/analytics-server-vs-client-decision.md`.
 
 ---
 
@@ -413,10 +476,49 @@ Fired when the backend confirms the claim token is valid and the funds are avail
 | Property | Type | Value / Description |
 |----------|------|---------------------|
 | `journey` | string | `"recipient"` |
-| `claim_id` | string | |
-| `asset_type` | string | |
-| `expiry_days_remaining` | number | Days until expiration at time of opening |
-| `verification_time_ms` | number | Time taken for backend verification |
+| `claim_id` | string | Backend `accountId` from the verify response (see mapping below) |
+| `asset_type` | string | Derived from the verify response `asset` (see mapping below) |
+| `expiry_days_remaining` | number | Days until expiration at time of opening, derived from the response `expiresAt` |
+| `verification_time_ms` | number | Time taken for backend verification, measured by the emitter (not returned by the backend) |
+
+**Correspondence with the backend**
+
+This event corresponds to an HTTP 200 from bridgelet-sdk `POST /claims/verify`, which `ClaimsController` hands to `TokenVerificationProvider.verifyClaimToken`. That provider throws for every non-success case, so a 200 always carries `valid: true`. There is no "verified but invalid" outcome, and `Claim Verified` never fires for a rejection.
+
+The 200 body (`ClaimVerificationResponseDto`) has five fields. Build the payload from them rather than re-deriving values elsewhere:
+
+| Response field | Used for |
+|----------------|----------|
+| `valid` | Always `true` on a 200. Not emitted. |
+| `accountId` | `claim_id`. It is the same identifier `Payment Created` uses on the sender side, so the two sides of one claim can be matched (section 9.3). |
+| `amount` | Not part of this event. |
+| `asset` | `asset_type`. The backend returns an identifier, either `"native"` or `"CODE:ISSUER"`. Take the part before the colon and map `native` to `XLM` (for example `"USDC:G..."` becomes `"USDC"`). |
+| `expiresAt` | `expiry_days_remaining`, computed from this timestamp at event time. The backend does not return a remaining-days value. |
+
+`verification_time_ms` is not in the response. Measured in the browser it is the full request round trip, including network latency. Measured on the server it is handler time only. The two are not comparable, so do not mix them in one metric.
+
+**Rejections (no `Claim Verified`)**
+
+Failure detail is not in a response body. The backend signals it through the HTTP status and an exception message, which map onto the `error_type` values in section 6 as follows:
+
+| Backend outcome | HTTP status | Message | `error_type` |
+|-----------------|-------------|---------|--------------|
+| Token malformed, bad signature, or wrong token type | 401 | `Invalid token signature`, `Invalid token type` | `invalid_token` |
+| No account matches the token | 401 | `Invalid claim token` | `invalid_token` |
+| Token or account past its expiry | 401 | `Token has expired`, `Claim token has expired`, `Account has expired` | `expired_token` |
+| Claim already redeemed | 409 | `Claim has already been redeemed` | `already_claimed` |
+| Account initializing, awaiting payment, in a failed state, or in an unknown state | 400 | various | `unknown` (no dedicated value in section 6) |
+
+Two consequences for implementers:
+
+- The status code alone cannot separate `invalid_token` from `expired_token`: both are 401, and only the message differs. A client that maps every 401 to one outcome will misreport the other. The backend, which knows which branch it took, is the only place this can be classified exactly.
+- The verify endpoint never returns 404. An unknown token is a 401, not "not found".
+
+**Preferred source**
+
+Section 9.2 already lists `Claim Verified` as server-side preferred. Emitting from the verify path (`TokenVerificationProvider`) gives exact classification of the rejections above and direct access to `accountId`, `asset` and `expiresAt`, instead of re-deriving them from a status code in the browser.
+
+> **Implementation status:** Today the event is emitted client-side after `loadClaimView()` resolves, and recipient events use the URL token as `claim_id`, while sender events use `accountId`. Until that changes, the two sides cannot be joined on `claim_id` as section 9.3 intends. See `docs/analytics-server-vs-client-decision.md`.
 
 ---
 
@@ -787,10 +889,12 @@ Breakdown of how senders share claim links.
 
 ```
 For each share_method in {sms, email, whatsapp, qr_code, copy_only}:
-  % = (Claim Link Shared events with share_method)
-      / (total sharing actions per claim)
+  % = (matching sharing actions)
+      / (all Claim Link Copied and Claim Link Shared actions)
       × 100
 ```
+
+For `copy_only`, count `Claim Link Copied` events. For `sms`, `email`, `whatsapp`, and `qr_code`, count `Claim Link Shared` events whose `share_method` matches the value. The `Claim Link Shared` payload's `share_method` is required; do not infer a channel from the event name or claim URL.
 
 **Use:** Informs which sharing channels to prioritize in the UI and for integrations.
 

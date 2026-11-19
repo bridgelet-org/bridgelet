@@ -1030,6 +1030,18 @@ describe('track() base-payload identity merge', () => {
     expect(props).toHaveProperty('session_id');
   });
 
+  it('tracks a sender viewing a recovered claim link with its location', () => {
+    mockPlausible();
+    analytics.claimLinkRecoveryViewed({ claimId: 'claim-recovery' });
+
+    expect(latest()[0]).toBe('Claim Link Recovery Viewed');
+    expect(latest()[1].props).toMatchObject({
+      journey: 'sender',
+      claim_id: 'claim-recovery',
+      recovery_location: 'send_history',
+    });
+  });
+
   it('event-specific props override base fields when keys collide', () => {
     mockPlausible();
     analytics.errorDisplayed({
