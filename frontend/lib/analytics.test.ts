@@ -1615,4 +1615,64 @@ describe('dispatch targets and PostHog fallback', () => {
     expect(plausible).toHaveBeenCalledTimes(1);
     expect(capture).not.toHaveBeenCalled();
   });
-})
+});
+
+describe('Send Form Field Changed (§4.2)', () => {
+  afterEach(() => {
+    delete (window as unknown as { plausible?: unknown }).plausible;
+  });
+
+  function emitted() {
+    const plausible = plausibleMock();
+    (window as unknown as { plausible?: ReturnType<typeof plausibleMock> }).plausible = plausible;
+    return plausible;
+  }
+
+  it('emits the spec event name with journey and field_name', () => {
+    const plausible = emitted();
+    analytics.sendFormFieldChanged({ fieldName: 'amount' });
+
+    expect(plausible).toHaveBeenCalledTimes(1);
+    const [name, options] = plausible.mock.calls[0]!;
+    expect(name).toBe('Send Form Field Changed');
+    expect(options.props).toEqual(
+      expect.objectContaining({
+        journey: 'sender',
+        field_name: 'amount',
+        platform: 'web',
+        message_id: expect.any(String),
+      }),
+    );
+  });
+
+  it('attaches asset_type only for the asset field', () => {
+    const plausible = emitted();
+    analytics.sendFormFieldChanged({ fieldName: 'asset', assetType: 'USDC' });
+    analytics.sendFormFieldChanged({ fieldName: 'amount', assetType: 'USDC' });
+
+    const [asset, amount] = plausible.mock.calls.map((c) => c[1].props);
+    expect(asset.asset_type).toBe('USDC');
+    expect(amount).not.toHaveProperty('asset_type');
+  });
+
+  it('attaches expiry_days only for the expiration field, allowing null', () => {
+    const plausible = emitted();
+    analytics.sendFormFieldChanged({ fieldName: 'expiration', expiryDays: 7 });
+    analytics.sendFormFieldChanged({ fieldName: 'expiration', expiryDays: null });
+    analytics.sendFormFieldChanged({ fieldName: 'message', expiryDays: 7 });
+
+    const [seven, never, message] = plausible.mock.calls.map((c) => c[1].props);
+    expect(seven.expiry_days).toBe(7);
+    expect(never.expiry_days).toBeNull();
+    expect(message).not.toHaveProperty('expiry_days');
+  });
+
+  it('never carries the entered value', () => {
+    const plausible = emitted();
+    analytics.sendFormFieldChanged({ fieldName: 'recipient_name' });
+
+    const props = plausible.mock.calls[0]![1].props as Record<string, unknown>;
+    expect(Object.keys(props)).not.toContain('value');
+    expect(Object.keys(props)).not.toContain('recipient_name');
+  });
+});
