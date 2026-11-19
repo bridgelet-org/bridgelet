@@ -208,6 +208,10 @@ function AvailablePanel({
       });
       return;
     }
+    // Recipient submitted an address that passed client-side validation (§5.2).
+    // No previous-address suggestion exists yet, so the reuse flag is always false.
+    // The address itself is never part of the payload.
+    analytics.walletAddressEntered({ claimId, usedPreviousAddress: false });
     setClaiming(true);
     setRateLimit(undefined);
 
