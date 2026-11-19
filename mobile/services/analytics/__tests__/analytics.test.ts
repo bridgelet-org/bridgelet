@@ -1,3 +1,11 @@
+jest.mock("@react-native-async-storage/async-storage", () => ({
+  __esModule: true,
+  default: {
+    getItem: jest.fn().mockResolvedValue(null),
+    setItem: jest.fn().mockResolvedValue(undefined),
+  },
+}));
+
 const originalEnv = {
   environment: process.env.EXPO_PUBLIC_ENV,
   domain: process.env.EXPO_PUBLIC_PLAUSIBLE_DOMAIN,
@@ -62,5 +70,42 @@ describe("mobile analytics", () => {
       domain: "bridgelet.app",
       props: { claim_id: "claim-123", platform: expect.stringMatching(/^(ios|android|web)$/) },
     });
+  });
+
+  it("attaches the shared mobile base payload", async () => {
+    jest.isolateModules(() => {
+      const { track } = require("../index") as typeof import("../index");
+      track({
+        name: "Claim Submitted",
+        params: { claim_id: "claim-456" },
+      });
+    });
+
+    await Promise.resolve();
+
+    const requestBody = JSON.parse((global.fetch as jest.Mock).mock.calls[0][1].body as string);
+    expect(requestBody.props).toMatchObject({
+      anonymous_id: expect.any(String),
+      session_id: expect.any(String),
+      journey: "recipient",
+      network: "testnet",
+      timestamp: expect.any(String),
+    });
+  });
+
+  it("only logs locally in development builds", async () => {
+    const log = jest.spyOn(console, "log").mockImplementation(() => {});
+    Object.defineProperty(globalThis, "__DEV__", { configurable: true, value: true });
+
+    jest.isolateModules(() => {
+      const { track } = require("../index") as typeof import("../index");
+      track({ name: "Screen Viewed", params: { screen: "claim_entry" } });
+    });
+
+    await Promise.resolve();
+
+    expect(global.fetch).not.toHaveBeenCalled();
+    expect(log).toHaveBeenCalledWith("[Analytics]", "Screen Viewed", { screen: "claim_entry" });
+    log.mockRestore();
   });
 });

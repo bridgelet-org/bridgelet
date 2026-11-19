@@ -1,9 +1,11 @@
-import Constants from "expo-constants";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Platform } from "react-native";
 import env, { isProd } from "../../app/src/config/env";
 import { logger } from "../logger";
 
-const IS_DEV = Constants.appOwnership === "expo" || __DEV__;
+// Expo Go reports `appOwnership: "expo"` even for release builds and QA passes,
+// so ownership must not decide whether an event is real. Only __DEV__ does.
+const IS_DEV = __DEV__;
 
 // Event names must match `docs/analytics-spec.md` `#### \`Event Name\`` headings exactly.
 export type AnalyticsEvent =
@@ -23,6 +25,78 @@ export type AnalyticsEvent =
   | { name: "Explorer Link Clicked"; params: { journey: "sender" | "recipient"; claim_id: string; source_screen: string } }
   | { name: "Error Displayed"; params: { journey: "sender" | "recipient" | "shared"; claim_id?: string | null; error_type: string; error_code?: string; source_screen: string } }
   | { name: "Retry Clicked"; params: { journey: "sender" | "recipient" | "shared"; claim_id?: string | null; error_type: string; attempt_number: number } };
+
+export type AnalyticsJourney = "sender" | "recipient" | "shared";
+export type AnalyticsNetwork = "testnet" | "mainnet";
+
+export interface AnalyticsBasePayload {
+  anonymous_id: string;
+  session_id: string;
+  journey: AnalyticsJourney;
+  network: AnalyticsNetwork;
+  platform: "ios" | "android" | "web";
+  timestamp: string;
+}
+
+const ANONYMOUS_ID_KEY = "bridgelet_analytics_anonymous_id";
+
+const createId = (): string =>
+  `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+
+const sessionId = createId();
+let anonymousId: string | null = null;
+
+export function getAnonymousId(): string {
+  if (!anonymousId) anonymousId = createId();
+  return anonymousId;
+}
+
+/** Hydrates the persisted anonymous id. Call once when the app starts. */
+export async function initAnalytics(): Promise<void> {
+  try {
+    const stored = await AsyncStorage.getItem(ANONYMOUS_ID_KEY);
+    if (stored) {
+      anonymousId = stored;
+      return;
+    }
+    await AsyncStorage.setItem(ANONYMOUS_ID_KEY, getAnonymousId());
+  } catch (error) {
+    logger.warn(
+      "Analytics",
+      "Could not persist the analytics anonymous id.",
+      error,
+    );
+  }
+}
+
+const currentPlatform = (): AnalyticsBasePayload["platform"] =>
+  Platform.OS === "ios" || Platform.OS === "android" || Platform.OS === "web"
+    ? Platform.OS
+    : "web";
+
+const journeyForEvent = (name: string): AnalyticsJourney => {
+  if (name.startsWith("Sender")) return "sender";
+  if (name.startsWith("Claim") || name.startsWith("Wallet")) return "recipient";
+  return "shared";
+};
+
+/**
+ * Mobile equivalent of `docs/analytics-spec.md` §3.1. Device-only fields
+ * (`user_agent`, `referrer`) are dropped; `platform` is always native here.
+ */
+export function getBasePayload(
+  journey: AnalyticsJourney = "shared",
+  network: AnalyticsNetwork = "testnet",
+): AnalyticsBasePayload {
+  return {
+    anonymous_id: getAnonymousId(),
+    session_id: sessionId,
+    journey,
+    network,
+    platform: currentPlatform(),
+    timestamp: new Date().toISOString(),
+  };
+}
 
 if (isProd && !env.plausibleDomain?.trim()) {
   logger.warn(
@@ -51,7 +125,10 @@ export function track(event: AnalyticsEvent): void {
     name: event.name,
     url: `https://${domain}/`,
     domain,
-    props: { ...event.params, platform },
+    props: {
+      ...getBasePayload(journeyForEvent(event.name)),
+      ...event.params,
+    },
   };
 
   void Promise.resolve()
