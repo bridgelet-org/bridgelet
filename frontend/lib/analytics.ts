@@ -644,6 +644,16 @@ export const analytics = {
       ...(assetType ? { asset_type: assetType } : {}),
       ...(expiryDays != null ? { expiry_days: expiryDays } : {}),
     }),
+  /**
+   * §4.3 Wallet Connected (funnel stage 4): fires when the sender
+   * successfully connects a wallet. `wallet_type` is the provider name
+   * ("Freighter", "Albedo", "xBull"). Never carries the public key.
+   */
+  walletConnected: ({ walletType }: { walletType: string }) =>
+    track('Wallet Connected', {
+      journey: 'sender',
+      wallet_type: walletType,
+    }),
   paymentConfirmed: ({
     assetType,
     expiryDays,

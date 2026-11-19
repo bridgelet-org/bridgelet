@@ -1676,3 +1676,39 @@ describe('Send Form Field Changed (§4.2)', () => {
     expect(Object.keys(props)).not.toContain('recipient_name');
   });
 });
+
+describe('Wallet Connected (§4.3)', () => {
+  afterEach(() => {
+    delete (window as unknown as { plausible?: unknown }).plausible;
+  });
+
+  it('emits the spec event name with journey and wallet_type', () => {
+    const plausible = plausibleMock();
+    (window as unknown as { plausible?: ReturnType<typeof plausibleMock> }).plausible = plausible;
+
+    analytics.walletConnected({ walletType: 'Freighter' });
+
+    expect(plausible).toHaveBeenCalledTimes(1);
+    const [name, options] = plausible.mock.calls[0]!;
+    expect(name).toBe('Wallet Connected');
+    expect(options.props).toEqual(
+      expect.objectContaining({
+        journey: 'sender',
+        wallet_type: 'Freighter',
+        platform: 'web',
+        message_id: expect.any(String),
+      }),
+    );
+  });
+
+  it('does not carry a public key or any claim_id', () => {
+    const plausible = plausibleMock();
+    (window as unknown as { plausible?: ReturnType<typeof plausibleMock> }).plausible = plausible;
+
+    analytics.walletConnected({ walletType: 'Freighter' });
+
+    const keys = Object.keys(plausible.mock.calls[0]![1].props as Record<string, unknown>);
+    expect(keys).not.toContain('public_key');
+    expect(keys).not.toContain('claim_id');
+  });
+});
