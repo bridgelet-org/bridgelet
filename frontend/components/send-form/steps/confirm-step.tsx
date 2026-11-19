@@ -216,6 +216,15 @@ export function ConfirmStep({ state, onBack }: ConfirmStepProps) {
       analytics.paymentDetailsViewed({ claimId: account.accountId, claimStatus: 'unclaimed' });
     } catch (err) {
       const info = classifyError(err);
+      // §4.3 Payment Creation Failed: the Stellar transaction itself failed after the sender
+      // signed. A rejected signature, a wrong signer, a missing trustline or a low balance
+      // never reached the chain, so they are not reported here (they surface as Error Displayed).
+      if (info.code === AccountCreationErrorCode.STELLAR_CREATION_FAILURE) {
+        analytics.paymentCreationFailed({
+          assetType: state.assetCode,
+          errorCode: err instanceof FundingError ? err.code : info.code,
+        });
+      }
       setErrorInfo(info);
       if (err instanceof RateLimitError) {
         setRetryAfter(err.retryAfter);
