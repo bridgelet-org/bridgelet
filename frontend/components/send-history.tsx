@@ -140,6 +140,15 @@ export function SendHistory() {
     setRememberedClaimLinks(getRememberedClaimLinks());
   }, []);
 
+  // §4.5 Dashboard Viewed: once, when the payment list has loaded. The status filter is "all"
+  // on load; `total_payments` is the number of payments on the loaded page.
+  const dashboardViewedRef = useRef(false);
+  useEffect(() => {
+    if (loading || error || dashboardViewedRef.current) return;
+    dashboardViewedRef.current = true;
+    analytics.dashboardViewed({ totalPayments: accounts.length, activeFilter: 'all' });
+  }, [accounts, error, loading]);
+
   useEffect(() => {
     if (loading || error) return;
 
