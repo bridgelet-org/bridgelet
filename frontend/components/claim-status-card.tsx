@@ -165,6 +165,15 @@ function AvailablePanel({
   // Matches the backend's Stellar public key validation (StrKey ed25519 public keys).
   const isValidAddress = /^G[A-Z2-7]{55}$/.test(destinationAddress);
 
+  // §5.2 Wallet Address Screen Viewed: the address input is on screen as soon as this panel
+  // mounts. There is no previous-address suggestion yet, so has_previous_address is false.
+  const screenViewedRef = useRef(false);
+  useEffect(() => {
+    if (screenViewedRef.current) return;
+    screenViewedRef.current = true;
+    analytics.walletAddressScreenViewed({ claimId, hasPreviousAddress: false });
+  }, [claimId]);
+
   // §6 Error Displayed: fires once when claimError first appears.
   useEffect(() => {
     if (claimError && !errorDisplayedRef.current) {
