@@ -1051,6 +1051,8 @@ Where server-side events are used, they should be enriched with client context (
 
 Respect browser-level `DNT` headers. If `DNT: 1`, suppress all analytics events. This is especially important for the recipient flow, where the user may not have any prior relationship with Bridgelet.
 
+> **Implementation status:** Implemented in `frontend/lib/analytics.ts`. The shared `track()` path checks `isDoNotTrackEnabled()` before building the payload or generating identifiers, so a visitor who opts out emits no analytics event and gets no new stored tracking ID. Detection covers `navigator.doNotTrack`, `navigator.msDoNotTrack`, and `window.doNotTrack`, accepting both string and numeric `1` values.
+
 ---
 
 *Document version 1.0: Analytics & Product Event Tracking Specification for Bridgelet*
