@@ -653,6 +653,8 @@ Fired when the sweep fails after the recipient confirmed.
 | `error_type` | string | `"network_error"`, `"token_expired"`, `"already_claimed"`, `"transaction_failed"`, `"unknown"` |
 | `attempt_number` | number | How many times the recipient has tried on this claim |
 
+> **Implementation status:** Mobile uses the canonical `Claim Failed` event in this catalog; the snake_case `claim_failed` name is not emitted. Mobile `Claim Failed` events are posted to Plausible by `mobile/services/analytics/index.ts` when `EXPO_PUBLIC_PLAUSIBLE_DOMAIN` is configured and include `platform: "ios"` or `platform: "android"`.
+
 ---
 
 ### 5.4 Post-Claim
