@@ -1005,13 +1005,15 @@ K-Factor = (Sender Signup CTA Clicked events)
 
 These are lower-level metrics derived from event data to monitor system health alongside product health.
 
-| Metric | Derived From | Purpose |
-|--------|-------------|---------|
-| Median payment confirmation time | `confirmation_time_ms` in `Payment Created` | Monitor Stellar network performance |
-| Median sweep duration | `sweep_duration_ms` in `Claim Succeeded` | Monitor backend sweep service |
-| Wallet connection failure rate | `Wallet Connection Failed` / `Wallet Connected` + `Wallet Connection Failed` | Monitor wallet provider compatibility |
-| Error rate by type | `Error Displayed` grouped by `error_type` | Detect spikes in specific failure modes |
-| Network unavailability incidents | `Error Displayed` where `error_type = network_unavailable` | Proxy for Stellar network outages affecting users |
+| Metric | Derived From | Purpose | Implementation status |
+|--------|-------------|---------|-----------------------|
+| Median payment confirmation time | `confirmation_time_ms` in `Payment Created` | Monitor Stellar network performance | Emitted by the sender confirmation step |
+| Median sweep duration | `sweep_duration_ms` in `Claim Succeeded` | Monitor backend sweep service | Emitted when a claim includes a measured sweep duration |
+| Wallet connection failure rate | `Wallet Connection Failed` / `Wallet Connected` + `Wallet Connection Failed` | Monitor wallet provider compatibility | Blocked: `Wallet Connected` has no production call site |
+| Error rate by type | `Error Displayed` grouped by `error_type` | Detect spikes in specific failure modes | Emitted with the required `error_type` field |
+| Network unavailability incidents | `Error Displayed` where `error_type = network_unavailable` | Proxy for Stellar network outages affecting users | Emitted from recipient load failures |
+
+Implementation status describes event emission only. These metrics still require an aggregation query and an event-export check before they are reported as numbers.
 
 ---
 
