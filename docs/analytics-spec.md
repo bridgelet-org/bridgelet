@@ -147,6 +147,8 @@ Fired when a screen is shown in the mobile app.
 |----------|------|---------------------|
 | `screen` | string | Stable identifier for the screen |
 
+> **Implementation status:** The mobile tracker emits only events in this catalog; `auth_login` is not a defined mobile event and is not sent. Production mobile events are posted to Plausible by `mobile/services/analytics/index.ts` when `EXPO_PUBLIC_PLAUSIBLE_DOMAIN` is configured, with `platform` set to `ios` or `android`.
+
 ### 3.3 Conditional Properties
 
 These properties are included only where relevant and marked `(if available)` in event tables:
