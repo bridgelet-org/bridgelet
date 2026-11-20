@@ -81,9 +81,17 @@ describe('buildBasePayload', () => {
         app_version: expect.any(String),
         user_agent: expect.any(String),
         device_type: expect.stringMatching(/^(mobile|tablet|desktop)$/),
+        platform: 'web',
+        journey: 'shared',
+        timestamp: expect.any(String),
       }),
     );
     expect('referrer' in payload).toBe(true);
+    expect(Number.isNaN(Date.parse(payload.timestamp as string))).toBe(false);
+  });
+
+  it('accepts an explicit journey from the emitting event', () => {
+    expect(buildBasePayload('recipient').journey).toBe('recipient');
   });
 
   it('degrades to empty strings and null when browser APIs are absent', () => {
@@ -301,6 +309,10 @@ describe('track base payload merge', () => {
         }),
       });
       expect('referrer' in call[1].props).toBe(true);
+      expect(call[1].props.platform).toBe('web');
+      expect(call[1].props.journey).toMatch(/^(sender|recipient|shared)$/);
+      expect(call[1].props.timestamp).toEqual(expect.any(String));
+      expect(call[1].props.session_id).toEqual(expect.any(String));
     }
   });
 
