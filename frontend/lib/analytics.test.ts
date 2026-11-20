@@ -1,4 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import {
+  ANALYTICS_EVENT_NAMES,
+  buildBasePayload as buildSharedBasePayload,
+  createAnalyticsDispatcher,
+} from '@bridgelet/analytics';
 import {
   analytics,
   appVersion,
@@ -48,6 +55,33 @@ describe('appVersion', () => {
   it('falls back to "unknown" without a configured version', () => {
     vi.stubEnv('NEXT_PUBLIC_APP_VERSION', '');
     expect(appVersion()).toBe('unknown');
+  });
+});
+
+describe('shared analytics package', () => {
+  it('keeps the shared event names in sync with the specification', () => {
+    const spec = readFileSync(resolve(process.cwd(), '../docs/analytics-spec.md'), 'utf8');
+    const specEventNames = [...spec.matchAll(/^#### `([^`]+)`$/gm)].map(([, name]) => name);
+
+    expect(ANALYTICS_EVENT_NAMES).toHaveLength(36);
+    expect(ANALYTICS_EVENT_NAMES).toEqual(specEventNames);
+  });
+
+  it('builds a base payload for each platform and dispatches through a provider callback', () => {
+    const payload = buildSharedBasePayload('ios', { app_version: '1.0.0', device_type: 'mobile' });
+    const provider = vi.fn();
+    const dispatch = createAnalyticsDispatcher(provider);
+
+    dispatch('Claim Succeeded', payload);
+
+    expect(payload).toEqual({
+      app_version: '1.0.0',
+      user_agent: '',
+      device_type: 'mobile',
+      referrer: null,
+      platform: 'ios',
+    });
+    expect(provider).toHaveBeenCalledWith('Claim Succeeded', payload);
   });
 });
 
