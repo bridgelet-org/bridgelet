@@ -5,7 +5,7 @@ import {
   type AnalyticsEventName,
 } from '@bridgelet/analytics';
 
-type ClaimEvent = AnalyticsEventName;
+export type ClaimEvent = AnalyticsEventName;
 
 type EventProps = Record<string, string | number | boolean | null>;
 
@@ -358,7 +358,7 @@ const dispatchToProvider = createAnalyticsDispatcher<EventProps>((event, payload
  * (§9.5) and deduplication (§9.4) are enforced here rather than at call
  * sites: no emitter can forget them.
  */
-function track(event: ClaimEvent, props?: EventProps): void {
+function track<K extends ClaimEvent>(event: K, props: ClaimEventPayloadMap[K]): void {
   if (typeof window === 'undefined') return;
 
   // #635 (§9.5): first, before any payload is built. `getAnonymousId()`
@@ -370,14 +370,14 @@ function track(event: ClaimEvent, props?: EventProps): void {
 
   // #634 (§9.4): second, so a suppressed duplicate also avoids burning a
   // `message_id`.
-  if (isDuplicateClaimEvent(event, props?.claim_id)) return;
+  if (isDuplicateClaimEvent(event, (props as { claim_id?: unknown } | undefined)?.claim_id)) return;
 
   // Base payload is merged in first so event-specific props can override.
   const payload: EventProps = {
     ...buildBasePayload(),
     anonymous_id: getAnonymousId(),
     session_id: getSessionId(),
-    ...props,
+    ...(props ?? {}),
     // §9.4: a per-event UUID for the analytics pipeline to deduplicate on.
     // Applied after `...props` so no call site can override or blank it.
     message_id: generateUUID(),
@@ -421,14 +421,14 @@ export const VALID_EXPIRY_WINDOWS = [1, 7, 30, 90] as const;
 export type ExpiryDays = (typeof VALID_EXPIRY_WINDOWS)[number] | null;
 
 export const conditional = {
-  claimId: (claimId: string): EventProps => ({ claim_id: claimId }),
-  assetType: (assetType: string): EventProps => ({ asset_type: assetType }),
-  amountUsdEquiv: (amountUsdEquiv: number): EventProps => ({
+  claimId: (claimId: string): { claim_id: string } => ({ claim_id: claimId }),
+  assetType: (assetType: string): { asset_type: string } => ({ asset_type: assetType }),
+  amountUsdEquiv: (amountUsdEquiv: number): { amount_usd_equiv: number } => ({
     amount_usd_equiv: amountUsdEquiv,
   }),
-  expiryDays: (expiryDays: ExpiryDays): EventProps => ({ expiry_days: expiryDays }),
-  errorType: (errorType: ErrorType): EventProps => ({ error_type: errorType }),
-  errorCode: (errorCode: string): EventProps => ({ error_code: errorCode }),
+  expiryDays: (expiryDays: ExpiryDays): { expiry_days: ExpiryDays } => ({ expiry_days: expiryDays }),
+  errorType: (errorType: ErrorType): { error_type: ErrorType } => ({ error_type: errorType }),
+  errorCode: (errorCode: string): { error_code: string } => ({ error_code: errorCode }),
 };
 
 interface ClaimVerifiedProps {
@@ -532,8 +532,190 @@ interface ClaimSucceededProps {
   timeToClaimHours?: number;
   /** Time in ms from `Claim Submitted` to on-chain confirmation. */
   sweepDurationMs?: number;
-  entryChannel?: string;
+  entryChannel?: ClaimEntryChannel;
 }
+
+export type ClaimEventPayloadMap = {
+  'Screen Viewed': { screen: string };
+  'Page Viewed': { journey: 'sender'; page: string; entry_source?: EntrySource };
+  'Send Form Viewed': { journey: 'sender' };
+  'Send Form Started': {
+    journey: 'sender';
+    first_field: 'amount' | 'asset' | 'recipient_name' | 'message' | 'expiration';
+  };
+  'Send Form Field Changed': {
+    journey: 'sender';
+    field_name: 'amount' | 'asset' | 'expiration' | 'recipient_name' | 'message';
+    asset_type?: string;
+    expiry_days?: ExpiryDays;
+  };
+  'Send Form Completed': {
+    journey: 'sender';
+    asset_type?: string;
+    expiry_days?: ExpiryDays;
+    has_recipient_name: boolean;
+    has_message: boolean;
+  };
+  'Payment Confirmation Viewed': {
+    journey: 'sender';
+    asset_type?: string;
+    expiry_days?: ExpiryDays;
+  };
+  'Wallet Connected': { journey: 'sender'; wallet_type: string };
+  'Wallet Connection Failed': {
+    journey: 'sender';
+    wallet_type: string;
+    error_code: string;
+  };
+  'Payment Confirmed': {
+    journey: 'sender';
+    asset_type?: string;
+    expiry_days?: ExpiryDays;
+    wallet_type?: string;
+  };
+  'Payment Created': {
+    journey: 'sender';
+    claim_id: string;
+    asset_type?: string;
+    expiry_days?: ExpiryDays;
+    confirmation_time_ms: number;
+  };
+  'Payment Creation Failed': {
+    journey: 'sender';
+    asset_type?: string;
+    error_code: string;
+  };
+  'Payment Success Viewed': {
+    journey: 'sender';
+    claim_id: string;
+    asset_type?: string;
+  };
+  'Claim Link Copied': {
+    journey: 'sender';
+    claim_id: string;
+    copy_location: 'success_screen' | 'dashboard_detail' | 'send_history_recovery';
+  };
+  'Claim Link Shared': {
+    journey: 'sender';
+    claim_id: string;
+    share_method: ShareMethod;
+  };
+  'Claim Link Recovery Viewed': {
+    journey: 'sender';
+    claim_id: string;
+    recovery_location: 'send_history';
+  };
+  'Dashboard Viewed': {
+    journey: 'sender';
+    total_payments: number;
+    active_filter: DashboardFilter;
+  };
+  'Dashboard Filter Applied': { journey: 'sender'; filter: DashboardFilter };
+  'Payment Details Viewed': {
+    journey: 'sender';
+    claim_id: string;
+    claim_status: PaymentClaimStatus;
+  };
+  'Payment Cancelled': {
+    journey: 'sender';
+    claim_id: string;
+    asset_type?: string;
+    time_since_creation_hours: number;
+  };
+  'Funds Reclaimed': {
+    journey: 'sender';
+    claim_id: string;
+    asset_type?: string;
+    days_expired: number;
+  };
+  'Claim Page Opened': {
+    journey: 'recipient';
+    claim_id: string;
+    entry_channel: ClaimEntryChannel;
+  };
+  'Claim Verified': {
+    journey: 'recipient';
+    claim_id: string;
+    asset_type?: string;
+    expiry_days_remaining?: number;
+    verification_time_ms: number;
+  };
+  'Claim CTA Clicked': {
+    journey: 'recipient';
+    claim_id: string;
+    asset_type?: string;
+  };
+  'Wallet Address Screen Viewed': {
+    journey: 'recipient';
+    claim_id: string;
+    has_previous_address: boolean;
+  };
+  'Wallet Address Entered': {
+    journey: 'recipient';
+    claim_id: string;
+    used_previous_address: boolean;
+  };
+  'Wallet Address Validation Failed': {
+    journey: 'recipient';
+    claim_id?: string;
+    validation_error: ValidationError;
+    attempt_number: number;
+  };
+  'Claim Confirmation Viewed': {
+    journey: 'recipient';
+    claim_id: string;
+    asset_type?: string;
+  };
+  'Claim Submitted': {
+    journey: 'recipient';
+    claim_id: string;
+    asset_type?: string;
+  };
+  'Claim Succeeded': {
+    journey: 'recipient';
+    claim_id: string;
+    asset_type?: string;
+    time_to_claim_hours?: number;
+    sweep_duration_ms?: number;
+    entry_channel?: ClaimEntryChannel;
+  };
+  'Claim Failed': {
+    journey: 'recipient';
+    claim_id: string;
+    asset_type?: string;
+    error_code: string;
+    error_type: ClaimFailedErrorType;
+    attempt_number: number;
+  };
+  'Claim Success Viewed': {
+    journey: 'recipient';
+    claim_id: string;
+    asset_type?: string;
+  };
+  'Sender Signup CTA Clicked': {
+    journey: 'recipient';
+    claim_id: string;
+    source: 'claim_success_screen';
+  };
+  'Explorer Link Clicked': {
+    journey: ExplorerJourney;
+    claim_id: string;
+    source_screen: ExplorerSourceScreen;
+  };
+  'Error Displayed': {
+    journey: 'sender' | 'recipient' | 'shared';
+    claim_id?: string | null;
+    error_type: ErrorType;
+    error_code: string;
+    source_screen: string;
+  };
+  'Retry Clicked': {
+    journey: 'sender' | 'recipient' | 'shared';
+    claim_id?: string | null;
+    error_type: ErrorType;
+    attempt_number: number;
+  };
+};
 
 export function daysRemainingUntil(iso: string): number | undefined {
   const expiresAt = Date.parse(iso);
@@ -593,7 +775,7 @@ export const analytics = {
     track('Send Form Completed', {
       journey: 'sender',
       ...(assetType ? { asset_type: assetType } : {}),
-      ...(expiryDays != null ? { expiry_days: expiryDays } : {}),
+      ...(expiryDays != null ? { expiry_days: expiryDays as ExpiryDays } : {}),
       has_recipient_name: hasRecipientName,
       has_message: hasMessage,
     }),
@@ -607,7 +789,7 @@ export const analytics = {
     track('Payment Confirmation Viewed', {
       journey: 'sender',
       ...(assetType ? { asset_type: assetType } : {}),
-      ...(expiryDays != null ? { expiry_days: expiryDays } : {}),
+      ...(expiryDays != null ? { expiry_days: expiryDays as ExpiryDays } : {}),
     }),
   paymentConfirmed: ({
     assetType,
@@ -621,7 +803,7 @@ export const analytics = {
     track('Payment Confirmed', {
       journey: 'sender',
       ...(assetType ? { asset_type: assetType } : {}),
-      ...(expiryDays != null ? { expiry_days: expiryDays } : {}),
+      ...(expiryDays != null ? { expiry_days: expiryDays as ExpiryDays } : {}),
       ...(walletType ? { wallet_type: walletType } : {}),
     }),
   paymentCreated: ({
@@ -639,7 +821,7 @@ export const analytics = {
       journey: 'sender',
       claim_id: claimId,
       ...(assetType ? { asset_type: assetType } : {}),
-      ...(expiryDays != null ? { expiry_days: expiryDays } : {}),
+      ...(expiryDays != null ? { expiry_days: expiryDays as ExpiryDays } : {}),
       confirmation_time_ms: confirmationTimeMs,
     }),
   claimLinkCopied: ({
