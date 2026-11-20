@@ -1,7 +1,8 @@
-import { describe, it, expect, vi } from 'vitest';
+import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ExpiryStep } from '@/components/send-form/steps/expiry-step';
+import { analytics } from '@/lib/analytics';
 
 describe('ExpiryStep', () => {
   it('renders expiry options and selects the initial value', () => {
@@ -71,5 +72,100 @@ describe('ExpiryStep', () => {
     await user.click(screen.getByRole('button', { name: /back/i }));
 
     expect(onBack).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('ExpiryStep Send Form Field Changed (#984)', () => {
+  let spy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    spy = vi.spyOn(analytics, 'sendFormFieldChanged').mockImplementation(() => undefined);
+  });
+
+  afterEach(() => {
+    spy.mockRestore();
+  });
+
+  function renderStep(onNext = vi.fn(), onBack = vi.fn()) {
+    render(<ExpiryStep expiresInHours={24} onChange={vi.fn()} onBack={onBack} onNext={onNext} />);
+  }
+
+  it('fires once with expiry_days when focus leaves the radio group', async () => {
+    const user = userEvent.setup();
+    renderStep();
+
+    await user.click(screen.getByLabelText(/3 days/));
+    expect(spy).not.toHaveBeenCalled();
+
+    await user.tab(); // focus moves to Back, outside the group
+    expect(spy).toHaveBeenCalledTimes(1);
+    expect(spy).toHaveBeenCalledWith({ fieldName: 'expiration', expiryDays: 3 });
+  });
+
+  it('does not fire while focus moves between radios inside the group', async () => {
+    const user = userEvent.setup();
+    renderStep();
+
+    await user.click(screen.getByLabelText(/24 hours/));
+    await user.keyboard('{ArrowDown}');
+
+    expect(screen.getByLabelText(/3 days/)).toBeChecked();
+    expect(spy).not.toHaveBeenCalled();
+  });
+
+  it('reports a change made without any blur when the sender clicks Continue', async () => {
+    const user = userEvent.setup();
+    const onNext = vi.fn();
+    renderStep(onNext);
+
+    await user.click(screen.getByLabelText(/7 days/));
+    await user.click(screen.getByRole('button', { name: /continue/i }));
+
+    expect(spy).toHaveBeenCalledTimes(1);
+    expect(spy).toHaveBeenCalledWith({ fieldName: 'expiration', expiryDays: 7 });
+    expect(onNext).toHaveBeenCalledTimes(1);
+  });
+
+  it('reports a change when the sender goes Back', async () => {
+    const user = userEvent.setup();
+    const onBack = vi.fn();
+    renderStep(vi.fn(), onBack);
+
+    await user.click(screen.getByLabelText(/3 days/));
+    await user.click(screen.getByRole('button', { name: /back/i }));
+
+    expect(spy).toHaveBeenCalledTimes(1);
+    expect(onBack).toHaveBeenCalledTimes(1);
+  });
+
+  it('reports one edit once even when blur and Continue both follow', async () => {
+    const user = userEvent.setup();
+    renderStep();
+
+    await user.click(screen.getByLabelText(/7 days/));
+    await user.tab();
+    await user.click(screen.getByRole('button', { name: /continue/i }));
+
+    expect(spy).toHaveBeenCalledTimes(1);
+  });
+
+  it('fires nothing when the choice is changed and then restored', async () => {
+    const user = userEvent.setup();
+    renderStep();
+
+    await user.click(screen.getByLabelText(/7 days/));
+    await user.click(screen.getByLabelText(/24 hours/));
+    await user.click(screen.getByRole('button', { name: /continue/i }));
+
+    expect(spy).not.toHaveBeenCalled();
+  });
+
+  it('fires nothing when Continue is clicked without changing the default', async () => {
+    const user = userEvent.setup();
+    renderStep();
+
+    await user.click(screen.getByRole('button', { name: /continue/i }));
+
+    expect(spy).not.toHaveBeenCalled();
   });
 });

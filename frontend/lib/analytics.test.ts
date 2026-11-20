@@ -1,4 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import {
+  ANALYTICS_EVENT_NAMES,
+  buildBasePayload as buildSharedBasePayload,
+  createAnalyticsDispatcher,
+} from '@bridgelet/analytics';
 import {
   analytics,
   appVersion,
@@ -51,6 +58,33 @@ describe('appVersion', () => {
   });
 });
 
+describe('shared analytics package', () => {
+  it('keeps the shared event names in sync with the specification', () => {
+    const spec = readFileSync(resolve(process.cwd(), '../docs/analytics-spec.md'), 'utf8');
+    const specEventNames = [...spec.matchAll(/^#### `([^`]+)`$/gm)].map(([, name]) => name);
+
+    expect(ANALYTICS_EVENT_NAMES).toHaveLength(36);
+    expect(ANALYTICS_EVENT_NAMES).toEqual(specEventNames);
+  });
+
+  it('builds a base payload for each platform and dispatches through a provider callback', () => {
+    const payload = buildSharedBasePayload('ios', { app_version: '1.0.0', device_type: 'mobile' });
+    const provider = vi.fn();
+    const dispatch = createAnalyticsDispatcher(provider);
+
+    dispatch('Claim Succeeded', payload);
+
+    expect(payload).toEqual({
+      app_version: '1.0.0',
+      user_agent: '',
+      device_type: 'mobile',
+      referrer: null,
+      platform: 'ios',
+    });
+    expect(provider).toHaveBeenCalledWith('Claim Succeeded', payload);
+  });
+});
+
 describe('detectDeviceType', () => {
   it('classifies mobile user agents', () => {
     expect(detectDeviceType('Mozilla/5.0 (iPhone; CPU iPhone OS 17_0)')).toBe('mobile');
@@ -81,9 +115,17 @@ describe('buildBasePayload', () => {
         app_version: expect.any(String),
         user_agent: expect.any(String),
         device_type: expect.stringMatching(/^(mobile|tablet|desktop)$/),
+        platform: 'web',
+        journey: 'shared',
+        timestamp: expect.any(String),
       }),
     );
     expect('referrer' in payload).toBe(true);
+    expect(Number.isNaN(Date.parse(payload.timestamp as string))).toBe(false);
+  });
+
+  it('accepts an explicit journey from the emitting event', () => {
+    expect(buildBasePayload('recipient').journey).toBe('recipient');
   });
 
   it('degrades to empty strings and null when browser APIs are absent', () => {
@@ -301,6 +343,10 @@ describe('track base payload merge', () => {
         }),
       });
       expect('referrer' in call[1].props).toBe(true);
+      expect(call[1].props.platform).toBe('web');
+      expect(call[1].props.journey).toMatch(/^(sender|recipient|shared)$/);
+      expect(call[1].props.timestamp).toEqual(expect.any(String));
+      expect(call[1].props.session_id).toEqual(expect.any(String));
     }
   });
 
@@ -1615,4 +1661,100 @@ describe('dispatch targets and PostHog fallback', () => {
     expect(plausible).toHaveBeenCalledTimes(1);
     expect(capture).not.toHaveBeenCalled();
   });
-})
+});
+
+describe('Send Form Field Changed (§4.2)', () => {
+  afterEach(() => {
+    delete (window as unknown as { plausible?: unknown }).plausible;
+  });
+
+  function emitted() {
+    const plausible = plausibleMock();
+    (window as unknown as { plausible?: ReturnType<typeof plausibleMock> }).plausible = plausible;
+    return plausible;
+  }
+
+  it('emits the spec event name with journey and field_name', () => {
+    const plausible = emitted();
+    analytics.sendFormFieldChanged({ fieldName: 'amount' });
+
+    expect(plausible).toHaveBeenCalledTimes(1);
+    const [name, options] = plausible.mock.calls[0]!;
+    expect(name).toBe('Send Form Field Changed');
+    expect(options.props).toEqual(
+      expect.objectContaining({
+        journey: 'sender',
+        field_name: 'amount',
+        platform: 'web',
+        message_id: expect.any(String),
+      }),
+    );
+  });
+
+  it('attaches asset_type only for the asset field', () => {
+    const plausible = emitted();
+    analytics.sendFormFieldChanged({ fieldName: 'asset', assetType: 'USDC' });
+    analytics.sendFormFieldChanged({ fieldName: 'amount', assetType: 'USDC' });
+
+    const [asset, amount] = plausible.mock.calls.map((c) => c[1].props);
+    expect(asset.asset_type).toBe('USDC');
+    expect(amount).not.toHaveProperty('asset_type');
+  });
+
+  it('attaches expiry_days only for the expiration field, allowing null', () => {
+    const plausible = emitted();
+    analytics.sendFormFieldChanged({ fieldName: 'expiration', expiryDays: 7 });
+    analytics.sendFormFieldChanged({ fieldName: 'expiration', expiryDays: null });
+    analytics.sendFormFieldChanged({ fieldName: 'message', expiryDays: 7 });
+
+    const [seven, never, message] = plausible.mock.calls.map((c) => c[1].props);
+    expect(seven.expiry_days).toBe(7);
+    expect(never.expiry_days).toBeNull();
+    expect(message).not.toHaveProperty('expiry_days');
+  });
+
+  it('never carries the entered value', () => {
+    const plausible = emitted();
+    analytics.sendFormFieldChanged({ fieldName: 'recipient_name' });
+
+    const props = plausible.mock.calls[0]![1].props as Record<string, unknown>;
+    expect(Object.keys(props)).not.toContain('value');
+    expect(Object.keys(props)).not.toContain('recipient_name');
+  });
+});
+
+describe('Wallet Connected (§4.3)', () => {
+  afterEach(() => {
+    delete (window as unknown as { plausible?: unknown }).plausible;
+  });
+
+  it('emits the spec event name with journey and wallet_type', () => {
+    const plausible = plausibleMock();
+    (window as unknown as { plausible?: ReturnType<typeof plausibleMock> }).plausible = plausible;
+
+    analytics.walletConnected({ walletType: 'Freighter' });
+
+    expect(plausible).toHaveBeenCalledTimes(1);
+    const [name, options] = plausible.mock.calls[0]!;
+    expect(name).toBe('Wallet Connected');
+    expect(options.props).toEqual(
+      expect.objectContaining({
+        journey: 'sender',
+        wallet_type: 'Freighter',
+        platform: 'web',
+        message_id: expect.any(String),
+      }),
+    );
+  });
+
+  it('does not carry a public key or any claim_id', () => {
+    const plausible = plausibleMock();
+    (window as unknown as { plausible?: ReturnType<typeof plausibleMock> }).plausible = plausible;
+
+    analytics.walletConnected({ walletType: 'Freighter' });
+
+    const keys = Object.keys(plausible.mock.calls[0]![1].props as Record<string, unknown>);
+    expect(keys).not.toContain('public_key');
+    expect(keys).not.toContain('claim_id');
+  });
+});

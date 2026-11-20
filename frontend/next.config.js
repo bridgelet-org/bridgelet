@@ -2,8 +2,9 @@
 const nextConfig = {
   reactStrictMode: true,
   turbopack: {
-    root: __dirname,
+    root: require('path').resolve(__dirname, '..'),
   },
+  transpilePackages: ['@bridgelet/analytics'],
 
   /**
    * HTTP response headers applied per-route.

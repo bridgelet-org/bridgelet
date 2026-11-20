@@ -1,45 +1,31 @@
 // #118 – Privacy-respecting analytics events (Plausible-compatible, no PII)
-// Event names must match `docs/analytics-spec.md` `#### \`Event Name\`` headings exactly.
-type ClaimEvent =
-  | 'Page Viewed'
-  | 'Send Form Viewed'
-  | 'Send Form Started'
-  | 'Send Form Field Changed'
-  | 'Send Form Completed'
-  | 'Payment Confirmation Viewed'
-  | 'Wallet Connected'
-  | 'Wallet Connection Failed'
-  | 'Payment Confirmed'
-  | 'Payment Created'
-  | 'Payment Creation Failed'
-  | 'Payment Success Viewed'
-  | 'Claim Link Copied'
-  | 'Claim Link Shared'
-  | 'Claim Link Recovery Viewed'
-  | 'Dashboard Viewed'
-  | 'Dashboard Filter Applied'
-  | 'Payment Details Viewed'
-  | 'Payment Cancelled'
-  | 'Funds Reclaimed'
-  | 'Claim Page Opened'
-  | 'Claim Verified'
-  | 'Claim CTA Clicked'
-  | 'Wallet Address Screen Viewed'
-  | 'Wallet Address Entered'
-  | 'Wallet Address Validation Failed'
-  | 'Claim Confirmation Viewed'
-  | 'Claim Submitted'
-  | 'Claim Succeeded'
-  | 'Claim Failed'
-  | 'Claim Success Viewed'
-  | 'Sender Signup CTA Clicked'
-  | 'Explorer Link Clicked'
-  | 'Error Displayed'
-  | 'Retry Clicked';
+import {
+  buildBasePayload as buildSharedBasePayload,
+  createAnalyticsDispatcher,
+  type AnalyticsEventName,
+} from '@bridgelet/analytics';
+
+export type ClaimEvent = AnalyticsEventName;
 
 type EventProps = Record<string, string | number | boolean | null>;
 
+declare global {
+  interface Window {
+    plausible?: (event: string, options?: { props?: Record<string, unknown> }) => void;
+  }
+}
+
 export type DeviceType = 'mobile' | 'tablet' | 'desktop';
+
+/** §3.1 `journey`: the funnel an event belongs to. */
+export type AnalyticsJourney = 'sender' | 'recipient' | 'shared';
+
+/** Coerces a call-site journey to a spec value, defaulting to the catch-all. */
+function asJourney(value: unknown): AnalyticsJourney {
+  return value === 'sender' || value === 'recipient' || value === 'shared'
+    ? value
+    : 'shared';
+}
 
 /**
  * App version correlated to a deploy (`docs/analytics-spec.md` §3.1
@@ -67,18 +53,26 @@ export function detectDeviceType(userAgent?: string): DeviceType {
 
 /**
  * Base payload fields (`docs/analytics-spec.md` §3.1) shared by every
- * event: `app_version`, `user_agent`, `device_type`, `referrer`, and the
- * fixed frontend `platform` value "web". Each field degrades gracefully
- * when the browser API it depends on is unavailable (SSR, unit tests
- * without a DOM).
+ * event: `journey`, `timestamp`, `platform` (fixed "web" for this frontend),
+ * `app_version`, `user_agent`, `device_type` and `referrer`. Each field
+ * degrades gracefully when the browser API it depends on is unavailable
+ * (SSR, unit tests without a DOM).
+ *
+ * `timestamp` is computed here, inside the per-event `track()` path, so it is
+ * the send time of each individual event rather than a module-load time.
+ * `journey` is sourced from the event props; call sites that omit it get the
+ * spec's "shared" value instead of no value at all.
  */
-export function buildBasePayload(): EventProps {
+export function buildBasePayload(journey: AnalyticsJourney = 'shared'): EventProps {
   return {
-    app_version: appVersion(),
-    user_agent: typeof navigator !== 'undefined' ? navigator.userAgent : '',
-    device_type: detectDeviceType(),
-    referrer: typeof document !== 'undefined' && document.referrer ? document.referrer : null,
-    platform: 'web',
+    ...buildSharedBasePayload('web', {
+      app_version: appVersion(),
+      user_agent: typeof navigator !== 'undefined' ? navigator.userAgent : '',
+      device_type: detectDeviceType(),
+      referrer: typeof document !== 'undefined' && document.referrer ? document.referrer : null,
+    }),
+    journey,
+    timestamp: new Date().toISOString(),
   };
 }
 
@@ -354,6 +348,24 @@ function isDuplicateClaimEvent(event: ClaimEvent, claimId: unknown): boolean {
 
 // ─── track() ──────────────────────────────────────────────────────────────────
 
+const dispatchToProvider = createAnalyticsDispatcher<EventProps>((event, payload) => {
+  const plausible = window.plausible;
+  if (typeof plausible === 'function') {
+    plausible(event, { props: payload });
+    return;
+  }
+
+  const posthog = (window as unknown as { posthog?: { capture?: Function } }).posthog;
+  if (typeof posthog?.capture === 'function') {
+    posthog.capture(event, payload);
+    return;
+  }
+
+  if (process.env.NODE_ENV !== 'production') {
+    console.debug('[analytics]', event, payload);
+  }
+});
+
 /**
  * Core dispatch function. Merges the §3.1 identity fields (`anonymous_id`,
  * `session_id`) into every event payload so every downstream event carries
@@ -362,14 +374,8 @@ function isDuplicateClaimEvent(event: ClaimEvent, claimId: unknown): boolean {
  * This is the only place an event reaches the provider, so both opt-out
  * (§9.5) and deduplication (§9.4) are enforced here rather than at call
  * sites: no emitter can forget them.
- *
- * Dispatch targets, in priority order:
- * 1. `window.plausible`: populated by the Plausible script loaded in the
- *    root layout when NEXT_PUBLIC_PLAUSIBLE_DOMAIN is configured (§9.1).
- * 2. `window.posthog`: capture fallback when PostHog is wired up instead.
- * 3. Console debug output in development builds.
  */
-function track(event: ClaimEvent, props?: EventProps): void {
+function track<K extends ClaimEvent>(event: K, props: ClaimEventPayloadMap[K]): void {
   if (typeof window === 'undefined') return;
 
   // #635 (§9.5): first, before any payload is built. `getAnonymousId()`
@@ -381,37 +387,20 @@ function track(event: ClaimEvent, props?: EventProps): void {
 
   // #634 (§9.4): second, so a suppressed duplicate also avoids burning a
   // `message_id`.
-  if (isDuplicateClaimEvent(event, props?.claim_id)) return;
+  if (isDuplicateClaimEvent(event, (props as { claim_id?: unknown } | undefined)?.claim_id)) return;
 
   // Base payload is merged in first so event-specific props can override.
   const payload: EventProps = {
-    ...buildBasePayload(),
+    ...buildBasePayload(asJourney((props as { journey?: unknown } | undefined)?.journey)),
     anonymous_id: getAnonymousId(),
     session_id: getSessionId(),
-    ...props,
+    ...(props ?? {}),
     // §9.4: a per-event UUID for the analytics pipeline to deduplicate on.
     // Applied after `...props` so no call site can override or blank it.
     message_id: generateUUID(),
   };
 
-  // Plausible custom event API
-  const plausible = (window as unknown as { plausible?: Function }).plausible;
-  if (typeof plausible === 'function') {
-    plausible(event, { props: payload });
-    return;
-  }
-
-  // PostHog capture fallback (§9.1 self-hosted option).
-  const posthog = (window as unknown as { posthog?: { capture?: Function } }).posthog;
-  if (typeof posthog?.capture === 'function') {
-    posthog.capture(event, payload);
-    return;
-  }
-
-  // Fallback: console in development
-  if (process.env.NODE_ENV !== 'production') {
-    console.debug('[analytics]', event, payload);
-  }
+  dispatchToProvider(event, payload);
 }
 
 /**
@@ -448,15 +437,22 @@ export const VALID_EXPIRY_WINDOWS = [1, 7, 30, 90] as const;
 
 export type ExpiryDays = (typeof VALID_EXPIRY_WINDOWS)[number] | null;
 
+/**
+ * `field_name` values for `Send Form Field Changed` (`docs/analytics-spec.md`
+ * §4.2). `recipient_email` is deliberately absent: the spec does not list it,
+ * and an email address is PII that this layer must never carry.
+ */
+export type SendFormFieldName = 'amount' | 'asset' | 'expiration' | 'recipient_name' | 'message';
+
 export const conditional = {
-  claimId: (claimId: string): EventProps => ({ claim_id: claimId }),
-  assetType: (assetType: string): EventProps => ({ asset_type: assetType }),
-  amountUsdEquiv: (amountUsdEquiv: number): EventProps => ({
+  claimId: (claimId: string): { claim_id: string } => ({ claim_id: claimId }),
+  assetType: (assetType: string): { asset_type: string } => ({ asset_type: assetType }),
+  amountUsdEquiv: (amountUsdEquiv: number): { amount_usd_equiv: number } => ({
     amount_usd_equiv: amountUsdEquiv,
   }),
-  expiryDays: (expiryDays: ExpiryDays): EventProps => ({ expiry_days: expiryDays }),
-  errorType: (errorType: ErrorType): EventProps => ({ error_type: errorType }),
-  errorCode: (errorCode: string): EventProps => ({ error_code: errorCode }),
+  expiryDays: (expiryDays: ExpiryDays): { expiry_days: ExpiryDays } => ({ expiry_days: expiryDays }),
+  errorType: (errorType: ErrorType): { error_type: ErrorType } => ({ error_type: errorType }),
+  errorCode: (errorCode: string): { error_code: string } => ({ error_code: errorCode }),
 };
 
 interface ClaimVerifiedProps {
@@ -560,8 +556,190 @@ interface ClaimSucceededProps {
   timeToClaimHours?: number;
   /** Time in ms from `Claim Submitted` to on-chain confirmation. */
   sweepDurationMs?: number;
-  entryChannel?: string;
+  entryChannel?: ClaimEntryChannel;
 }
+
+export type ClaimEventPayloadMap = {
+  'Screen Viewed': { screen: string };
+  'Page Viewed': { journey: 'sender'; page: string; entry_source?: EntrySource };
+  'Send Form Viewed': { journey: 'sender' };
+  'Send Form Started': {
+    journey: 'sender';
+    first_field: 'amount' | 'asset' | 'recipient_name' | 'message' | 'expiration';
+  };
+  'Send Form Field Changed': {
+    journey: 'sender';
+    field_name: 'amount' | 'asset' | 'expiration' | 'recipient_name' | 'message';
+    asset_type?: string;
+    expiry_days?: ExpiryDays;
+  };
+  'Send Form Completed': {
+    journey: 'sender';
+    asset_type?: string;
+    expiry_days?: ExpiryDays;
+    has_recipient_name: boolean;
+    has_message: boolean;
+  };
+  'Payment Confirmation Viewed': {
+    journey: 'sender';
+    asset_type?: string;
+    expiry_days?: ExpiryDays;
+  };
+  'Wallet Connected': { journey: 'sender'; wallet_type: string };
+  'Wallet Connection Failed': {
+    journey: 'sender';
+    wallet_type: string;
+    error_code: string;
+  };
+  'Payment Confirmed': {
+    journey: 'sender';
+    asset_type?: string;
+    expiry_days?: ExpiryDays;
+    wallet_type?: string;
+  };
+  'Payment Created': {
+    journey: 'sender';
+    claim_id: string;
+    asset_type?: string;
+    expiry_days?: ExpiryDays;
+    confirmation_time_ms: number;
+  };
+  'Payment Creation Failed': {
+    journey: 'sender';
+    asset_type?: string;
+    error_code: string;
+  };
+  'Payment Success Viewed': {
+    journey: 'sender';
+    claim_id: string;
+    asset_type?: string;
+  };
+  'Claim Link Copied': {
+    journey: 'sender';
+    claim_id: string;
+    copy_location: 'success_screen' | 'dashboard_detail' | 'send_history_recovery';
+  };
+  'Claim Link Shared': {
+    journey: 'sender';
+    claim_id: string;
+    share_method: ShareMethod;
+  };
+  'Claim Link Recovery Viewed': {
+    journey: 'sender';
+    claim_id: string;
+    recovery_location: 'send_history';
+  };
+  'Dashboard Viewed': {
+    journey: 'sender';
+    total_payments: number;
+    active_filter: DashboardFilter;
+  };
+  'Dashboard Filter Applied': { journey: 'sender'; filter: DashboardFilter };
+  'Payment Details Viewed': {
+    journey: 'sender';
+    claim_id: string;
+    claim_status: PaymentClaimStatus;
+  };
+  'Payment Cancelled': {
+    journey: 'sender';
+    claim_id: string;
+    asset_type?: string;
+    time_since_creation_hours: number;
+  };
+  'Funds Reclaimed': {
+    journey: 'sender';
+    claim_id: string;
+    asset_type?: string;
+    days_expired: number;
+  };
+  'Claim Page Opened': {
+    journey: 'recipient';
+    claim_id: string;
+    entry_channel: ClaimEntryChannel;
+  };
+  'Claim Verified': {
+    journey: 'recipient';
+    claim_id: string;
+    asset_type?: string;
+    expiry_days_remaining?: number;
+    verification_time_ms: number;
+  };
+  'Claim CTA Clicked': {
+    journey: 'recipient';
+    claim_id: string;
+    asset_type?: string;
+  };
+  'Wallet Address Screen Viewed': {
+    journey: 'recipient';
+    claim_id: string;
+    has_previous_address: boolean;
+  };
+  'Wallet Address Entered': {
+    journey: 'recipient';
+    claim_id: string;
+    used_previous_address: boolean;
+  };
+  'Wallet Address Validation Failed': {
+    journey: 'recipient';
+    claim_id?: string;
+    validation_error: ValidationError;
+    attempt_number: number;
+  };
+  'Claim Confirmation Viewed': {
+    journey: 'recipient';
+    claim_id: string;
+    asset_type?: string;
+  };
+  'Claim Submitted': {
+    journey: 'recipient';
+    claim_id: string;
+    asset_type?: string;
+  };
+  'Claim Succeeded': {
+    journey: 'recipient';
+    claim_id: string;
+    asset_type?: string;
+    time_to_claim_hours?: number;
+    sweep_duration_ms?: number;
+    entry_channel?: ClaimEntryChannel;
+  };
+  'Claim Failed': {
+    journey: 'recipient';
+    claim_id: string;
+    asset_type?: string;
+    error_code: string;
+    error_type: ClaimFailedErrorType;
+    attempt_number: number;
+  };
+  'Claim Success Viewed': {
+    journey: 'recipient';
+    claim_id: string;
+    asset_type?: string;
+  };
+  'Sender Signup CTA Clicked': {
+    journey: 'recipient';
+    claim_id: string;
+    source: 'claim_success_screen';
+  };
+  'Explorer Link Clicked': {
+    journey: ExplorerJourney;
+    claim_id: string;
+    source_screen: ExplorerSourceScreen;
+  };
+  'Error Displayed': {
+    journey: 'sender' | 'recipient' | 'shared';
+    claim_id?: string | null;
+    error_type: ErrorType;
+    error_code: string;
+    source_screen: string;
+  };
+  'Retry Clicked': {
+    journey: 'sender' | 'recipient' | 'shared';
+    claim_id?: string | null;
+    error_type: ErrorType;
+    attempt_number: number;
+  };
+};
 
 export function daysRemainingUntil(iso: string): number | undefined {
   const expiresAt = Date.parse(iso);
@@ -621,7 +799,7 @@ export const analytics = {
     track('Send Form Completed', {
       journey: 'sender',
       ...(assetType ? { asset_type: assetType } : {}),
-      ...(expiryDays != null ? { expiry_days: expiryDays } : {}),
+      ...(expiryDays != null ? { expiry_days: expiryDays as ExpiryDays } : {}),
       has_recipient_name: hasRecipientName,
       has_message: hasMessage,
     }),
@@ -635,7 +813,17 @@ export const analytics = {
     track('Payment Confirmation Viewed', {
       journey: 'sender',
       ...(assetType ? { asset_type: assetType } : {}),
-      ...(expiryDays != null ? { expiry_days: expiryDays } : {}),
+      ...(expiryDays != null ? { expiry_days: expiryDays as ExpiryDays } : {}),
+    }),
+  /**
+   * §4.3 Wallet Connected (funnel stage 4): fires when the sender
+   * successfully connects a wallet. `wallet_type` is the provider name
+   * ("Freighter", "Albedo", "xBull"). Never carries the public key.
+   */
+  walletConnected: ({ walletType }: { walletType: string }) =>
+    track('Wallet Connected', {
+      journey: 'sender',
+      wallet_type: walletType,
     }),
   paymentConfirmed: ({
     assetType,
@@ -649,7 +837,7 @@ export const analytics = {
     track('Payment Confirmed', {
       journey: 'sender',
       ...(assetType ? { asset_type: assetType } : {}),
-      ...(expiryDays != null ? { expiry_days: expiryDays } : {}),
+      ...(expiryDays != null ? { expiry_days: expiryDays as ExpiryDays } : {}),
       ...(walletType ? { wallet_type: walletType } : {}),
     }),
   paymentCreated: ({
@@ -667,7 +855,7 @@ export const analytics = {
       journey: 'sender',
       claim_id: claimId,
       ...(assetType ? { asset_type: assetType } : {}),
-      ...(expiryDays != null ? { expiry_days: expiryDays } : {}),
+      ...(expiryDays != null ? { expiry_days: expiryDays as ExpiryDays } : {}),
       confirmation_time_ms: confirmationTimeMs,
     }),
   claimLinkCopied: ({
@@ -725,6 +913,29 @@ export const analytics = {
       ...(entrySource ? { entry_source: entrySource } : {}),
     }),
   sendFormViewed: () => track('Send Form Viewed', { journey: 'sender' }),
+  /**
+   * §4.2 Send Form Field Changed: fires when the sender changes a field value
+   * and moves focus away. `asset_type` is attached only for the `asset` field
+   * and `expiry_days` only for the `expiration` field, as the spec defines;
+   * the entered value itself (amount, name, message) is never sent.
+   */
+  sendFormFieldChanged: ({
+    fieldName,
+    assetType,
+    expiryDays,
+  }: {
+    fieldName: SendFormFieldName;
+    assetType?: string;
+    expiryDays?: number | null;
+  }) =>
+    track('Send Form Field Changed', {
+      journey: 'sender',
+      field_name: fieldName,
+      ...(fieldName === 'asset' && assetType ? { asset_type: assetType } : {}),
+      ...(fieldName === 'expiration'
+        ? { expiry_days: (expiryDays ?? null) as ExpiryDays }
+        : {}),
+    }),
   claimVerified: ({
     claimId,
     assetType,
