@@ -1,7 +1,8 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ConnectStep } from './connect-step';
+import { analytics } from '@/lib/analytics';
 
 // Stub ChainSelector: tested separately.
 vi.mock('@/components/chain-selector', () => ({
@@ -106,5 +107,68 @@ describe('ConnectStep', () => {
     await waitFor(() =>
       expect(screen.getByRole('button', { name: /connect freighter wallet/i })).toBeEnabled(),
     );
+  });
+});
+
+describe('ConnectStep Wallet Connected (#987)', () => {
+  let connected: ReturnType<typeof vi.spyOn>;
+  let errorShown: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    connected = vi.spyOn(analytics, 'walletConnected').mockImplementation(() => undefined);
+    errorShown = vi.spyOn(analytics, 'errorDisplayed').mockImplementation(() => undefined);
+  });
+
+  afterEach(() => {
+    connected.mockRestore();
+    errorShown.mockRestore();
+  });
+
+  it('fires once with the wallet provider after a successful connection', async () => {
+    mockConnectFreighter.mockResolvedValue({ publicKey: 'G' + 'B'.repeat(55) });
+    const user = userEvent.setup();
+
+    render(<ConnectStep publicKey="" onConnected={vi.fn()} />);
+    await user.click(screen.getByRole('button', { name: /connect freighter wallet/i }));
+
+    await waitFor(() => expect(connected).toHaveBeenCalledTimes(1));
+    expect(connected).toHaveBeenCalledWith({ walletType: 'Freighter' });
+  });
+
+  it('fires before the form advances to the next step', async () => {
+    mockConnectFreighter.mockResolvedValue({ publicKey: 'G' + 'B'.repeat(55) });
+    const order: string[] = [];
+    connected.mockImplementation(() => {
+      order.push('walletConnected');
+    });
+    const onConnected = vi.fn(() => {
+      order.push('onConnected');
+    });
+    const user = userEvent.setup();
+
+    render(<ConnectStep publicKey="" onConnected={onConnected} />);
+    await user.click(screen.getByRole('button', { name: /connect freighter wallet/i }));
+
+    await waitFor(() => expect(onConnected).toHaveBeenCalled());
+    expect(order).toEqual(['walletConnected', 'onConnected']);
+  });
+
+  it('does not fire, and reports the failure instead, when the connection is refused', async () => {
+    mockConnectFreighter.mockRejectedValue(new Error('User declined'));
+    const user = userEvent.setup();
+
+    render(<ConnectStep publicKey="" onConnected={vi.fn()} />);
+    await user.click(screen.getByRole('button', { name: /connect freighter wallet/i }));
+
+    await screen.findByRole('alert');
+    expect(connected).not.toHaveBeenCalled();
+    expect(errorShown).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not fire when the step renders with a wallet already connected', () => {
+    render(<ConnectStep publicKey={'G' + 'A'.repeat(55)} onConnected={vi.fn()} />);
+
+    expect(connected).not.toHaveBeenCalled();
   });
 });
