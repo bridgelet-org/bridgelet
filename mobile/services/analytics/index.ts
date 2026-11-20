@@ -6,6 +6,8 @@ import {
   type AnalyticsPlatform,
   type AnalyticsEventName,
 } from "@bridgelet/analytics";
+import env, { isProd } from "../../app/src/config/env";
+import { logger } from "../logger";
 
 const IS_DEV = Constants.appOwnership === "expo" || __DEV__;
 
@@ -15,6 +17,7 @@ type NamedEvent<Name extends AnalyticsEventName, Params> = {
 };
 
 export type AnalyticsEvent =
+  | NamedEvent<"Screen Viewed", { screen: string }>
   | NamedEvent<
       "Page Viewed",
       { journey: "shared"; page: string; entry_source: "unknown" }
@@ -105,22 +108,75 @@ export type AnalyticsEvent =
     >;
 
 const dispatch = createAnalyticsDispatcher<Record<string, unknown>>(
-  (name, params) => {
+  (name, payload) => {
     if (IS_DEV) {
-      console.log("[Analytics]", name, params);
+      console.log("[Analytics]", name, payload);
+      return;
     }
+
+    const platform = Platform.OS;
+    if (platform !== "web" && platform !== "ios" && platform !== "android") {
+      logger.warn(
+        "Analytics",
+        `Unsupported platform "${platform}"; event "${name}" was not sent.`,
+      );
+      return;
+    }
+
+    const domain = env.plausibleDomain?.trim();
+    if (!domain) return;
+
+    const apiHost = (env.plausibleApiHost || "https://plausible.io").replace(/\/+$/, "");
+    const requestPayload = {
+      name,
+      url: `https://${domain}/`,
+      domain,
+      props: payload,
+    };
+
+    void Promise.resolve()
+      .then(() =>
+        fetch(`${apiHost}/api/event`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(requestPayload),
+        }),
+      )
+      .then((response) => {
+        if (!response.ok) {
+          logger.error(
+            "Analytics",
+            `Plausible rejected "${name}" with HTTP ${response.status}.`,
+          );
+        }
+      })
+      .catch((error: unknown) => {
+        logger.error(
+          "Analytics",
+          `Could not send "${name}" to Plausible.`,
+          error,
+        );
+      });
   },
 );
+
+if (isProd && !env.plausibleDomain?.trim()) {
+  logger.warn(
+    "Analytics",
+    "Plausible is not configured; set EXPO_PUBLIC_PLAUSIBLE_DOMAIN to enable production event delivery.",
+  );
+}
 
 export function track(event: AnalyticsEvent): void {
   const platform: AnalyticsPlatform =
     Platform.OS === "ios" || Platform.OS === "android" ? Platform.OS : "web";
-  const payload: Record<string, unknown> = {
+
+  dispatch(event.name, {
     ...buildBasePayload(platform, {
       app_version: Constants.expoConfig?.version ?? "unknown",
       device_type: platform === "web" ? "desktop" : "mobile",
     }),
     ...event.params,
-  };
-  dispatch(event.name, payload);
+    platform,
+  });
 }

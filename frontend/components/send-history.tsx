@@ -1,10 +1,11 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { listEphemeralAccounts, type EphemeralAccount } from '@/lib/bridgelet';
 import { RateLimitError } from '@/lib/create-bridgelet-client';
-import { analytics } from '@/lib/analytics';
+import { analytics, DASHBOARD_FILTERS, type DashboardFilter } from '@/lib/analytics';
+import { DASHBOARD_FILTER_LABELS, matchesDashboardFilter } from '@/lib/dashboard-filter';
 import { getRememberedClaimLinks } from '@/lib/claim-links';
 import { PaymentTimeline } from '@/components/payment-timeline';
 
@@ -106,6 +107,8 @@ export function SendHistory() {
   const [hasMore, setHasMore] = useState(false);
   const [rememberedClaimLinks, setRememberedClaimLinks] = useState<Record<string, string>>({});
   const [copiedAccountId, setCopiedAccountId] = useState<string | null>(null);
+  const viewedRecoveryClaimIds = useRef(new Set<string>());
+  const [filter, setFilter] = useState<DashboardFilter>('all');
 
   const load = useCallback(async (nextOffset: number) => {
     setLoading(true);
@@ -139,14 +142,38 @@ export function SendHistory() {
     setRememberedClaimLinks(getRememberedClaimLinks());
   }, []);
 
+  useEffect(() => {
+    if (loading || error) return;
+
+    for (const account of accounts) {
+      const claimId = account.accountId;
+      if (
+        RECOVERABLE_CLAIM_STATUSES.has(account.status) &&
+        rememberedClaimLinks[claimId] &&
+        !viewedRecoveryClaimIds.current.has(claimId)
+      ) {
+        viewedRecoveryClaimIds.current.add(claimId);
+        analytics.claimLinkRecoveryViewed({ claimId });
+      }
+    }
+  }, [accounts, error, loading, rememberedClaimLinks]);
+
   async function handleCopyClaimLink(accountId: string, claimUrl: string) {
     try {
       await navigator.clipboard.writeText(claimUrl);
       setCopiedAccountId(accountId);
-      analytics.claimLinkCopied({ claimId: accountId, copyLocation: 'dashboard_detail' });
+      analytics.claimLinkCopied({ claimId: accountId, copyLocation: 'send_history_recovery' });
     } catch {
       // Clipboard API unavailable: no-op.
     }
+  }
+
+  // §4.5 Dashboard Filter Applied: only when the sender picks a *different* filter. The initial
+  // state is reported by Dashboard Viewed, and re-selecting the active filter is not a change.
+  function handleFilterChange(next: DashboardFilter) {
+    if (next === filter) return;
+    setFilter(next);
+    analytics.dashboardFilterApplied({ filter: next });
   }
 
   function handleWhatsAppShare(accountId: string) {
@@ -185,10 +212,38 @@ export function SendHistory() {
     );
   }
 
+  const visibleAccounts = safeAccounts.filter((account) =>
+    matchesDashboardFilter(account.status, filter),
+  );
+
   return (
     <div className="space-y-4">
+      <div role="group" aria-label="Filter payments by status" className="flex flex-wrap gap-2">
+        {DASHBOARD_FILTERS.map((value) => (
+          <button
+            key={value}
+            type="button"
+            aria-pressed={filter === value}
+            onClick={() => handleFilterChange(value)}
+            className={`rounded-full border px-3 py-1 text-xs font-medium transition ${
+              filter === value
+                ? 'border-slate-900 bg-slate-900 text-white dark:border-slate-100 dark:bg-slate-100 dark:text-slate-900'
+                : 'border-slate-300 text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800'
+            }`}
+          >
+            {DASHBOARD_FILTER_LABELS[value]}
+          </button>
+        ))}
+      </div>
+
+      {visibleAccounts.length === 0 && (
+        <p className="text-sm text-slate-500 dark:text-slate-400">
+          No payments on this page match the {DASHBOARD_FILTER_LABELS[filter]} filter.
+        </p>
+      )}
+
       <ul className="space-y-3">
-        {safeAccounts.map((account) => {
+        {visibleAccounts.map((account) => {
           const claimUrl = RECOVERABLE_CLAIM_STATUSES.has(account.status)
             ? rememberedClaimLinks[account.accountId]
             : undefined;

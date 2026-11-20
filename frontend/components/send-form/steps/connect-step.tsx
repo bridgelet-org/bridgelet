@@ -31,6 +31,11 @@ export function ConnectStep({ publicKey, onConnected }: ConnectStepProps) {
         errorCode: err instanceof Error ? 'CONNECTION_DENIED' : 'unknown',
         sourceScreen: 'send_form_connect',
       });
+      // §4.3 Wallet Connection Failed: only Freighter can be connected from this step.
+      analytics.walletConnectionFailed({
+        walletType: 'Freighter',
+        errorCode: err instanceof Error ? 'CONNECTION_DENIED' : 'unknown',
+      });
     }
   }
 

@@ -1,4 +1,5 @@
 export const ANALYTICS_EVENT_NAMES = [
+  'Screen Viewed',
   'Page Viewed',
   'Send Form Viewed',
   'Send Form Started',
@@ -13,6 +14,7 @@ export const ANALYTICS_EVENT_NAMES = [
   'Payment Success Viewed',
   'Claim Link Copied',
   'Claim Link Shared',
+  'Claim Link Recovery Viewed',
   'Dashboard Viewed',
   'Dashboard Filter Applied',
   'Payment Details Viewed',

@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import {
   ANALYTICS_EVENT_NAMES,
   buildBasePayload as buildSharedBasePayload,
@@ -59,10 +60,10 @@ describe('appVersion', () => {
 
 describe('shared analytics package', () => {
   it('keeps the shared event names in sync with the specification', () => {
-    const spec = readFileSync(new URL('../../docs/analytics-spec.md', import.meta.url), 'utf8');
+    const spec = readFileSync(resolve(process.cwd(), '../docs/analytics-spec.md'), 'utf8');
     const specEventNames = [...spec.matchAll(/^#### `([^`]+)`$/gm)].map(([, name]) => name);
 
-    expect(ANALYTICS_EVENT_NAMES).toHaveLength(34);
+    expect(ANALYTICS_EVENT_NAMES).toHaveLength(36);
     expect(ANALYTICS_EVENT_NAMES).toEqual(specEventNames);
   });
 
@@ -1061,6 +1062,18 @@ describe('track() base-payload identity merge', () => {
     const props = latest()[1].props as { anonymous_id?: string; session_id?: string };
     expect(props).toHaveProperty('anonymous_id');
     expect(props).toHaveProperty('session_id');
+  });
+
+  it('tracks a sender viewing a recovered claim link with its location', () => {
+    mockPlausible();
+    analytics.claimLinkRecoveryViewed({ claimId: 'claim-recovery' });
+
+    expect(latest()[0]).toBe('Claim Link Recovery Viewed');
+    expect(latest()[1].props).toMatchObject({
+      journey: 'sender',
+      claim_id: 'claim-recovery',
+      recovery_location: 'send_history',
+    });
   });
 
   it('event-specific props override base fields when keys collide', () => {

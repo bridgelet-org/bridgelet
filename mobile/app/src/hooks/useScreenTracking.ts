@@ -1,11 +1,8 @@
 import { useEffect } from "react";
-import { track } from "../analytics/analytics";
+import { track } from "../../../services/analytics";
 
 export function useScreenTracking(screen: string) {
   useEffect(() => {
-    track({
-      name: "Page Viewed",
-      params: { journey: "shared", page: screen, entry_source: "unknown" },
-    });
+    track({ name: "Screen Viewed", params: { screen } });
   }, [screen]);
 }
