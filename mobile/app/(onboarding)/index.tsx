@@ -11,6 +11,7 @@ import {
 import { useRouter } from 'expo-router';
 import { secureStorage } from '../src/utils/storage';
 import { useThemeColors } from '../src/hooks/useThemeColors';
+import { useScreenTracking } from '../src/hooks/useScreenTracking';
 
 const { width } = Dimensions.get('window');
 
@@ -30,6 +31,7 @@ const ONBOARDING_DATA: OnboardingSlide[] = [
 ];
 
 export default function OnboardingScreen() {
+  useScreenTracking('onboarding');
   const [currentIndex, setCurrentIndex] = React.useState(0);
   const flatListRef = React.useRef<FlatList>(null);
   const router = useRouter();
