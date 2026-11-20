@@ -9,6 +9,12 @@ type ClaimEvent = AnalyticsEventName;
 
 type EventProps = Record<string, string | number | boolean | null>;
 
+declare global {
+  interface Window {
+    plausible?: (event: string, options?: { props?: Record<string, unknown> }) => void;
+  }
+}
+
 export type DeviceType = 'mobile' | 'tablet' | 'desktop';
 
 /**
@@ -326,7 +332,7 @@ function isDuplicateClaimEvent(event: ClaimEvent, claimId: unknown): boolean {
 // ─── track() ──────────────────────────────────────────────────────────────────
 
 const dispatchToProvider = createAnalyticsDispatcher<EventProps>((event, payload) => {
-  const plausible = (window as unknown as { plausible?: Function }).plausible;
+  const plausible = window.plausible;
   if (typeof plausible === 'function') {
     plausible(event, { props: payload });
     return;
