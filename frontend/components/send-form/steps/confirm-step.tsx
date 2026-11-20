@@ -130,6 +130,14 @@ export function ConfirmStep({ state, onBack }: ConfirmStepProps) {
 
   const submitting = submitPhase !== 'idle' && submitPhase !== 'success';
 
+  // §4.4 Payment Success Viewed: fires once when the success screen with the claim link renders.
+  const successViewedRef = useRef(false);
+  useEffect(() => {
+    if (submitPhase !== 'success' || !createdAccountId || successViewedRef.current) return;
+    successViewedRef.current = true;
+    analytics.paymentSuccessViewed({ claimId: createdAccountId, assetType: state.assetCode });
+  }, [submitPhase, createdAccountId, state.assetCode]);
+
   useEffect(() => {
     analytics.paymentConfirmationViewed({
       assetType: state.assetCode,

@@ -16,6 +16,7 @@ vi.mock('@/lib/analytics', () => ({
     claimLinkCopied: vi.fn(),
     claimLinkShared: vi.fn(),
     claimLinkRecoveryViewed: vi.fn(),
+    dashboardViewed: vi.fn(),
     dashboardFilterApplied: vi.fn(),
   },
   DASHBOARD_FILTERS: ['all', 'unclaimed', 'claimed', 'expired'],
@@ -24,6 +25,7 @@ vi.mock('@/lib/analytics', () => ({
 const listMock = vi.mocked(listEphemeralAccounts);
 const claimLinkCopiedMock = vi.mocked(analytics.claimLinkCopied);
 const claimLinkRecoveryViewedMock = vi.mocked(analytics.claimLinkRecoveryViewed);
+const dashboardViewedMock = vi.mocked(analytics.dashboardViewed);
 const dashboardFilterAppliedMock = vi.mocked(analytics.dashboardFilterApplied);
 
 function account(id: string, status: AccountStatus = 'pending_claim') {
@@ -44,8 +46,55 @@ describe('SendHistory (#956)', () => {
     listMock.mockReset();
     claimLinkCopiedMock.mockReset();
     claimLinkRecoveryViewedMock.mockReset();
+    dashboardViewedMock.mockReset();
     dashboardFilterAppliedMock.mockReset();
     window.localStorage.clear();
+  });
+
+  describe('Dashboard Viewed (#995)', () => {
+    it('fires once the list has loaded, with the page size and the "all" filter', async () => {
+      listMock.mockResolvedValue({ accounts: [account('a1'), account('a2'), account('a3')], total: 3 });
+
+      render(<SendHistory />);
+      await screen.findAllByText('10.0000000 XLM');
+
+      expect(dashboardViewedMock).toHaveBeenCalledTimes(1);
+      expect(dashboardViewedMock).toHaveBeenCalledWith({ totalPayments: 3, activeFilter: 'all' });
+    });
+
+    it('fires with a zero count for an empty dashboard', async () => {
+      listMock.mockResolvedValue({ accounts: [], total: 0 });
+
+      render(<SendHistory />);
+      await screen.findByText('No sent payments to show yet.');
+
+      expect(dashboardViewedMock).toHaveBeenCalledTimes(1);
+      expect(dashboardViewedMock).toHaveBeenCalledWith({ totalPayments: 0, activeFilter: 'all' });
+    });
+
+    it('does not fire while loading or when the list fails to load', async () => {
+      listMock.mockRejectedValue(new Error('boom'));
+
+      render(<SendHistory />);
+      await screen.findByRole('alert');
+
+      expect(dashboardViewedMock).not.toHaveBeenCalled();
+    });
+
+    it('does not fire again when the sender pages through the list', async () => {
+      const first = Array.from({ length: 10 }, (_, i) => account(`p1-${i}`));
+      listMock.mockResolvedValueOnce({ accounts: first, total: 12 });
+      listMock.mockResolvedValueOnce({ accounts: [account('p2-0'), account('p2-1')], total: 12 });
+      const user = userEvent.setup();
+
+      render(<SendHistory />);
+      await screen.findAllByText('10.0000000 XLM');
+      await user.click(screen.getByRole('button', { name: 'Next' }));
+      await waitFor(() => expect(listMock).toHaveBeenCalledTimes(2));
+      await screen.findAllByText('10.0000000 XLM');
+
+      expect(dashboardViewedMock).toHaveBeenCalledTimes(1);
+    });
   });
 
   describe('status filter (#996)', () => {
