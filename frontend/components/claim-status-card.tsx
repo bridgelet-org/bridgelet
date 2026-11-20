@@ -138,7 +138,7 @@ function deriveValidationError(address: string): ValidationError {
 }
 
 function AvailablePanel({
-  claimId,
+  claimId = '',
   amountStroops,
   assetCode,
   expiresAt,

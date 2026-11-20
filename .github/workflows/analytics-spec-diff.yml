@@ -20,25 +20,19 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Extract event names from spec and code
+      - name: Extract event names from spec and shared package
         run: |
           # Events in the spec are `#### \`Event Name\`` headings.
           grep -E '^#### `[^`]+`' docs/analytics-spec.md \
             | sed -E 's/^#### `([^`]+)`.*/\1/' \
             > /tmp/spec_events.txt
 
-          # Frontend event names are string literals in the ClaimEvent union.
-          : > /tmp/code_events.txt
-          awk '/type ClaimEvent =/{flag=1} flag{print} flag && /;$/{exit}' frontend/lib/analytics.ts \
+          # The shared package is the source of truth consumed by both apps.
+          sed -n '/export const ANALYTICS_EVENT_NAMES = \[/,/^] as const;/p' \
+            packages/analytics/src/index.ts \
             | grep -oE "'[A-Za-z0-9 ]+'" \
             | tr -d "'" \
-            >> /tmp/code_events.txt
-
-          # Mobile event names are the `name:` discriminator values.
-          awk '/export type AnalyticsEvent =/{flag=1} flag{print} flag && /;[[:space:]]*$/{exit}' mobile/services/analytics/index.ts \
-            | grep -oE 'name: *"[A-Za-z0-9 ]+"' \
-            | sed -E 's/name: *"([A-Za-z0-9 ]+)"/\1/' \
-            >> /tmp/code_events.txt
+            > /tmp/code_events.txt
 
           sort -u /tmp/spec_events.txt > /tmp/spec.txt
           sort -u /tmp/code_events.txt > /tmp/code.txt
@@ -54,6 +48,6 @@ jobs:
           SPEC_ONLY=$(comm -23 /tmp/spec.txt /tmp/code.txt | wc -l | tr -d ' ')
           CODE_ONLY=$(comm -13 /tmp/spec.txt /tmp/code.txt | wc -l | tr -d ' ')
           if [ "$((SPEC_ONLY + CODE_ONLY))" -gt 0 ]; then
-            echo "::error::Analytics event names in docs/analytics-spec.md and frontend/mobile source have drifted apart (spec-only: ${SPEC_ONLY}, code-only: ${CODE_ONLY})."
+            echo "::error::Analytics event names in docs/analytics-spec.md and @bridgelet/analytics have drifted apart (spec-only: ${SPEC_ONLY}, code-only: ${CODE_ONLY})."
             exit 1
           fi
