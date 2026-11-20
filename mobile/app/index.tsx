@@ -3,8 +3,10 @@ import { View, StyleSheet, ActivityIndicator } from 'react-native';
 import { Redirect, useRouter } from 'expo-router';
 import { secureStorage } from './src/utils/storage';
 import { useThemeColors } from './src/hooks/useThemeColors';
+import { useScreenTracking } from './src/hooks/useScreenTracking';
 
 export default function HomeIndex() {
+  useScreenTracking('home');
   const [hasOnboarded, setHasOnboarded] = useState<boolean | null>(null);
   const colors = useThemeColors();
 
