@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import type { SendFormFirstField } from '@/lib/analytics';
 
 const EXPIRY_OPTIONS = [
   { value: 24, label: '24 hours' },
@@ -11,11 +12,18 @@ const EXPIRY_OPTIONS = [
 type ExpiryStepProps = {
   expiresInHours: number;
   onChange: (hours: number) => void;
+  onFirstInteraction: (field: SendFormFirstField) => void;
   onBack: () => void;
   onNext: () => void;
 };
 
-export function ExpiryStep({ expiresInHours, onChange, onBack, onNext }: ExpiryStepProps) {
+export function ExpiryStep({
+  expiresInHours,
+  onChange,
+  onFirstInteraction,
+  onBack,
+  onNext,
+}: ExpiryStepProps) {
   const [selected, setSelected] = useState<number>(expiresInHours);
   const [error, setError] = useState<string | null>(null);
 
@@ -54,7 +62,10 @@ export function ExpiryStep({ expiresInHours, onChange, onBack, onNext }: ExpiryS
                   name="expiry"
                   value={option.value}
                   checked={isSelected}
-                  onChange={() => setSelected(option.value)}
+                  onChange={() => {
+                    onFirstInteraction('expiration');
+                    setSelected(option.value);
+                  }}
                   className="accent-slate-900"
                 />
                 {option.label}

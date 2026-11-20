@@ -6,7 +6,7 @@ import { ExpiryStep } from '@/components/send-form/steps/expiry-step';
 describe('ExpiryStep', () => {
   it('renders expiry options and selects the initial value', () => {
     render(
-      <ExpiryStep expiresInHours={24} onChange={vi.fn()} onBack={vi.fn()} onNext={vi.fn()} />,
+      <ExpiryStep expiresInHours={24} onChange={vi.fn()} onFirstInteraction={vi.fn()} onBack={vi.fn()} onNext={vi.fn()} />,
     );
 
     expect(screen.getByLabelText(/24 hours/)).toBeInTheDocument();
@@ -17,7 +17,7 @@ describe('ExpiryStep', () => {
 
   it('shows a note about unclaimed funds', () => {
     render(
-      <ExpiryStep expiresInHours={24} onChange={vi.fn()} onBack={vi.fn()} onNext={vi.fn()} />,
+      <ExpiryStep expiresInHours={24} onChange={vi.fn()} onFirstInteraction={vi.fn()} onBack={vi.fn()} onNext={vi.fn()} />,
     );
 
     expect(
@@ -29,7 +29,7 @@ describe('ExpiryStep', () => {
     const onChange = vi.fn();
     const onNext = vi.fn();
     render(
-      <ExpiryStep expiresInHours={24} onChange={onChange} onBack={vi.fn()} onNext={onNext} />,
+      <ExpiryStep expiresInHours={24} onChange={onChange} onFirstInteraction={vi.fn()} onBack={vi.fn()} onNext={onNext} />,
     );
 
     const user = userEvent.setup();
@@ -44,7 +44,7 @@ describe('ExpiryStep', () => {
     const onChange = vi.fn();
     const onNext = vi.fn();
     render(
-      <ExpiryStep expiresInHours={24} onChange={onChange} onBack={vi.fn()} onNext={onNext} />,
+      <ExpiryStep expiresInHours={24} onChange={onChange} onFirstInteraction={vi.fn()} onBack={vi.fn()} onNext={onNext} />,
     );
 
     const user = userEvent.setup();
@@ -64,7 +64,7 @@ describe('ExpiryStep', () => {
   it('calls onBack when back button is clicked', async () => {
     const onBack = vi.fn();
     render(
-      <ExpiryStep expiresInHours={24} onChange={vi.fn()} onBack={onBack} onNext={vi.fn()} />,
+      <ExpiryStep expiresInHours={24} onChange={vi.fn()} onFirstInteraction={vi.fn()} onBack={onBack} onNext={vi.fn()} />,
     );
 
     const user = userEvent.setup();

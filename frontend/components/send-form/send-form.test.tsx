@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { afterEach, describe, it, expect, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { SendForm } from './index';
@@ -15,9 +15,18 @@ vi.mock('./steps/connect-step', () => ({
 }));
 
 vi.mock('./steps/expiry-step', () => ({
-  ExpiryStep: ({ onBack, onNext }: { onBack: () => void; onNext: () => void }) => (
+  ExpiryStep: ({
+    onBack,
+    onNext,
+    onFirstInteraction,
+  }: {
+    onBack: () => void;
+    onNext: () => void;
+    onFirstInteraction: (field: 'expiration') => void;
+  }) => (
     <div>
       <span>Expiry step</span>
+      <button onClick={() => onFirstInteraction('expiration')}>Mark expiry</button>
       <button onClick={onBack}>Back</button>
       <button onClick={onNext}>Continue</button>
     </div>
@@ -25,9 +34,18 @@ vi.mock('./steps/expiry-step', () => ({
 }));
 
 vi.mock('./steps/details-step', () => ({
-  DetailsStep: ({ onBack, onNext }: { onBack: () => void; onNext: () => void }) => (
+  DetailsStep: ({
+    onBack,
+    onNext,
+    onFirstInteraction,
+  }: {
+    onBack: () => void;
+    onNext: () => void;
+    onFirstInteraction: (field: 'recipient_name') => void;
+  }) => (
     <div>
       <span>Details step</span>
+      <button onClick={() => onFirstInteraction('recipient_name')}>Mark details</button>
       <button onClick={onBack}>Back</button>
       <button onClick={onNext}>Continue</button>
     </div>
@@ -42,6 +60,12 @@ vi.mock('./steps/confirm-step', () => ({
     </div>
   ),
 }));
+
+afterEach(() => {
+  delete (window as unknown as { plausible?: unknown }).plausible;
+  window.localStorage.clear();
+  window.sessionStorage.clear();
+});
 
 describe('SendForm', () => {
   // ── Initial render ─────────────────────────────────────────────────────────
@@ -163,5 +187,23 @@ describe('SendForm', () => {
       const heading = screen.getByRole('heading', { name: /step 2 of 4/i });
       expect(document.activeElement).toBe(heading);
     });
+  });
+
+  it('emits Send Form Started once for the first field interaction', async () => {
+    const plausible = vi.fn();
+    (window as unknown as { plausible?: unknown }).plausible = plausible;
+    const user = userEvent.setup();
+    render(<SendForm />);
+
+    await user.click(screen.getByRole('button', { name: 'Mock Connect' }));
+    await user.click(screen.getByRole('button', { name: 'Mark expiry' }));
+    await user.click(screen.getByRole('button', { name: 'Continue' }));
+    await user.click(screen.getByRole('button', { name: 'Mark details' }));
+
+    const started = plausible.mock.calls.filter((call) => call[0] === 'Send Form Started');
+    expect(started).toHaveLength(1);
+    expect(started[0]![1].props).toEqual(
+      expect.objectContaining({ journey: 'sender', first_field: 'expiration' }),
+    );
   });
 });

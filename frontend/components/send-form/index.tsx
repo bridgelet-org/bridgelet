@@ -5,7 +5,7 @@ import { ConnectStep } from './steps/connect-step';
 import { ExpiryStep } from './steps/expiry-step';
 import { DetailsStep } from './steps/details-step';
 import { ConfirmStep } from './steps/confirm-step';
-import { analytics } from '@/lib/analytics';
+import { analytics, type SendFormFirstField } from '@/lib/analytics';
 
 export type SendFormStep = 'connect' | 'expiry' | 'details' | 'confirm';
 
@@ -51,11 +51,18 @@ export function SendForm() {
   const [step, setStep] = useState<SendFormStep>('connect');
   const [formState, setFormState] = useState<SendFormState>(INITIAL_STATE);
   const headingRef = useRef<HTMLHeadingElement>(null);
+  const formStartedRef = useRef(false);
 
   // Fire on first render of the create-claim form (§4.2 of the analytics spec).
   useEffect(() => {
     analytics.sendFormViewed();
   }, []);
+
+  function markFormStarted(firstField: SendFormFirstField) {
+    if (formStartedRef.current) return;
+    formStartedRef.current = true;
+    analytics.sendFormStarted({ firstField });
+  }
 
   // Move focus to the step heading every time the step changes.
   useEffect(() => {
@@ -153,6 +160,7 @@ export function SendForm() {
         <ExpiryStep
           expiresInHours={formState.expiresInHours}
           onChange={(hours) => updateState({ expiresInHours: hours })}
+          onFirstInteraction={markFormStarted}
           onBack={goBack}
           onNext={goNext}
         />
@@ -161,6 +169,7 @@ export function SendForm() {
         <DetailsStep
           state={formState}
           onChange={updateState}
+          onFirstInteraction={markFormStarted}
           onBack={goBack}
           onNext={goNext}
         />

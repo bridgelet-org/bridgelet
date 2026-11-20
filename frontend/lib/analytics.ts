@@ -434,6 +434,8 @@ export type EntrySource = 'direct' | 'referral' | 'shared_link' | 'unknown';
 
 export type ClaimEntryChannel = 'sms' | 'email' | 'whatsapp' | 'direct' | 'unknown';
 
+export type SendFormFirstField = 'amount' | 'asset' | 'recipient_name' | 'message' | 'expiration';
+
 export type PaymentClaimStatus = 'unclaimed' | 'claimed' | 'expired';
 
 /**
@@ -725,6 +727,11 @@ export const analytics = {
       ...(entrySource ? { entry_source: entrySource } : {}),
     }),
   sendFormViewed: () => track('Send Form Viewed', { journey: 'sender' }),
+  sendFormStarted: ({ firstField }: { firstField: SendFormFirstField }) =>
+    track('Send Form Started', {
+      journey: 'sender',
+      first_field: firstField,
+    }),
   claimVerified: ({
     claimId,
     assetType,
