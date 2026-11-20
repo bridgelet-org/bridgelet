@@ -4,6 +4,11 @@ Spec: `docs/analytics-spec.md` §3.1. `buildBasePayload()` in `frontend/lib/anal
 
 | Field | Status | Notes |
 |---|---|---|
+| `anonymous_id` | Implemented | `getAnonymousId()` in `analytics.ts`, merged by `track()` |
+| `session_id` | Implemented | `getSessionId()` in `analytics.ts`, merged by `track()` |
+| `journey` | Implemented | `buildBasePayload(journey)`; sourced from event props, defaults to `"shared"` |
+| `timestamp` | Implemented | `new Date().toISOString()` computed per event inside `track()` |
+| `platform` | Implemented | Fixed `"web"` value for this frontend |
 | `user_agent` | Implemented | `navigator.userAgent`, empty string during SSR |
 | `device_type` | Implemented | `detectDeviceType()`: mobile / tablet / desktop |
 | `referrer` | Implemented | `document.referrer`, or `null` when empty |

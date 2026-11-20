@@ -17,6 +17,16 @@ declare global {
 
 export type DeviceType = 'mobile' | 'tablet' | 'desktop';
 
+/** §3.1 `journey`: the funnel an event belongs to. */
+export type AnalyticsJourney = 'sender' | 'recipient' | 'shared';
+
+/** Coerces a call-site journey to a spec value, defaulting to the catch-all. */
+function asJourney(value: unknown): AnalyticsJourney {
+  return value === 'sender' || value === 'recipient' || value === 'shared'
+    ? value
+    : 'shared';
+}
+
 /**
  * App version correlated to a deploy (`docs/analytics-spec.md` §3.1
  * `app_version`). Inlined at build time from NEXT_PUBLIC_APP_VERSION so
@@ -43,12 +53,17 @@ export function detectDeviceType(userAgent?: string): DeviceType {
 
 /**
  * Base payload fields (`docs/analytics-spec.md` §3.1) shared by every
- * event: `app_version`, `user_agent`, `device_type`, `referrer`, and the
- * frontend `platform` value "web". Each field degrades gracefully
- * when the browser API it depends on is unavailable (SSR, unit tests
- * without a DOM).
+ * event: `journey`, `timestamp`, `platform` (fixed "web" for this frontend),
+ * `app_version`, `user_agent`, `device_type` and `referrer`. Each field
+ * degrades gracefully when the browser API it depends on is unavailable
+ * (SSR, unit tests without a DOM).
+ *
+ * `timestamp` is computed here, inside the per-event `track()` path, so it is
+ * the send time of each individual event rather than a module-load time.
+ * `journey` is sourced from the event props; call sites that omit it get the
+ * spec's "shared" value instead of no value at all.
  */
-export function buildBasePayload(): EventProps {
+export function buildBasePayload(journey: AnalyticsJourney = 'shared'): EventProps {
   return {
     ...buildSharedBasePayload('web', {
       app_version: appVersion(),
@@ -56,6 +71,8 @@ export function buildBasePayload(): EventProps {
       device_type: detectDeviceType(),
       referrer: typeof document !== 'undefined' && document.referrer ? document.referrer : null,
     }),
+    journey,
+    timestamp: new Date().toISOString(),
   };
 }
 
@@ -374,7 +391,7 @@ function track<K extends ClaimEvent>(event: K, props: ClaimEventPayloadMap[K]): 
 
   // Base payload is merged in first so event-specific props can override.
   const payload: EventProps = {
-    ...buildBasePayload(),
+    ...buildBasePayload(asJourney((props as { journey?: unknown } | undefined)?.journey)),
     anonymous_id: getAnonymousId(),
     session_id: getSessionId(),
     ...(props ?? {}),
