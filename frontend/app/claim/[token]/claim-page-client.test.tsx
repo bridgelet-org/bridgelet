@@ -23,6 +23,8 @@ const mocks = vi.hoisted(() => ({
     claimSuccessViewed: vi.fn(),
     explorerLinkClicked: vi.fn(),
     senderSignupCtaClicked: vi.fn(),
+    walletAddressScreenViewed: vi.fn(),
+    walletAddressEntered: vi.fn(),
   },
 }));
 

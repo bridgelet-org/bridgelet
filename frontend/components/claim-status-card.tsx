@@ -138,7 +138,7 @@ function deriveValidationError(address: string): ValidationError {
 }
 
 function AvailablePanel({
-  claimId,
+  claimId = '',
   amountStroops,
   assetCode,
   expiresAt,
@@ -164,6 +164,15 @@ function AvailablePanel({
 
   // Matches the backend's Stellar public key validation (StrKey ed25519 public keys).
   const isValidAddress = /^G[A-Z2-7]{55}$/.test(destinationAddress);
+
+  // §5.2 Wallet Address Screen Viewed: the address input is on screen as soon as this panel
+  // mounts. There is no previous-address suggestion yet, so has_previous_address is false.
+  const screenViewedRef = useRef(false);
+  useEffect(() => {
+    if (screenViewedRef.current) return;
+    screenViewedRef.current = true;
+    analytics.walletAddressScreenViewed({ claimId, hasPreviousAddress: false });
+  }, [claimId]);
 
   // §6 Error Displayed: fires once when claimError first appears.
   useEffect(() => {
@@ -208,6 +217,10 @@ function AvailablePanel({
       });
       return;
     }
+    // Recipient submitted an address that passed client-side validation (§5.2).
+    // No previous-address suggestion exists yet, so the reuse flag is always false.
+    // The address itself is never part of the payload.
+    analytics.walletAddressEntered({ claimId, usedPreviousAddress: false });
     setClaiming(true);
     setRateLimit(undefined);
 
