@@ -932,7 +932,9 @@ export const analytics = {
       journey: 'sender',
       field_name: fieldName,
       ...(fieldName === 'asset' && assetType ? { asset_type: assetType } : {}),
-      ...(fieldName === 'expiration' ? { expiry_days: expiryDays ?? null } : {}),
+      ...(fieldName === 'expiration'
+        ? { expiry_days: (expiryDays ?? null) as ExpiryDays }
+        : {}),
     }),
   claimVerified: ({
     claimId,
