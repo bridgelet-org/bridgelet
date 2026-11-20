@@ -19,6 +19,7 @@ import {
   validateClaimToken,
 } from "../src/claims/token";
 import { useThemeColors } from "../src/hooks/useThemeColors";
+import { useScreenTracking } from "../src/hooks/useScreenTracking";
 
 const summarizeToken = (token: string): string => {
   if (token.length <= 36) return token;
@@ -34,6 +35,7 @@ const createMockTxHash = (seed: string): string => {
 };
 
 export default function ClaimTokenEntryScreen() {
+  useScreenTracking("claim_entry");
   const router = useRouter();
   const colors = useThemeColors();
   const [tokenInput, setTokenInput] = useState("");

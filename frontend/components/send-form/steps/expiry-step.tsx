@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import type { SendFormFirstField } from '@/lib/analytics';
+import { useRef, useState, type FocusEvent } from 'react';
+import { analytics } from '@/lib/analytics';
 
 const EXPIRY_OPTIONS = [
   { value: 24, label: '24 hours' },
@@ -26,6 +26,35 @@ export function ExpiryStep({
 }: ExpiryStepProps) {
   const [selected, setSelected] = useState<number>(expiresInHours);
   const [error, setError] = useState<string | null>(null);
+  // Value the sender started from, set on their first change. Cleared once
+  // `Send Form Field Changed` (§4.2) has been reported for that edit.
+  const changedFrom = useRef<number | null>(null);
+
+  function handleSelect(value: number) {
+    if (changedFrom.current === null) changedFrom.current = selected;
+    setSelected(value);
+  }
+
+  // Reports at most once per edit. Called when focus leaves the radio group,
+  // and again from Continue/Back because some browsers (Safari) do not focus a
+  // radio on click, so a blur may never arrive. A change that ends up back at
+  // its starting value reports nothing.
+  function reportFieldChange() {
+    const from = changedFrom.current;
+    changedFrom.current = null;
+    if (from === null || from === selected) return;
+    analytics.sendFormFieldChanged({ fieldName: 'expiration', expiryDays: selected / 24 });
+  }
+
+  function handleGroupBlur(event: FocusEvent<HTMLFieldSetElement>) {
+    if (event.currentTarget.contains(event.relatedTarget)) return;
+    reportFieldChange();
+  }
+
+  function handleBack() {
+    reportFieldChange();
+    onBack();
+  }
 
   function handleContinue() {
     if (!EXPIRY_OPTIONS.some((o) => o.value === selected)) {
@@ -33,6 +62,7 @@ export function ExpiryStep({
       return;
     }
     setError(null);
+    reportFieldChange();
     onChange(selected);
     onNext();
   }
@@ -45,7 +75,7 @@ export function ExpiryStep({
         are returned to your wallet.
       </p>
 
-      <fieldset>
+      <fieldset onBlur={handleGroupBlur}>
         <legend className="text-sm font-medium text-slate-900">Claim link expires after</legend>
         <div className="mt-2 space-y-2">
           {EXPIRY_OPTIONS.map((option) => {
@@ -62,10 +92,7 @@ export function ExpiryStep({
                   name="expiry"
                   value={option.value}
                   checked={isSelected}
-                  onChange={() => {
-                    onFirstInteraction('expiration');
-                    setSelected(option.value);
-                  }}
+                  onChange={() => handleSelect(option.value)}
                   className="accent-slate-900"
                 />
                 {option.label}
@@ -84,7 +111,7 @@ export function ExpiryStep({
       <div className="flex gap-3 pt-2">
         <button
           type="button"
-          onClick={onBack}
+          onClick={handleBack}
           className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
         >
           Back

@@ -1,7 +1,8 @@
-import { afterEach, describe, it, expect, vi } from 'vitest';
+import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { SendForm } from './index';
+import { analytics } from '@/lib/analytics';
 
 // ── Step component stubs ─────────────────────────────────────────────────────
 
@@ -18,15 +19,15 @@ vi.mock('./steps/expiry-step', () => ({
   ExpiryStep: ({
     onBack,
     onNext,
-    onFirstInteraction,
+    onChange,
   }: {
     onBack: () => void;
     onNext: () => void;
-    onFirstInteraction: (field: 'expiration') => void;
+    onChange: (hours: number) => void;
   }) => (
     <div>
       <span>Expiry step</span>
-      <button onClick={() => onFirstInteraction('expiration')}>Mark expiry</button>
+      <button onClick={() => onChange(168)}>Pick 7 days</button>
       <button onClick={onBack}>Back</button>
       <button onClick={onNext}>Continue</button>
     </div>
@@ -37,15 +38,19 @@ vi.mock('./steps/details-step', () => ({
   DetailsStep: ({
     onBack,
     onNext,
-    onFirstInteraction,
+    onChange,
   }: {
     onBack: () => void;
     onNext: () => void;
-    onFirstInteraction: (field: 'recipient_name') => void;
+    onChange: (patch: Record<string, string>) => void;
   }) => (
     <div>
       <span>Details step</span>
-      <button onClick={() => onFirstInteraction('recipient_name')}>Mark details</button>
+      <button
+        onClick={() => onChange({ recipientName: 'Amina', memo: 'Invoice 42', assetCode: 'USDC' })}
+      >
+        Fill details
+      </button>
       <button onClick={onBack}>Back</button>
       <button onClick={onNext}>Continue</button>
     </div>
@@ -205,5 +210,74 @@ describe('SendForm', () => {
     expect(started[0]![1].props).toEqual(
       expect.objectContaining({ journey: 'sender', first_field: 'expiration' }),
     );
+  });
+});
+
+describe('SendForm Send Form Completed (#985)', () => {
+  let spy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    spy = vi.spyOn(analytics, 'sendFormCompleted').mockImplementation(() => undefined);
+  });
+
+  afterEach(() => {
+    spy.mockRestore();
+  });
+
+  it('fires with the spec payload when the sender continues from the details step', async () => {
+    const user = userEvent.setup();
+    render(<SendForm />);
+
+    await user.click(screen.getByRole('button', { name: 'Mock Connect' }));
+    await user.click(screen.getByRole('button', { name: 'Pick 7 days' }));
+    await user.click(screen.getByRole('button', { name: 'Continue' })); // expiry
+    await user.click(screen.getByRole('button', { name: 'Fill details' }));
+    await user.click(screen.getByRole('button', { name: 'Continue' })); // details
+
+    expect(spy).toHaveBeenCalledTimes(1);
+    expect(spy).toHaveBeenCalledWith({
+      assetType: 'USDC',
+      expiryDays: 7,
+      hasRecipientName: true,
+      hasMessage: true,
+    });
+  });
+
+  it('reports the optional recipient name and message as absent when left blank', async () => {
+    const user = userEvent.setup();
+    render(<SendForm />);
+
+    await user.click(screen.getByRole('button', { name: 'Mock Connect' }));
+    await user.click(screen.getByRole('button', { name: 'Continue' })); // expiry
+    await user.click(screen.getByRole('button', { name: 'Continue' })); // details
+
+    expect(spy).toHaveBeenCalledWith({
+      assetType: 'XLM',
+      expiryDays: 1,
+      hasRecipientName: false,
+      hasMessage: false,
+    });
+  });
+
+  it('does not fire before the details step is completed', async () => {
+    const user = userEvent.setup();
+    render(<SendForm />);
+
+    await user.click(screen.getByRole('button', { name: 'Mock Connect' }));
+    await user.click(screen.getByRole('button', { name: 'Continue' })); // expiry -> details
+
+    expect(screen.getByText('Details step')).toBeInTheDocument();
+    expect(spy).not.toHaveBeenCalled();
+  });
+
+  it('does not fire when the sender goes back from the details step', async () => {
+    const user = userEvent.setup();
+    render(<SendForm />);
+
+    await user.click(screen.getByRole('button', { name: 'Mock Connect' }));
+    await user.click(screen.getByRole('button', { name: 'Continue' }));
+    await user.click(screen.getByRole('button', { name: 'Back' }));
+
+    expect(spy).not.toHaveBeenCalled();
   });
 });
