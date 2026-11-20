@@ -1,9 +1,11 @@
+import { useEffect } from "react";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { ErrorBoundary } from "./src/components/ErrorBoundary";
 import { ThemeProvider, useTheme } from "./src/providers/ThemeProvider";
 import { useDeepLinking } from "./src/linking/useDeepLinking";
+import { initAnalytics } from "../services/analytics";
 
 function AppNavigator() {
   const { colors, isDark } = useTheme();
@@ -43,6 +45,10 @@ function AppNavigator() {
 }
 
 export default function RootLayout() {
+  useEffect(() => {
+    void initAnalytics();
+  }, []);
+
   return (
     <ErrorBoundary>
       <SafeAreaProvider>
