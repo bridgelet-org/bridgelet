@@ -25,7 +25,7 @@ function makeState(): SendFormState {
 async function renderDetailsStep() {
   vi.resetModules();
   const { DetailsStep } = await import('@/components/send-form/steps/details-step');
-  render(<DetailsStep state={makeState()} onChange={vi.fn()} onBack={vi.fn()} onNext={vi.fn()} />);
+  render(<DetailsStep state={makeState()} onChange={vi.fn()} onFirstInteraction={vi.fn()} onBack={vi.fn()} onNext={vi.fn()} />);
   await act(async () => {
     await Promise.resolve();
   });

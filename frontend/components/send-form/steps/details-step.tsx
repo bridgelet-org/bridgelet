@@ -39,11 +39,18 @@ export function validateDetails(state: SendFormState): FieldErrors {
 type DetailsStepProps = {
   state: SendFormState;
   onChange: (patch: Partial<SendFormState>) => void;
+  onFirstInteraction: (field: SendFormFirstField) => void;
   onBack: () => void;
   onNext: () => void;
 };
 
-export function DetailsStep({ state, onChange, onBack, onNext }: DetailsStepProps) {
+export function DetailsStep({
+  state,
+  onChange,
+  onFirstInteraction,
+  onBack,
+  onNext,
+}: DetailsStepProps) {
   const [validationError, setValidationError] = useState<string | null>(null);
   const [selectedChain, setSelectedChain] = useState<string>('stellar');
   const [usdRate, setUsdRate] = useState<number | null>(null);

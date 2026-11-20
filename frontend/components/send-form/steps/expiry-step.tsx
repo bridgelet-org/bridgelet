@@ -12,11 +12,18 @@ const EXPIRY_OPTIONS = [
 type ExpiryStepProps = {
   expiresInHours: number;
   onChange: (hours: number) => void;
+  onFirstInteraction: (field: SendFormFirstField) => void;
   onBack: () => void;
   onNext: () => void;
 };
 
-export function ExpiryStep({ expiresInHours, onChange, onBack, onNext }: ExpiryStepProps) {
+export function ExpiryStep({
+  expiresInHours,
+  onChange,
+  onFirstInteraction,
+  onBack,
+  onNext,
+}: ExpiryStepProps) {
   const [selected, setSelected] = useState<number>(expiresInHours);
   const [error, setError] = useState<string | null>(null);
   // Value the sender started from, set on their first change. Cleared once

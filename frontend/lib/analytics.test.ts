@@ -46,6 +46,27 @@ function stubNavigatorWith(dntProperties: Record<string, unknown>): void {
   });
 }
 
+describe('#983 Send Form Started', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    delete (window as unknown as { plausible?: unknown }).plausible;
+  });
+
+  it('sends the spec event with the sender journey and first field', () => {
+    const plausible = plausibleMock();
+    (window as unknown as { plausible?: unknown }).plausible = plausible;
+
+    analytics.sendFormStarted({ firstField: 'amount' });
+
+    expect(plausible).toHaveBeenCalledWith(
+      'Send Form Started',
+      expect.objectContaining({
+        props: expect.objectContaining({ journey: 'sender', first_field: 'amount' }),
+      }),
+    );
+  });
+});
+
 describe('appVersion', () => {
   it('reads the build-time NEXT_PUBLIC_APP_VERSION when set', () => {
     vi.stubEnv('NEXT_PUBLIC_APP_VERSION', '1.4.2');

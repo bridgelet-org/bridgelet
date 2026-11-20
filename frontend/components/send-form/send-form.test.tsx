@@ -66,6 +66,12 @@ vi.mock('./steps/confirm-step', () => ({
   ),
 }));
 
+afterEach(() => {
+  delete (window as unknown as { plausible?: unknown }).plausible;
+  window.localStorage.clear();
+  window.sessionStorage.clear();
+});
+
 describe('SendForm', () => {
   // ── Initial render ─────────────────────────────────────────────────────────
 
@@ -186,6 +192,24 @@ describe('SendForm', () => {
       const heading = screen.getByRole('heading', { name: /step 2 of 4/i });
       expect(document.activeElement).toBe(heading);
     });
+  });
+
+  it('emits Send Form Started once for the first field interaction', async () => {
+    const plausible = vi.fn();
+    (window as unknown as { plausible?: unknown }).plausible = plausible;
+    const user = userEvent.setup();
+    render(<SendForm />);
+
+    await user.click(screen.getByRole('button', { name: 'Mock Connect' }));
+    await user.click(screen.getByRole('button', { name: 'Mark expiry' }));
+    await user.click(screen.getByRole('button', { name: 'Continue' }));
+    await user.click(screen.getByRole('button', { name: 'Mark details' }));
+
+    const started = plausible.mock.calls.filter((call) => call[0] === 'Send Form Started');
+    expect(started).toHaveLength(1);
+    expect(started[0]![1].props).toEqual(
+      expect.objectContaining({ journey: 'sender', first_field: 'expiration' }),
+    );
   });
 });
 

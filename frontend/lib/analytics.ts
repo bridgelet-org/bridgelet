@@ -423,6 +423,8 @@ export type EntrySource = 'direct' | 'referral' | 'shared_link' | 'unknown';
 
 export type ClaimEntryChannel = 'sms' | 'email' | 'whatsapp' | 'direct' | 'unknown';
 
+export type SendFormFirstField = 'amount' | 'asset' | 'recipient_name' | 'message' | 'expiration';
+
 export type PaymentClaimStatus = 'unclaimed' | 'claimed' | 'expired';
 
 /**

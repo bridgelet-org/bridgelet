@@ -39,7 +39,7 @@ describe('DetailsStep (#763)', () => {
   it('advances without an email when the amount is valid', async () => {
     const user = userEvent.setup();
     const onNext = vi.fn();
-    render(<DetailsStep state={makeState({ amountXlm: '5' })} onChange={vi.fn()} onBack={vi.fn()} onNext={onNext} />);
+    render(<DetailsStep state={makeState({ amountXlm: '5' })} onChange={vi.fn()} onFirstInteraction={vi.fn()} onBack={vi.fn()} onNext={onNext} />);
 
     await user.click(screen.getByRole('button', { name: /review payment/i }));
 
@@ -54,6 +54,7 @@ describe('DetailsStep (#763)', () => {
       <DetailsStep
         state={makeState({ amountXlm: '5', recipientEmail: 'nope' })}
         onChange={vi.fn()}
+        onFirstInteraction={vi.fn()}
         onBack={vi.fn()}
         onNext={onNext}
       />,
@@ -70,7 +71,7 @@ describe('DetailsStep (#763)', () => {
   it('blocks submission when the amount is missing', async () => {
     const user = userEvent.setup();
     const onNext = vi.fn();
-    render(<DetailsStep state={makeState()} onChange={vi.fn()} onBack={vi.fn()} onNext={onNext} />);
+    render(<DetailsStep state={makeState()} onChange={vi.fn()} onFirstInteraction={vi.fn()} onBack={vi.fn()} onNext={onNext} />);
 
     await user.click(screen.getByRole('button', { name: /review payment/i }));
 
@@ -87,6 +88,7 @@ describe('DetailsStep (#763)', () => {
       <DetailsStep
         state={makeState({ amountXlm: '5', recipientEmail: 'amina@example.com' })}
         onChange={vi.fn()}
+        onFirstInteraction={vi.fn()}
         onBack={vi.fn()}
         onNext={onNext}
       />,
@@ -95,5 +97,31 @@ describe('DetailsStep (#763)', () => {
     await user.click(screen.getByRole('button', { name: /review payment/i }));
 
     expect(onNext).toHaveBeenCalledTimes(1);
+  });
+
+  it('reports the field the sender first interacted with', async () => {
+    const user = userEvent.setup();
+    const onFirstInteraction = vi.fn();
+    render(
+      <DetailsStep
+        state={makeState()}
+        onChange={vi.fn()}
+        onFirstInteraction={onFirstInteraction}
+        onBack={vi.fn()}
+        onNext={vi.fn()}
+      />,
+    );
+
+    await user.type(screen.getByLabelText(/recipient name/i), 'A');
+    expect(onFirstInteraction).toHaveBeenLastCalledWith('recipient_name');
+
+    await user.type(screen.getByLabelText(/^amount$/i), '5');
+    expect(onFirstInteraction).toHaveBeenLastCalledWith('amount');
+
+    await user.selectOptions(screen.getByLabelText('Asset'), 'XLM');
+    expect(onFirstInteraction).toHaveBeenLastCalledWith('asset');
+
+    await user.type(screen.getByLabelText(/memo/i), 'hi');
+    expect(onFirstInteraction).toHaveBeenLastCalledWith('message');
   });
 });
