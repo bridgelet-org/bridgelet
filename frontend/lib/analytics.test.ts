@@ -1,4 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import {
+  ANALYTICS_EVENT_NAMES,
+  buildBasePayload as buildSharedBasePayload,
+  createAnalyticsDispatcher,
+} from '@bridgelet/analytics';
 import {
   analytics,
   appVersion,
@@ -51,6 +58,33 @@ describe('appVersion', () => {
   });
 });
 
+describe('shared analytics package', () => {
+  it('keeps the shared event names in sync with the specification', () => {
+    const spec = readFileSync(resolve(process.cwd(), '../docs/analytics-spec.md'), 'utf8');
+    const specEventNames = [...spec.matchAll(/^#### `([^`]+)`$/gm)].map(([, name]) => name);
+
+    expect(ANALYTICS_EVENT_NAMES).toHaveLength(36);
+    expect(ANALYTICS_EVENT_NAMES).toEqual(specEventNames);
+  });
+
+  it('builds a base payload for each platform and dispatches through a provider callback', () => {
+    const payload = buildSharedBasePayload('ios', { app_version: '1.0.0', device_type: 'mobile' });
+    const provider = vi.fn();
+    const dispatch = createAnalyticsDispatcher(provider);
+
+    dispatch('Claim Succeeded', payload);
+
+    expect(payload).toEqual({
+      app_version: '1.0.0',
+      user_agent: '',
+      device_type: 'mobile',
+      referrer: null,
+      platform: 'ios',
+    });
+    expect(provider).toHaveBeenCalledWith('Claim Succeeded', payload);
+  });
+});
+
 describe('detectDeviceType', () => {
   it('classifies mobile user agents', () => {
     expect(detectDeviceType('Mozilla/5.0 (iPhone; CPU iPhone OS 17_0)')).toBe('mobile');
@@ -81,9 +115,17 @@ describe('buildBasePayload', () => {
         app_version: expect.any(String),
         user_agent: expect.any(String),
         device_type: expect.stringMatching(/^(mobile|tablet|desktop)$/),
+        platform: 'web',
+        journey: 'shared',
+        timestamp: expect.any(String),
       }),
     );
     expect('referrer' in payload).toBe(true);
+    expect(Number.isNaN(Date.parse(payload.timestamp as string))).toBe(false);
+  });
+
+  it('accepts an explicit journey from the emitting event', () => {
+    expect(buildBasePayload('recipient').journey).toBe('recipient');
   });
 
   it('degrades to empty strings and null when browser APIs are absent', () => {
@@ -301,6 +343,10 @@ describe('track base payload merge', () => {
         }),
       });
       expect('referrer' in call[1].props).toBe(true);
+      expect(call[1].props.platform).toBe('web');
+      expect(call[1].props.journey).toMatch(/^(sender|recipient|shared)$/);
+      expect(call[1].props.timestamp).toEqual(expect.any(String));
+      expect(call[1].props.session_id).toEqual(expect.any(String));
     }
   });
 
