@@ -20,6 +20,8 @@ export function ConnectStep({ publicKey, onConnected }: ConnectStepProps) {
     try {
       const wallet = await connectFreighter();
       setStatus('idle');
+      // §4.3 `Wallet Connected`: only after the wallet actually returned a key.
+      analytics.walletConnected({ walletType: 'Freighter' });
       onConnected(wallet.publicKey);
     } catch (err) {
       setStatus('error');

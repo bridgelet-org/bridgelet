@@ -437,6 +437,13 @@ export const VALID_EXPIRY_WINDOWS = [1, 7, 30, 90] as const;
 
 export type ExpiryDays = (typeof VALID_EXPIRY_WINDOWS)[number] | null;
 
+/**
+ * `field_name` values for `Send Form Field Changed` (`docs/analytics-spec.md`
+ * §4.2). `recipient_email` is deliberately absent: the spec does not list it,
+ * and an email address is PII that this layer must never carry.
+ */
+export type SendFormFieldName = 'amount' | 'asset' | 'expiration' | 'recipient_name' | 'message';
+
 export const conditional = {
   claimId: (claimId: string): { claim_id: string } => ({ claim_id: claimId }),
   assetType: (assetType: string): { asset_type: string } => ({ asset_type: assetType }),
@@ -808,6 +815,16 @@ export const analytics = {
       ...(assetType ? { asset_type: assetType } : {}),
       ...(expiryDays != null ? { expiry_days: expiryDays as ExpiryDays } : {}),
     }),
+  /**
+   * §4.3 Wallet Connected (funnel stage 4): fires when the sender
+   * successfully connects a wallet. `wallet_type` is the provider name
+   * ("Freighter", "Albedo", "xBull"). Never carries the public key.
+   */
+  walletConnected: ({ walletType }: { walletType: string }) =>
+    track('Wallet Connected', {
+      journey: 'sender',
+      wallet_type: walletType,
+    }),
   paymentConfirmed: ({
     assetType,
     expiryDays,
@@ -896,6 +913,29 @@ export const analytics = {
       ...(entrySource ? { entry_source: entrySource } : {}),
     }),
   sendFormViewed: () => track('Send Form Viewed', { journey: 'sender' }),
+  /**
+   * §4.2 Send Form Field Changed: fires when the sender changes a field value
+   * and moves focus away. `asset_type` is attached only for the `asset` field
+   * and `expiry_days` only for the `expiration` field, as the spec defines;
+   * the entered value itself (amount, name, message) is never sent.
+   */
+  sendFormFieldChanged: ({
+    fieldName,
+    assetType,
+    expiryDays,
+  }: {
+    fieldName: SendFormFieldName;
+    assetType?: string;
+    expiryDays?: number | null;
+  }) =>
+    track('Send Form Field Changed', {
+      journey: 'sender',
+      field_name: fieldName,
+      ...(fieldName === 'asset' && assetType ? { asset_type: assetType } : {}),
+      ...(fieldName === 'expiration'
+        ? { expiry_days: (expiryDays ?? null) as ExpiryDays }
+        : {}),
+    }),
   claimVerified: ({
     claimId,
     assetType,
