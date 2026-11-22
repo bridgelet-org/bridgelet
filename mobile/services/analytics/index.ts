@@ -19,6 +19,14 @@ type NamedEvent<Name extends AnalyticsEventName, Params> = {
   params: Params;
 };
 
+export type ClaimEntryChannel =
+  | "sms"
+  | "email"
+  | "whatsapp"
+  | "qr_code"
+  | "direct"
+  | "unknown";
+
 export type AnalyticsEvent =
   | NamedEvent<"Screen Viewed", { screen: string }>
   | NamedEvent<
@@ -27,7 +35,7 @@ export type AnalyticsEvent =
     >
   | NamedEvent<
       "Claim Page Opened",
-      { claim_id: string; entry_channel: string }
+      { claim_id: string; entry_channel: ClaimEntryChannel }
     >
   | NamedEvent<
       "Claim Verified",
@@ -255,4 +263,21 @@ export function track(event: AnalyticsEvent): void {
     ...event.params,
     platform,
   });
+}
+
+export function trackClaimPageOpened({
+  claimId,
+  entryChannel,
+}: {
+  claimId: string;
+  entryChannel: ClaimEntryChannel;
+}): void {
+  track({
+    name: "Claim Page Opened",
+    params: { claim_id: claimId, entry_channel: entryChannel },
+  });
+}
+
+export function trackQrScanClaimEntry(claimId: string): void {
+  trackClaimPageOpened({ claimId, entryChannel: "qr_code" });
 }

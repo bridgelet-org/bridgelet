@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef, useState, type FocusEvent } from 'react';
-import { analytics } from '@/lib/analytics';
+import { analytics, type SendFormFirstField } from '@/lib/analytics';
 
 const EXPIRY_OPTIONS = [
   { value: 24, label: '24 hours' },
@@ -32,6 +32,7 @@ export function ExpiryStep({
 
   function handleSelect(value: number) {
     if (changedFrom.current === null) changedFrom.current = selected;
+    onFirstInteraction('expiration');
     setSelected(value);
   }
 

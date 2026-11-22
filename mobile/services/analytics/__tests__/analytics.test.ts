@@ -47,7 +47,7 @@ describe("mobile analytics", () => {
 
   it("sends canonical event names and mobile platform to Plausible", async () => {
     jest.isolateModules(() => {
-      const { track } = require("../index") as typeof import("../index");
+      const { track } = jest.requireActual<typeof import("../index")>("../index");
       track({
         name: "Claim Failed",
         params: { claim_id: "claim-123", error_type: "unknown", attempt_number: 1 },
@@ -74,7 +74,7 @@ describe("mobile analytics", () => {
 
   it("attaches the shared mobile base payload", async () => {
     jest.isolateModules(() => {
-      const { track } = require("../index") as typeof import("../index");
+      const { track } = jest.requireActual<typeof import("../index")>("../index");
       track({
         name: "Claim Submitted",
         params: { claim_id: "claim-456" },
@@ -98,7 +98,7 @@ describe("mobile analytics", () => {
     Object.defineProperty(globalThis, "__DEV__", { configurable: true, value: true });
 
     jest.isolateModules(() => {
-      const { track } = require("../index") as typeof import("../index");
+      const { track } = jest.requireActual<typeof import("../index")>("../index");
       track({ name: "Screen Viewed", params: { screen: "claim_entry" } });
     });
 
@@ -107,5 +107,41 @@ describe("mobile analytics", () => {
     expect(global.fetch).not.toHaveBeenCalled();
     expect(log).toHaveBeenCalledWith("[Analytics]", "Screen Viewed", { screen: "claim_entry" });
     log.mockRestore();
+  });
+
+  it("records QR scan claim entry as the qr_code recipient channel", async () => {
+    jest.isolateModules(() => {
+      const { trackQrScanClaimEntry } = jest.requireActual<typeof import("../index")>("../index");
+      trackQrScanClaimEntry("claim-917");
+    });
+
+    await Promise.resolve();
+
+    const requestBody = JSON.parse((global.fetch as jest.Mock).mock.calls[0][1].body as string);
+    expect(requestBody).toMatchObject({
+      name: "Claim Page Opened",
+      domain: "bridgelet.app",
+      props: {
+        journey: "recipient",
+        claim_id: "claim-917",
+        entry_channel: "qr_code",
+      },
+    });
+  });
+
+  it("still records the documented non-QR entry channels", async () => {
+    jest.isolateModules(() => {
+      const { trackClaimPageOpened } = jest.requireActual<typeof import("../index")>("../index");
+      trackClaimPageOpened({ claimId: "claim-123", entryChannel: "sms" });
+    });
+
+    await Promise.resolve();
+
+    const requestBody = JSON.parse((global.fetch as jest.Mock).mock.calls[0][1].body as string);
+    expect(requestBody.props).toMatchObject({
+      claim_id: "claim-123",
+      entry_channel: "sms",
+      journey: "recipient",
+    });
   });
 });

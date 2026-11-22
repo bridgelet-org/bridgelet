@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { SendForm } from './index';
-import { analytics } from '@/lib/analytics';
+import { analytics, type SendFormFirstField } from '@/lib/analytics';
 
 // ── Step component stubs ─────────────────────────────────────────────────────
 
@@ -20,14 +20,23 @@ vi.mock('./steps/expiry-step', () => ({
     onBack,
     onNext,
     onChange,
+    onFirstInteraction,
   }: {
     onBack: () => void;
     onNext: () => void;
     onChange: (hours: number) => void;
+    onFirstInteraction: (field: SendFormFirstField) => void;
   }) => (
     <div>
       <span>Expiry step</span>
-      <button onClick={() => onChange(168)}>Pick 7 days</button>
+      <button
+        onClick={() => {
+          onFirstInteraction('expiration');
+          onChange(168);
+        }}
+      >
+        Pick 7 days
+      </button>
       <button onClick={onBack}>Back</button>
       <button onClick={onNext}>Continue</button>
     </div>
@@ -39,15 +48,20 @@ vi.mock('./steps/details-step', () => ({
     onBack,
     onNext,
     onChange,
+    onFirstInteraction,
   }: {
     onBack: () => void;
     onNext: () => void;
     onChange: (patch: Record<string, string>) => void;
+    onFirstInteraction: (field: SendFormFirstField) => void;
   }) => (
     <div>
       <span>Details step</span>
       <button
-        onClick={() => onChange({ recipientName: 'Amina', memo: 'Invoice 42', assetCode: 'USDC' })}
+        onClick={() => {
+          onFirstInteraction('recipient_name');
+          onChange({ recipientName: 'Amina', memo: 'Invoice 42', assetCode: 'USDC' });
+        }}
       >
         Fill details
       </button>
@@ -201,9 +215,9 @@ describe('SendForm', () => {
     render(<SendForm />);
 
     await user.click(screen.getByRole('button', { name: 'Mock Connect' }));
-    await user.click(screen.getByRole('button', { name: 'Mark expiry' }));
+    await user.click(screen.getByRole('button', { name: 'Pick 7 days' }));
     await user.click(screen.getByRole('button', { name: 'Continue' }));
-    await user.click(screen.getByRole('button', { name: 'Mark details' }));
+    await user.click(screen.getByRole('button', { name: 'Fill details' }));
 
     const started = plausible.mock.calls.filter((call) => call[0] === 'Send Form Started');
     expect(started).toHaveLength(1);

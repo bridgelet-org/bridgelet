@@ -115,3 +115,13 @@ export const getClaimTokenErrorMessage = (error: unknown): string => {
 
   return "Unable to verify this claim token. Please try again.";
 };
+
+export const claimIdFromQrValue = (value: string): string | null => {
+  const token = sanitizeTokenInput(value);
+  try {
+    validateClaimToken(token);
+    return token;
+  } catch {
+    return null;
+  }
+};

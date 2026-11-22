@@ -39,6 +39,7 @@ function Harness() {
     <DetailsStep
       state={state}
       onChange={(patch) => setState((prev) => ({ ...prev, ...patch }))}
+      onFirstInteraction={vi.fn()}
       onBack={vi.fn()}
       onNext={vi.fn()}
     />

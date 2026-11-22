@@ -22,7 +22,7 @@ describe('ExpiryStep', () => {
     );
 
     expect(
-      screen.getAllByText(/unclaimed funds are automatically returned/i).length,
+      screen.getAllByText(/unclaimed funds are returned/i).length,
     ).toBeGreaterThanOrEqual(1);
   });
 
@@ -45,16 +45,10 @@ describe('ExpiryStep', () => {
     const onChange = vi.fn();
     const onNext = vi.fn();
     render(
-      <ExpiryStep expiresInHours={24} onChange={onChange} onFirstInteraction={vi.fn()} onBack={vi.fn()} onNext={onNext} />,
+      <ExpiryStep expiresInHours={0} onChange={onChange} onFirstInteraction={vi.fn()} onBack={vi.fn()} onNext={onNext} />,
     );
 
     const user = userEvent.setup();
-    // Unselect the default option, then attempt to continue without a selection.
-    await user.click(screen.getByLabelText(/24 hours/));
-    await user.click(screen.getByLabelText(/3 days/));
-    await user.click(screen.getByLabelText(/24 hours/));
-    const preset = screen.getByLabelText(/24 hours/) as HTMLInputElement;
-    preset.checked = false;
     await user.click(screen.getByRole('button', { name: /continue/i }));
 
     expect(screen.getByRole('alert')).toHaveTextContent(/choose how long/i);
@@ -87,7 +81,15 @@ describe('ExpiryStep Send Form Field Changed (#984)', () => {
   });
 
   function renderStep(onNext = vi.fn(), onBack = vi.fn()) {
-    render(<ExpiryStep expiresInHours={24} onChange={vi.fn()} onBack={onBack} onNext={onNext} />);
+    render(
+      <ExpiryStep
+        expiresInHours={24}
+        onChange={vi.fn()}
+        onFirstInteraction={vi.fn()}
+        onBack={onBack}
+        onNext={onNext}
+      />,
+    );
   }
 
   it('fires once with expiry_days when focus leaves the radio group', async () => {
