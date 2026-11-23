@@ -277,6 +277,8 @@ Fired when wallet connection is attempted but fails.
 
 #### `Payment Confirmed`
 
+> ⚠️ **NAMING TRAP — READ BEFORE USING THIS EVENT.** Despite its name, `Payment Confirmed` does **not** mean a payment was confirmed on-chain. It fires the instant the sender signs the "Confirm & Pay" transaction, *before* the blockchain confirms anything. A sender can sign and then have the transaction fail, which produces `Payment Confirmed` with **no** `Payment Created`. This event is **intent-only** and must **never** be counted as a successful payment. Use `Payment Created` as the definitive "payment exists" signal (see the confirmation-signal table in §9.2). The name is intentionally **not** changed: renaming it would break shipped telemetry and the spec-vs-code drift check in `.github/workflows/analytics-spec-diff.yml`. See "Dashboard interpretation of `Payment Confirmed`" in §7.4.
+
 Fired when the sender clicks "Confirm & Pay" and signs the transaction. This indicates user intent; it fires *before* blockchain confirmation.
 
 | Property | Type | Value / Description |
