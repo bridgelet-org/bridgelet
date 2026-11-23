@@ -824,6 +824,41 @@ Claim Succeeded          (Recipient Claim Funnel)
 
 ---
 
+### 7.4 Dashboard acceptance criteria: defining a successful payment
+
+> **Normative.** A "successful payment" is defined by the presence of
+> `Payment Created` for the `claim_id`. This definition is binding on every
+> dashboard, BI model, and report built from these events. It exists to prevent
+> double-counting and intent-as-success inflation (issue #1087).
+
+| # | Acceptance criterion | Requirement |
+|---|----------------------|-------------|
+| 1 | Success event | A payment counts as successful **only** when a `Payment Created` event is present for that `claim_id`. `Payment Created` is the definitive "payment exists" event (§4.3). |
+| 2 | Never count `Payment Confirmed` | `Payment Confirmed` records the sender signing the transaction — user intent *before* on-chain confirmation (§4.3). It must **never** be used as the success event, in any funnel, KPI, or dashboard tile. |
+| 3 | No intent-only success | A `Payment Confirmed` that is not followed by a `Payment Created` (for example, a transaction that fails after signing) is intent only and must not be counted as a successful payment. |
+| 4 | Signed-then-failed does not inflate | Payments that emit `Payment Confirmed` and then `Payment Creation Failed` (§4.3) must not inflate success metrics. They belong in a failure/drop-off bucket, never in the success count. |
+| 5 | One payment, one success | Count distinct `claim_id` values that have a `Payment Created`. Do not count `Payment Confirmed` *and* `Payment Created` as two successes for the same `claim_id`; that double-counts a single payment (see §9.4 idempotence). |
+| 6 | Funnel stage alignment | In the §7.1 sender funnel, "conversion complete" is stage 6 `Payment Created`, not stage 5 `Payment Confirmed`. Dashboards must use stage 6 as the conversion milestone. |
+
+**Testable acceptance criteria for the dashboard/BI build:**
+
+- Given a `claim_id` with `Payment Confirmed` but no `Payment Created`, the
+  dashboard's "successful payments" count does **not** increase.
+- Given a `claim_id` with `Payment Confirmed` and then `Payment Creation Failed`,
+  the payment is reported as failed/dropped-off, not successful.
+- Given a `claim_id` with both `Payment Confirmed` and `Payment Created`, the
+  dashboard counts **one** successful payment, not two.
+- Given a `claim_id` with `Payment Created` only (for example, a server-emitted
+  event without a client `Payment Confirmed`), it is counted as one successful
+  payment.
+- The sender conversion KPI (§8.1 *Sender Activation Rate*) uses
+  `Payment Created`, never `Payment Confirmed`, as its success signal.
+
+No event is renamed by this rule. `Payment Confirmed` keeps its name and its
+intent-only meaning; the rule constrains how dashboards derive success from it.
+
+---
+
 ## 8. Business Metrics & KPI Definitions
 
 ### 8.1 Core KPIs
