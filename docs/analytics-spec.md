@@ -856,6 +856,8 @@ Claim Succeeded          (Recipient Claim Funnel)
 
 No event is renamed by this rule. `Payment Confirmed` keeps its name and its
 intent-only meaning; the rule constrains how dashboards derive success from it.
+See `docs/analytics-webhook-signal-consistency.md` for the cross-repo meaning of
+"confirmed" and the event↔webhook mapping.
 
 ---
 
@@ -1095,6 +1097,13 @@ The analytics and webhook surfaces must describe the same completed backend outc
 | `Claim Succeeded` | `sweep.completed` | The redemption sweep succeeds and is confirmed on-chain. A submitted claim or partial sweep is not success; `sweep.partial` and `sweep.failed` must not produce `Claim Succeeded`. |
 
 Use the stable claim/account identity to correlate both records. For `sweep.completed`, retain the webhook's transaction hash for reconciliation. The events should not disagree about whether the same payment is confirmed.
+
+> **Tracked resolution:** the shared meaning of "confirmed", the rule that intent
+> signals (`Payment Confirmed`, webhook delivery attempts) are never success, and
+> the cross-repo follow-up owner/checklist are recorded in
+> `docs/analytics-webhook-signal-consistency.md`. That document is the
+> analytics-side counterpart to `bridgelet-sdk`'s
+> `webhook-delivery-vs-chain-event-consistency.md`.
 
 ### 9.3 Anonymous Identity & Session
 
