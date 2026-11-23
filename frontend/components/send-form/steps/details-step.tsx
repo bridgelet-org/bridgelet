@@ -6,6 +6,7 @@ import { ChainSelector } from '../../chain-selector';
 import { getXlmUsdRate, formatFiat } from '@/lib/xlm-price';
 import { isAssetAvailable, supportedAssetCodes } from '@/lib/bridgelet';
 import { useFieldChangeTracker } from '../use-field-change-tracker';
+import type { SendFormFirstField } from '@/lib/analytics';
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 

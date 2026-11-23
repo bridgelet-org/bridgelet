@@ -87,7 +87,15 @@ describe('ExpiryStep Send Form Field Changed (#984)', () => {
   });
 
   function renderStep(onNext = vi.fn(), onBack = vi.fn()) {
-    render(<ExpiryStep expiresInHours={24} onChange={vi.fn()} onBack={onBack} onNext={onNext} />);
+    render(
+      <ExpiryStep
+        expiresInHours={24}
+        onChange={vi.fn()}
+        onFirstInteraction={vi.fn()}
+        onBack={onBack}
+        onNext={onNext}
+      />,
+    );
   }
 
   it('fires once with expiry_days when focus leaves the radio group', async () => {
