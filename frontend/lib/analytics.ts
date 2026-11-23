@@ -915,6 +915,9 @@ export const analytics = {
       ...(entrySource ? { entry_source: entrySource } : {}),
     }),
   sendFormViewed: () => track('Send Form Viewed', { journey: 'sender' }),
+  /** §4.2 Send Form Started: the sender's first interaction with any form field. */
+  sendFormStarted: ({ firstField }: { firstField: SendFormFirstField }) =>
+    track('Send Form Started', { journey: 'sender', first_field: firstField }),
   /**
    * §4.2 Send Form Field Changed: fires when the sender changes a field value
    * and moves focus away. `asset_type` is attached only for the `asset` field

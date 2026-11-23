@@ -80,10 +80,48 @@ describe('#990 Payment Created', () => {
     expect(step.lastIndexOf('analytics.paymentCreated(')).toBe(created);
   });
 
-  it('is emitted in the success path, not the failure path', () => {
+  it('#780: is not emitted in the submit path, where the account is still pending_payment', () => {
     const step = source(CONFIRM_STEP);
+    const submit = step.slice(
+      step.indexOf('async function executeCreateAccount('),
+      step.indexOf('async function pollAccountStatus('),
+    );
 
-    expect(step.indexOf('analytics.paymentCreated(')).toBeLessThan(step.indexOf('} catch (err) {', step.indexOf('await fundEphemeralAccount(')));
+    expect(submit).not.toContain('analytics.paymentCreated(');
+    expect(submit).not.toContain('reportPaymentCreated(');
+  });
+
+  it('#780: is emitted only once the backend reports the account as funded and persisted', () => {
+    const step = source(CONFIRM_STEP);
+    const poll = step.slice(
+      step.indexOf('async function pollAccountStatus('),
+      step.indexOf('function reportPaymentCreated('),
+    );
+    const guard = poll.indexOf('PAYMENT_PERSISTED_STATUSES.has(latest.status)');
+
+    expect(guard).toBeGreaterThan(-1);
+    expect(poll.indexOf('reportPaymentCreated(accountId)')).toBeGreaterThan(guard);
+  });
+
+  it('#780: treats pending_claim as persisted, but not initializing, pending_payment or failed', () => {
+    const step = source(CONFIRM_STEP);
+    const start = step.indexOf('const PAYMENT_PERSISTED_STATUSES');
+    const set = step.slice(start, step.indexOf(']);', start));
+
+    expect(set).toContain("'pending_claim'");
+    expect(set).not.toContain("'initializing'");
+    expect(set).not.toContain("'pending_payment'");
+    expect(set).not.toContain("'failed'");
+  });
+
+  it('#780: is guarded so it fires at most once per submission', () => {
+    const step = source(CONFIRM_STEP);
+    const report = step.slice(
+      step.indexOf('function reportPaymentCreated('),
+      step.indexOf('analytics.paymentCreated('),
+    );
+
+    expect(report).toContain('if (paymentCreatedRef.current) return;');
   });
 
   it('sends the claim id, asset, expiry and confirmation time', () => {

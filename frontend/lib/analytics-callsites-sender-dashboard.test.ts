@@ -49,10 +49,10 @@ describe('#996 Dashboard Filter Applied', () => {
 describe('#997 Payment Details Viewed', () => {
   it('is emitted for the sender\'s own just-created payment, from the payment record they received', () => {
     const step = source('components/send-form/steps/confirm-step.tsx');
-    const created = step.indexOf('analytics.paymentCreated(');
+    const funded = step.indexOf('await fundEphemeralAccount(');
     const details = step.indexOf('analytics.paymentDetailsViewed(');
 
-    expect(details).toBeGreaterThan(created);
+    expect(details).toBeGreaterThan(funded);
     expect(step.slice(details, step.indexOf(';', details))).toContain('claimId: account.accountId');
   });
 

@@ -102,6 +102,18 @@ type EmailStatus = 'idle' | 'sending' | 'sent' | 'failed' | 'not-configured';
 const STATUS_POLL_INTERVAL_MS = 3_000;
 const STATUS_POLL_MAX_MS = 120_000;
 
+/**
+ * Account statuses that mean the sender's funding payment was seen on-chain and
+ * the account was persisted as funded (§4.3 Payment Created). `initializing` and
+ * `pending_payment` come before that point; `failed` means it never happened.
+ */
+const PAYMENT_PERSISTED_STATUSES: ReadonlySet<string> = new Set([
+  'pending_claim',
+  'claiming',
+  'partial_sweep',
+  'claimed',
+]);
+
 export function ConfirmStep({ state, onBack }: ConfirmStepProps) {
   const [submitPhase, setSubmitPhase] = useState<SubmitPhase>('idle');
   const [signingModeUsed, setSigningModeUsed] = useState<'freighter-client' | 'backend' | null>(
@@ -127,6 +139,8 @@ export function ConfirmStep({ state, onBack }: ConfirmStepProps) {
   const submitGuardRef = useRef(false);
   // Ensures the claim-link email is sent at most once per submission.
   const emailSentRef = useRef(false);
+  // Ensures Payment Created is reported at most once per submission.
+  const paymentCreatedRef = useRef(false);
 
   const submitting = submitPhase !== 'idle' && submitPhase !== 'success';
 
@@ -215,12 +229,9 @@ export function ConfirmStep({ state, onBack }: ConfirmStepProps) {
       setClaimUrl(claimLink);
       setCreatedAccountId(account.accountId);
       setSubmitPhase('success');
-      analytics.paymentCreated({
-        claimId: account.accountId,
-        assetType: state.assetCode,
-        expiryDays: state.expiresInHours / 24,
-        confirmationTimeMs: confirmedAt.current != null ? Date.now() - confirmedAt.current : 0,
-      });
+      // §4.3 Payment Created is NOT fired here: the funding payment has been
+      // submitted, but the backend has not yet seen it and persisted the account
+      // as claimable. pollAccountStatus() fires it once that has happened.
       analytics.paymentDetailsViewed({ claimId: account.accountId, claimStatus: 'unclaimed' });
     } catch (err) {
       const info = classifyError(err);
@@ -255,6 +266,9 @@ export function ConfirmStep({ state, onBack }: ConfirmStepProps) {
       try {
         const latest = await client.getAccount(accountId);
         setAccountStatus(latest.status);
+        if (PAYMENT_PERSISTED_STATUSES.has(latest.status)) {
+          reportPaymentCreated(accountId);
+        }
         // Email the claim link once the payment is confirmed and the link is
         // actually claimable. Never blocks the success screen.
         if (latest.status === 'pending_claim' && state.recipientEmail.trim()) {
@@ -265,6 +279,24 @@ export function ConfirmStep({ state, onBack }: ConfirmStepProps) {
         // transient: keep polling until the deadline
       }
     }
+  }
+
+  /**
+   * §4.3 Payment Created (funnel stage 6, conversion complete). Fired only when
+   * the backend reports the account as funded and persisted, which is the
+   * frontend's view of the `account.created` webhook. A signed or submitted
+   * transaction is not enough. Fires at most once per submission; `track()`
+   * also deduplicates on `claim_id` (§9.4).
+   */
+  function reportPaymentCreated(accountId: string) {
+    if (paymentCreatedRef.current) return;
+    paymentCreatedRef.current = true;
+    analytics.paymentCreated({
+      claimId: accountId,
+      assetType: state.assetCode,
+      expiryDays: state.expiresInHours / 24,
+      confirmationTimeMs: confirmedAt.current != null ? Date.now() - confirmedAt.current : 0,
+    });
   }
 
   async function sendClaimEmail(claimLink: string) {

@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef, useState, type FocusEvent } from 'react';
-import { analytics } from '@/lib/analytics';
+import { analytics, type SendFormFirstField } from '@/lib/analytics';
 
 const EXPIRY_OPTIONS = [
   { value: 24, label: '24 hours' },
