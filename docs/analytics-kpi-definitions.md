@@ -301,12 +301,19 @@ ORDER BY distinct_payments DESC;
 
 ---
 
-## Pipeline prerequisites (§9.4, §9.5)
+## Pipeline prerequisites (§9.4, §9.5, §9.6)
 
-Two spec requirements change how the numbers above must be read. Both are
+Three spec requirements change how the numbers above must be read. All are
 implemented in `frontend/lib/analytics.ts` at the single `track()` dispatch
 point, so no call site can bypass them:
 
+- **§9.6 Prior consent (#1092).** Events fire only after an explicit opt-in;
+  with no recorded decision (the default), or after a rejection, nothing is
+  emitted and no identifier is minted. Consequently funnel volume is a lower
+  bound that also depends on banner acceptance, and DNT/opt-out silence is
+  indistinguishable from success. Track the consent acceptance rate alongside
+  every KPI; do not treat a low funnel count as a product regression without
+  comparing it.
 - **§9.5 Do Not Track.** When the browser reports `DNT: 1`, every event is
   suppressed *before* any identifier is minted: no provider call, and no
   `localStorage`/`sessionStorage` write. For these queries the consequence is

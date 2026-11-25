@@ -5,6 +5,7 @@ import { DevToolbar } from '@/components/dev-toolbar';
 import { MockProvider } from '@/components/mock-provider';
 import { ThemeProvider } from '@/components/theme-provider';
 import { PlausibleScript } from '@/components/plausible-script';
+import { AnalyticsConsentBanner } from '@/components/analytics-consent-banner';
 
 export const metadata: Metadata = {
   title: 'Bridgelet Payments',
@@ -51,6 +52,9 @@ export default function RootLayout({ children }: RootLayoutProps) {
               on claim routes, where third-party scripts are forbidden by the
               security model (T-16, token-in-Referer). */}
           <PlausibleScript />
+          {/* #1092: first-contact consent gate; analytics stays off until the
+              visitor explicitly opts in. */}
+          <AnalyticsConsentBanner />
         </ThemeProvider>
       </body>
     </html>

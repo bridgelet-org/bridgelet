@@ -29,6 +29,10 @@ import {
   VALID_EXPIRY_WINDOWS,
   type ValidationError,
 } from '@/lib/analytics';
+import {
+  resetAnalyticsConsent,
+  setAnalyticsConsent,
+} from '@/lib/analytics-consent';
 
 function plausibleMock() {
   return vi.fn();
@@ -1356,10 +1360,80 @@ describe('isDoNotTrackEnabled (§9.5)', () => {
   });
 });
 
+describe('track() honours prior consent (#1092)', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    sessionStorage.clear();
+    resetAnalyticsConsent();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+    delete (window as unknown as { plausible?: unknown }).plausible;
+  });
+
+  it('suppresses events and mints no identifiers while no decision is recorded', () => {
+    const plausible = plausibleMock();
+    (window as unknown as { plausible?: ReturnType<typeof plausibleMock> }).plausible = plausible;
+
+    analytics.claimVerified({ claimId: 'consent-001', verificationTimeMs: 12 });
+    analytics.pageViewed({ page: 'home' });
+
+    expect(plausible).not.toHaveBeenCalled();
+    expect(localStorage.getItem('bridgelet_anonymous_id')).toBeNull();
+    expect(sessionStorage.getItem('bridgelet_session_id')).toBeNull();
+  });
+
+  it('suppresses events after an explicit rejection', () => {
+    setAnalyticsConsent('denied');
+    const plausible = plausibleMock();
+    (window as unknown as { plausible?: ReturnType<typeof plausibleMock> }).plausible = plausible;
+
+    analytics.claimSubmitted({ claimId: 'consent-002' });
+
+    expect(plausible).not.toHaveBeenCalled();
+  });
+
+  it('purges identifiers that existed before consent was revoked', () => {
+    const plausible = plausibleMock();
+    (window as unknown as { plausible?: ReturnType<typeof plausibleMock> }).plausible = plausible;
+    setAnalyticsConsent('granted');
+    analytics.sendFormViewed();
+    expect(localStorage.getItem('bridgelet_anonymous_id')).not.toBeNull();
+
+    setAnalyticsConsent('denied');
+    analytics.sendFormViewed();
+
+    expect(plausible).toHaveBeenCalledTimes(1);
+    expect(localStorage.getItem('bridgelet_anonymous_id')).toBeNull();
+    expect(sessionStorage.getItem('bridgelet_session_id')).toBeNull();
+    expect(sessionStorage.getItem('bridgelet_session_last_activity')).toBeNull();
+  });
+
+  it('delivers events after an explicit grant, without needing a reload', () => {
+    const plausible = plausibleMock();
+    (window as unknown as { plausible?: ReturnType<typeof plausibleMock> }).plausible = plausible;
+
+    analytics.sendFormViewed();
+    expect(plausible).not.toHaveBeenCalled();
+
+    setAnalyticsConsent('granted');
+    analytics.sendFormViewed();
+
+    expect(plausible).toHaveBeenCalledTimes(1);
+    expect(plausible.mock.calls[0]![0]).toBe('Send Form Viewed');
+    expect(localStorage.getItem('bridgelet_anonymous_id')).not.toBeNull();
+  });
+});
+
 describe('track() honours Do Not Track (§9.5)', () => {
   beforeEach(() => {
     localStorage.clear();
     sessionStorage.clear();
+    // #1092: DNT is an additional gate; consent is granted so this suite keeps
+    // testing DNT rather than the consent default.
+    setAnalyticsConsent('granted');
   });
 
   afterEach(() => {

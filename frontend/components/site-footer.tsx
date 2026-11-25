@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { AnalyticsConsentSettings } from './analytics-consent-settings';
 
 const REPO_URL = 'https://github.com/bridgelet-org/bridgelet';
 
@@ -24,6 +25,7 @@ export function SiteFooter() {
           >
             Docs
           </Link>
+          <AnalyticsConsentSettings />
           <a
             href={`${REPO_URL}/blob/main/SECURITY.md`}
             target="_blank"
