@@ -10,6 +10,17 @@ import {
 import env, { isProd } from "../../app/src/config/env";
 import { logger } from "../logger";
 
+// Debug-gating note (see mobile/services/logger/index.ts): the shared logger
+// sets MIN_LEVEL = isProd ? 'warn' : 'debug', so debug-level output is
+// suppressed in production builds. The `[Analytics]` console.log below runs
+// only under IS_DEV (__DEV__), so in production there is no local debug trace
+// of an event being dispatched — only warn/error logs survive. When an event
+// appears missing in production, follow the `investigate-analytics-event-gap.md`
+// runbook (in the bridgelet-product-audit runbooks): check the logger level
+// gating first, then the Plausible domain/API-host config and the dispatcher's
+// warn/error logs, before concluding the event was never emitted. This comment
+// is documentation only; it does not change any logging or dispatch behaviour.
+
 // Expo Go reports `appOwnership: "expo"` even for release builds and QA passes,
 // so ownership must not decide whether an event is real. Only __DEV__ does.
 const IS_DEV = __DEV__;

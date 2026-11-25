@@ -826,17 +826,40 @@ Claim Succeeded          (Recipient Claim Funnel)
 
 ---
 
-### 7.4 Dashboard interpretation of `Payment Confirmed`
+### 7.4 Dashboard acceptance criteria: defining a successful payment
 
-> **Non-breaking resolution of the `Payment Confirmed` naming trap.** The event name stays exactly as-is. Renaming it to something like `Payment Signed` would break shipped telemetry and the spec-vs-code drift check in `.github/workflows/analytics-spec-diff.yml`. Consumers must apply the interpretation below instead.
+> **Normative.** A "successful payment" is defined by the presence of
+> `Payment Created` for the `claim_id`. This definition is binding on every
+> dashboard, BI model, and report built from these events. It exists to prevent
+> double-counting and intent-as-success inflation (issue #1087).
 
-`Payment Confirmed` records that the sender **signed** the "Confirm & Pay" transaction. It is an **intent-only** signal, not a confirmation that a payment exists. Every dashboard and KPI must follow these rules:
+| # | Acceptance criterion | Requirement |
+|---|----------------------|-------------|
+| 1 | Success event | A payment counts as successful **only** when a `Payment Created` event is present for that `claim_id`. `Payment Created` is the definitive "payment exists" event (§4.3). |
+| 2 | Never count `Payment Confirmed` | `Payment Confirmed` records the sender signing the transaction — user intent *before* on-chain confirmation (§4.3). It must **never** be used as the success event, in any funnel, KPI, or dashboard tile. |
+| 3 | No intent-only success | A `Payment Confirmed` that is not followed by a `Payment Created` (for example, a transaction that fails after signing) is intent only and must not be counted as a successful payment. |
+| 4 | Signed-then-failed does not inflate | Payments that emit `Payment Confirmed` and then `Payment Creation Failed` (§4.3) must not inflate success metrics. They belong in a failure/drop-off bucket, never in the success count. |
+| 5 | One payment, one success | Count distinct `claim_id` values that have a `Payment Created`. Do not count `Payment Confirmed` *and* `Payment Created` as two successes for the same `claim_id`; that double-counts a single payment (see §9.4 idempotence). |
+| 6 | Funnel stage alignment | In the §7.1 sender funnel, "conversion complete" is stage 6 `Payment Created`, not stage 5 `Payment Confirmed`. Dashboards must use stage 6 as the conversion milestone. |
 
-- **A signed-then-failed payment produces `Payment Confirmed` with no `Payment Created`.** If the Stellar transaction fails after signing, `Payment Creation Failed` fires instead and no payment is persisted. Counting `Payment Confirmed` would therefore count a payment that never existed.
-- **No dashboard or KPI may count `Payment Confirmed` as a successful payment.** The definitive "payment exists / conversion complete" event is `Payment Created` (backed by the `account.created` webhook). Only `Payment Created` may feed payment-success, activation, or conversion counts. In the §7.1 funnel, `Payment Confirmed` is the "intent committed" step (stage 5) and `Payment Created` is "conversion complete" (stage 6).
-- Use `Payment Confirmed` only as a pre-conversion, sign-and-abandon signal. For example, `Payment Created ÷ Payment Confirmed` measures signing-to-on-chain success; `Payment Confirmed` must never appear as a success numerator.
+**Testable acceptance criteria for the dashboard/BI build:**
 
-This is consistent with the confirmation-signal table in **§9.2**, where `Payment Created` → `account.created` is the authoritative completed-payment signal and a signed transaction is explicitly classified as intent only.
+- Given a `claim_id` with `Payment Confirmed` but no `Payment Created`, the
+  dashboard's "successful payments" count does **not** increase.
+- Given a `claim_id` with `Payment Confirmed` and then `Payment Creation Failed`,
+  the payment is reported as failed/dropped-off, not successful.
+- Given a `claim_id` with both `Payment Confirmed` and `Payment Created`, the
+  dashboard counts **one** successful payment, not two.
+- Given a `claim_id` with `Payment Created` only (for example, a server-emitted
+  event without a client `Payment Confirmed`), it is counted as one successful
+  payment.
+- The sender conversion KPI (§8.1 *Sender Activation Rate*) uses
+  `Payment Created`, never `Payment Confirmed`, as its success signal.
+
+No event is renamed by this rule. `Payment Confirmed` keeps its name and its
+intent-only meaning; the rule constrains how dashboards derive success from it.
+See `docs/analytics-webhook-signal-consistency.md` for the cross-repo meaning of
+"confirmed" and the event↔webhook mapping.
 
 ---
 
@@ -1076,6 +1099,13 @@ The analytics and webhook surfaces must describe the same completed backend outc
 | `Claim Succeeded` | `sweep.completed` | The redemption sweep succeeds and is confirmed on-chain. A submitted claim or partial sweep is not success; `sweep.partial` and `sweep.failed` must not produce `Claim Succeeded`. |
 
 Use the stable claim/account identity to correlate both records. For `sweep.completed`, retain the webhook's transaction hash for reconciliation. The events should not disagree about whether the same payment is confirmed.
+
+> **Tracked resolution:** the shared meaning of "confirmed", the rule that intent
+> signals (`Payment Confirmed`, webhook delivery attempts) are never success, and
+> the cross-repo follow-up owner/checklist are recorded in
+> `docs/analytics-webhook-signal-consistency.md`. That document is the
+> analytics-side counterpart to `bridgelet-sdk`'s
+> `webhook-delivery-vs-chain-event-consistency.md`.
 
 ### 9.3 Anonymous Identity & Session
 

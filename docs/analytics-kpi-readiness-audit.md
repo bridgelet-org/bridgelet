@@ -420,7 +420,39 @@ make the "signed → settled" step uncomputable.
 
 ---
 
-## 7. Cross-references
+## 7. Dashboard success-definition safeguard (#1087)
+
+The spec's §7.4 *Dashboard acceptance criteria* makes the success definition
+normative: a payment is successful only when `Payment Created` is present for
+the `claim_id`, and `Payment Confirmed` is intent only. This section records the
+matching audit position so the rule cannot be silently dropped by a
+dashboard/BI build.
+
+| Question | Answer |
+|----------|--------|
+| Which event means "payment succeeded"? | `Payment Created` only (§4.3, §7.4). |
+| Is `Payment Confirmed` ever success? | No. It fires on signature before on-chain confirmation (§4.3); it is intent. |
+| What about a signed-then-failed payment? | `Payment Confirmed` + `Payment Creation Failed` is a failure/drop-off, not a success. It must not inflate success metrics. |
+| Can one payment be counted twice? | Not if distinct `claim_id` with `Payment Created` is the unit. Counting both `Payment Confirmed` and `Payment Created` would double-count one payment; §9.4 requires deduplication. |
+| Does this document verify any dashboard query? | No. As stated in §1, no query here has been executed and nothing was built or tested. §7.4 is an acceptance criterion to apply when such a dashboard is built, not a claim that one exists. |
+
+**Readiness gate addition.** Any dashboard or BI model that reports a
+"successful payments", "payments created", "conversion", or "sender activation"
+metric must:
+
+1. filter on `Payment Created` (never `Payment Confirmed`) for success;
+2. deduplicate on `claim_id` so one payment contributes one success;
+3. explicitly bucket `Payment Confirmed` without a matching `Payment Created`
+   as intent/drop-off, not success; and
+4. keep `Payment Creation Failed` payments out of the success count.
+
+This is consistent with the §8.1 *Sender Activation Rate* formula, which already
+uses `Payment Created`. No KPI above is reclassified as reportable by this note;
+the honesty gate in §1 still applies.
+
+---
+
+## 8. Cross-references
 
 - `docs/analytics-kpi-definitions.md`: companion query document for the §8.1
   core KPIs, and the source of the readiness gate applied above. Its rows remain
