@@ -277,6 +277,8 @@ Fired when wallet connection is attempted but fails.
 
 #### `Payment Confirmed`
 
+> ⚠️ **NAMING TRAP — READ BEFORE USING THIS EVENT.** Despite its name, `Payment Confirmed` does **not** mean a payment was confirmed on-chain. It fires the instant the sender signs the "Confirm & Pay" transaction, *before* the blockchain confirms anything. A sender can sign and then have the transaction fail, which produces `Payment Confirmed` with **no** `Payment Created`. This event is **intent-only** and must **never** be counted as a successful payment. Use `Payment Created` as the definitive "payment exists" signal (see the confirmation-signal table in §9.2). The name is intentionally **not** changed: renaming it would break shipped telemetry and the spec-vs-code drift check in `.github/workflows/analytics-spec-diff.yml`. See "Dashboard interpretation of `Payment Confirmed`" in §7.4.
+
 Fired when the sender clicks "Confirm & Pay" and signs the transaction. This indicates user intent; it fires *before* blockchain confirmation.
 
 | Property | Type | Value / Description |
@@ -821,6 +823,20 @@ Claim Succeeded          (Recipient Claim Funnel)
 ```
 
 **End-to-end conversion rate** = `Claim Succeeded` ÷ `Page Viewed (homepage)`
+
+---
+
+### 7.4 Dashboard interpretation of `Payment Confirmed`
+
+> **Non-breaking resolution of the `Payment Confirmed` naming trap.** The event name stays exactly as-is. Renaming it to something like `Payment Signed` would break shipped telemetry and the spec-vs-code drift check in `.github/workflows/analytics-spec-diff.yml`. Consumers must apply the interpretation below instead.
+
+`Payment Confirmed` records that the sender **signed** the "Confirm & Pay" transaction. It is an **intent-only** signal, not a confirmation that a payment exists. Every dashboard and KPI must follow these rules:
+
+- **A signed-then-failed payment produces `Payment Confirmed` with no `Payment Created`.** If the Stellar transaction fails after signing, `Payment Creation Failed` fires instead and no payment is persisted. Counting `Payment Confirmed` would therefore count a payment that never existed.
+- **No dashboard or KPI may count `Payment Confirmed` as a successful payment.** The definitive "payment exists / conversion complete" event is `Payment Created` (backed by the `account.created` webhook). Only `Payment Created` may feed payment-success, activation, or conversion counts. In the §7.1 funnel, `Payment Confirmed` is the "intent committed" step (stage 5) and `Payment Created` is "conversion complete" (stage 6).
+- Use `Payment Confirmed` only as a pre-conversion, sign-and-abandon signal. For example, `Payment Created ÷ Payment Confirmed` measures signing-to-on-chain success; `Payment Confirmed` must never appear as a success numerator.
+
+This is consistent with the confirmation-signal table in **§9.2**, where `Payment Created` → `account.created` is the authoritative completed-payment signal and a signed transaction is explicitly classified as intent only.
 
 ---
 

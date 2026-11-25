@@ -37,6 +37,58 @@ jobs:
           sort -u /tmp/spec_events.txt > /tmp/spec.txt
           sort -u /tmp/code_events.txt > /tmp/code.txt
 
+      - name: Verify implementation-status caveat is present
+        run: |
+          # Regression guard: the prominent "not verified" caveat must stay in
+          # the header of the spec so the document is never read as authoritative.
+          CAVEAT_HEAD="$(head -n 15 docs/analytics-spec.md)"
+          if ! printf '%s' "$CAVEAT_HEAD" | grep -qF 'Implementation status' \
+             || ! printf '%s' "$CAVEAT_HEAD" | grep -qF 'been verified'; then
+            echo "::error::docs/analytics-spec.md is missing the prominent 'Implementation status: ... not been verified' caveat in its first 15 lines."
+            exit 1
+          fi
+          echo "### Implementation-status caveat" >> "$GITHUB_STEP_SUMMARY"
+          echo "Present in the first 15 lines of docs/analytics-spec.md." >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Extract event names from frontend and mobile tracking calls
+        run: |
+          # Web/frontend: first string argument of track('Event Name', ...) or track("Event Name", ...).
+          {
+            grep -rhoE "track\('[A-Za-z0-9 ]+'" frontend --include='*.ts' --include='*.tsx' || true
+            grep -rhoE 'track\("[A-Za-z0-9 ]+"' frontend --include='*.ts' --include='*.tsx' || true
+          } | sed -E "s/^track\(['\"]//; s/['\"]$//" \
+            > /tmp/frontend_source_events.txt
+
+          # Mobile: object form track({ name: 'Event Name', ... }) / track({ name: "Event Name", ... }).
+          {
+            grep -rhoE "track\(\{[[:space:]]*name:[[:space:]]*'[A-Za-z0-9 ]+'" mobile --include='*.ts' --include='*.tsx' || true
+            grep -rhoE 'track\(\{[[:space:]]*name:[[:space:]]*"[A-Za-z0-9 ]+"' mobile --include='*.ts' --include='*.tsx' || true
+          } | sed -E "s/.*name:[[:space:]]*['\"]//; s/['\"]$//" \
+            > /tmp/mobile_call_events.txt
+
+          # Mobile: the AnalyticsEvent union enumerates every event the app can emit.
+          sed -n '/export type AnalyticsEvent =/,/^    >;/p' mobile/services/analytics/index.ts \
+            | grep -oE '"[A-Z][A-Za-z0-9 ]*"' \
+            | tr -d '"' \
+            > /tmp/mobile_type_events.txt || true
+
+          cat /tmp/frontend_source_events.txt \
+              /tmp/mobile_call_events.txt \
+              /tmp/mobile_type_events.txt \
+            | sort -u > /tmp/source.txt
+
+      - name: Fail on tracking names absent from the shared package
+        run: |
+          echo "## Frontend/mobile tracking names vs shared package" >> "$GITHUB_STEP_SUMMARY"
+          echo "### Emitted in source but missing from ANALYTICS_EVENT_NAMES" >> "$GITHUB_STEP_SUMMARY"
+          comm -23 /tmp/source.txt /tmp/code.txt >> "$GITHUB_STEP_SUMMARY"
+
+          SOURCE_ONLY=$(comm -23 /tmp/source.txt /tmp/code.txt | wc -l | tr -d ' ')
+          if [ "$SOURCE_ONLY" -gt 0 ]; then
+            echo "::error::${SOURCE_ONLY} event name(s) used in frontend/mobile tracking calls are absent from @bridgelet/analytics ANALYTICS_EVENT_NAMES."
+            exit 1
+          fi
+
       - name: Compare and fail on drift
         run: |
           echo "## Analytics event-name drift (spec vs code)" >> "$GITHUB_STEP_SUMMARY"
