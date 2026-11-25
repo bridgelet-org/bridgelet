@@ -133,6 +133,10 @@ describe('detectDeviceType', () => {
 });
 
 describe('buildBasePayload', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
   it('carries the Â§3.1 base fields', () => {
     const payload = buildBasePayload();
     expect(payload).toEqual(
@@ -142,6 +146,7 @@ describe('buildBasePayload', () => {
         device_type: expect.stringMatching(/^(mobile|tablet|desktop)$/),
         platform: 'web',
         journey: 'shared',
+        network: 'testnet',
         timestamp: expect.any(String),
       }),
     );
@@ -151,6 +156,14 @@ describe('buildBasePayload', () => {
 
   it('accepts an explicit journey from the emitting event', () => {
     expect(buildBasePayload('recipient').journey).toBe('recipient');
+  });
+
+  it('tags the payload as mainnet only for a mainnet/public network', () => {
+    vi.stubEnv('NEXT_PUBLIC_CRYPTO_NETWORK', 'stellar-mainnet');
+    expect(buildBasePayload().network).toBe('mainnet');
+
+    vi.stubEnv('NEXT_PUBLIC_CRYPTO_NETWORK', 'stellar-testnet');
+    expect(buildBasePayload().network).toBe('testnet');
   });
 
   it('degrades to empty strings and null when browser APIs are absent', () => {
@@ -333,6 +346,7 @@ describe('track base payload merge', () => {
   afterEach(() => {
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
     delete (window as unknown as { plausible?: unknown }).plausible;
   });
 
@@ -365,6 +379,7 @@ describe('track base payload merge', () => {
           app_version: expect.any(String),
           user_agent: expect.any(String),
           device_type: expect.stringMatching(/^(mobile|tablet|desktop)$/),
+          network: expect.stringMatching(/^(testnet|mainnet)$/),
         }),
       });
       expect('referrer' in call[1].props).toBe(true);
@@ -372,6 +387,22 @@ describe('track base payload merge', () => {
       expect(call[1].props.journey).toMatch(/^(sender|recipient|shared)$/);
       expect(call[1].props.timestamp).toEqual(expect.any(String));
       expect(call[1].props.session_id).toEqual(expect.any(String));
+    }
+  });
+
+  it('sends the configured network on every tracked event', () => {
+    vi.stubEnv('NEXT_PUBLIC_CRYPTO_NETWORK', 'stellar-mainnet');
+    (window as unknown as { plausible?: ReturnType<typeof plausibleMock> }).plausible =
+      plausibleMock();
+
+    analytics.claimPageViewed({ claimId: 'network-claim-1', entryChannel: 'direct' });
+    analytics.claimSuccess({ claimId: 'network-claim-2' });
+
+    const plausible = (window as unknown as { plausible: ReturnType<typeof plausibleMock> })
+      .plausible;
+    expect(plausible).toHaveBeenCalledTimes(2);
+    for (const call of plausible.mock.calls) {
+      expect(call[1].props.network).toBe('mainnet');
     }
   });
 

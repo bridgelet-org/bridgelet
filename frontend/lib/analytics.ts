@@ -5,6 +5,7 @@ import {
   type AnalyticsEventName,
 } from '@bridgelet/analytics';
 import { hasAnalyticsConsent } from './analytics-consent';
+import { analyticsNetwork } from './analytics-network';
 
 export type ClaimEvent = AnalyticsEventName;
 
@@ -55,14 +56,16 @@ export function detectDeviceType(userAgent?: string): DeviceType {
 /**
  * Base payload fields (`docs/analytics-spec.md` §3.1) shared by every
  * event: `journey`, `timestamp`, `platform` (fixed "web" for this frontend),
- * `app_version`, `user_agent`, `device_type` and `referrer`. Each field
- * degrades gracefully when the browser API it depends on is unavailable
- * (SSR, unit tests without a DOM).
+ * `network` ("testnet" | "mainnet"), `app_version`, `user_agent`,
+ * `device_type` and `referrer`. Each field degrades gracefully when the
+ * browser API it depends on is unavailable (SSR, unit tests without a DOM).
  *
  * `timestamp` is computed here, inside the per-event `track()` path, so it is
  * the send time of each individual event rather than a module-load time.
  * `journey` is sourced from the event props; call sites that omit it get the
- * spec's "shared" value instead of no value at all.
+ * spec's "shared" value instead of no value at all. `network` is derived from
+ * `NEXT_PUBLIC_CRYPTO_NETWORK` on every event so testnet QA/demo traffic is
+ * never silently mixed into production dashboards.
  */
 export function buildBasePayload(journey: AnalyticsJourney = 'shared'): EventProps {
   return {
@@ -73,6 +76,7 @@ export function buildBasePayload(journey: AnalyticsJourney = 'shared'): EventPro
       referrer: typeof document !== 'undefined' && document.referrer ? document.referrer : null,
     }),
     journey,
+    network: analyticsNetwork(),
     timestamp: new Date().toISOString(),
   };
 }
