@@ -1076,7 +1076,27 @@ Use the stable claim/account identity to correlate both records. For `sweep.comp
 
 Respect browser-level `DNT` headers. If `DNT: 1`, suppress all analytics events. This is especially important for the recipient flow, where the user may not have any prior relationship with Bridgelet.
 
-> **Implementation status:** Implemented in `frontend/lib/analytics.ts`. The shared `track()` path checks `isDoNotTrackEnabled()` before building the payload or generating identifiers, so a visitor who opts out emits no analytics event and gets no new stored tracking ID. Detection covers `navigator.doNotTrack`, `navigator.msDoNotTrack`, and `window.doNotTrack`, accepting both string and numeric `1` values.
+> **Implementation status:** Implemented in `frontend/lib/analytics.ts`. The shared `track()` path checks `isDoNotTrackEnabled()` before building the payload or generating identifiers, so a visitor who opts out emits no analytics event and gets no new stored tracking ID. Detection covers `navigator.doNotTrack`, `navigator.msDoNotTrack`, and `window.doNotTrack`, accepting both string and numeric `1` values. DNT is a supplementary signal only: §9.6 describes the prior-consent gate that is required in addition to it.
+
+### 9.6 Prior consent gate (#1092)
+
+#### Applicable requirements
+
+Bridgelet is a wallet-connected product. A Stellar public key is pseudonymous personal data when it can be linked to an on-chain account (see `docs/localstorage-data-exposure-audit.md` item 10), and analytics payloads also carry a persistent `anonymous_id`, a `user_agent` fingerprint and a `claim_id` that authorises a sweep. This is personal-data processing, not anonymous telemetry.
+
+- **GDPR:** processing needs a lawful basis; for optional product analytics the defensible basis is consent (Art. 6(1)(a)). Consent must be freely given, specific, informed and unambiguous, and must be as easy to withdraw as to give (Art. 7).
+- **ePrivacy Directive Art. 5(3) / UK PECR:** storing or reading information on a visitor's device (`localStorage` identifiers) and loading a third-party analytics script needs prior consent unless strictly necessary. Analytics is not strictly necessary to send or claim a payment.
+- **DNT is not consent.** A browser "Do Not Track" header is an opt-out signal, not an affirmative, informed decision, and is not recognised as a GDPR lawful basis. It therefore remains a second, independent gate in `track()` rather than a replacement for one.
+
+Applying opt-in globally (not only to detected EU visitors) is the conservative choice: geolocation is unreliable, no PII is collected to decide jurisdiction, and the product works identically without analytics.
+
+#### Implementation
+
+- `frontend/lib/analytics-consent.ts` owns the decision (`unset` / `granted` / `denied`). The default is `unset`, which means tracking is **off**. The choice is stored in `localStorage` under `bridgelet_analytics_consent`, cached for the page session, mirrored across tabs via the `storage` event, and broadcast on `window` as `bridgelet:analytics-consent-change`.
+- `track()` checks `hasAnalyticsConsent()` **first**, before DNT, deduplication, payload construction and `getAnonymousId()` / `getSessionId()`. No decision means no event and no identifier is minted.
+- `frontend/components/analytics-consent-banner.tsx` asks on first contact with equally prominent Accept and Reject actions and a link to this document. `frontend/components/analytics-consent-settings.tsx` in the footer reopens the decision, so withdrawal is as easy as opting in.
+- `frontend/components/plausible-script.tsx` injects the third-party script only after a grant; a later grant loads it without a reload.
+- Rejecting or withdrawing purges `bridgelet_anonymous_id`, `bridgelet_session_id` and `bridgelet_session_last_activity`, so no durable join key survives an opt-out. An already-loaded provider script stops receiving events; it is not unloaded (typically done via an explicit user choice and a reload only if desired).
 
 ---
 
