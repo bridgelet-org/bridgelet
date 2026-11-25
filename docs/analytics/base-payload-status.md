@@ -12,11 +12,8 @@ Spec: `docs/analytics-spec.md` §3.1. `buildBasePayload()` in `frontend/lib/anal
 | `user_agent` | Implemented | `navigator.userAgent`, empty string during SSR |
 | `device_type` | Implemented | `detectDeviceType()`: mobile / tablet / desktop |
 | `referrer` | Implemented | `document.referrer`, or `null` when empty |
-| `network` | Helper added | `analyticsNetwork()` / `withNetwork()` in `frontend/lib/analytics-network.ts`; reads `NEXT_PUBLIC_CRYPTO_NETWORK` |
+| `network` | Implemented | `network: analyticsNetwork()` in `buildBasePayload()`; `analyticsNetwork()` in `frontend/lib/analytics-network.ts` reads `NEXT_PUBLIC_CRYPTO_NETWORK` per event. `mainnet` only for mainnet/public values, otherwise `testnet` |
 
 ## Remaining work
 
-- [ ] Add `network: analyticsNetwork()` to `buildBasePayload()` so every event carries it. Left out of this
-      change on purpose: `frontend/lib/analytics.test.ts` asserts on the base payload, so the test
-      should be updated in the same commit.
-- [ ] Add a test that `network` is `mainnet` only for mainnet/public values.
+None. All §3.1 base payload fields are emitted on every event.
