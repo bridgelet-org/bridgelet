@@ -4,6 +4,7 @@ import {
   createAnalyticsDispatcher,
   type AnalyticsEventName,
 } from '@bridgelet/analytics';
+import { hasAnalyticsConsent } from './analytics-consent';
 
 export type ClaimEvent = AnalyticsEventName;
 
@@ -371,14 +372,21 @@ const dispatchToProvider = createAnalyticsDispatcher<EventProps>((event, payload
  * `session_id`) into every event payload so every downstream event carries
  * them without any per-call plumbing.
  *
- * This is the only place an event reaches the provider, so both opt-out
- * (§9.5) and deduplication (§9.4) are enforced here rather than at call
- * sites: no emitter can forget them.
+ * This is the only place an event reaches the provider, so all three gates —
+ * prior consent (#1092), DNT opt-out (§9.5) and deduplication (§9.4) — are
+ * enforced here rather than at call sites: no emitter can forget them.
  */
 function track<K extends ClaimEvent>(event: K, props: ClaimEventPayloadMap[K]): void {
   if (typeof window === 'undefined') return;
 
-  // #635 (§9.5): first, before any payload is built. `getAnonymousId()`
+  // #1092: first, before DNT, dedup, payload building and identifier minting.
+  // Under GDPR / ePrivacy Art. 5(3) a persistent analytics identifier and a
+  // third-party provider call need an opt-in decision; no stored choice means
+  // no tracking. Checking before getAnonymousId() is essential: minting an id
+  // would itself be the storage access the consent rule is about.
+  if (!hasAnalyticsConsent()) return;
+
+  // #635 (§9.5): second, before any payload is built. `getAnonymousId()`
   // and `getSessionId()` below *persist* a UUID to localStorage/
   // sessionStorage; minting one for a visitor who asked not to be tracked
   // would itself be a privacy violation, so suppression has to happen

@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { analytics, getAnonymousId } from '@/lib/analytics';
+import { setAnalyticsConsent } from '@/lib/analytics-consent';
 
 const source = (relativePath: string) => readFileSync(resolve(__dirname, '..', relativePath), 'utf8');
 
@@ -24,6 +25,8 @@ const propsOf = (plausible: Plausible, call = 0) =>
 beforeEach(() => {
   window.localStorage.clear();
   window.sessionStorage.clear();
+  // #1092: this suite tests call-site payloads, so consent is explicit here.
+  setAnalyticsConsent('granted');
 });
 
 afterEach(() => {

@@ -1,5 +1,6 @@
-import { render } from '@testing-library/react';
+import { act, render } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { resetAnalyticsConsent, setAnalyticsConsent } from '@/lib/analytics-consent';
 import { PlausibleScript } from './plausible-script';
 
 function scriptTags(): HTMLScriptElement[] {
@@ -58,5 +59,35 @@ describe('PlausibleScript', () => {
     render(<PlausibleScript />);
 
     expect(scriptTags()).toHaveLength(0);
+  });
+
+  it('does not inject the third-party script before consent (#1092)', () => {
+    vi.stubEnv('NEXT_PUBLIC_PLAUSIBLE_DOMAIN', 'bridgelet.example');
+    resetAnalyticsConsent();
+
+    render(<PlausibleScript />);
+
+    expect(scriptTags()).toHaveLength(0);
+  });
+
+  it('does not inject the script after an explicit rejection (#1092)', () => {
+    vi.stubEnv('NEXT_PUBLIC_PLAUSIBLE_DOMAIN', 'bridgelet.example');
+    setAnalyticsConsent('denied');
+
+    render(<PlausibleScript />);
+
+    expect(scriptTags()).toHaveLength(0);
+  });
+
+  it('injects the script when consent is granted later, without a reload (#1092)', async () => {
+    vi.stubEnv('NEXT_PUBLIC_PLAUSIBLE_DOMAIN', 'bridgelet.example');
+    resetAnalyticsConsent();
+
+    render(<PlausibleScript />);
+    expect(scriptTags()).toHaveLength(0);
+
+    act(() => setAnalyticsConsent('granted'));
+
+    await vi.waitFor(() => expect(scriptTags()).toHaveLength(1));
   });
 });
